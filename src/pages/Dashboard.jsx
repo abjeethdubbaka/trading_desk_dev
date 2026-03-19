@@ -1,100 +1,76 @@
-import React from 'react';
+import React, { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Calendar, DollarSign, TrendingUp, TrendingDown } from 'lucide-react';
-import TradingCalendar from '@/components/dashboard/TradingCalendar';
-import ImproveSection from '@/components/dashboard/ImproveSection';
-import PerformanceBreakdown from '@/components/dashboard/PerformanceBreakdown';
-import { useTradeEvents } from '@/components/journal/hooks/useTradeEvents';
-import { format } from 'date-fns';
 import { base44 } from '@/api/base44Client';
+import { useTradeEvents } from '@/components/journal/hooks/useTradeEvents';
+import TradingCalendar from '@/components/dashboard/TradingCalendar';
+import PerformanceBreakdown from '@/components/dashboard/PerformanceBreakdown';
+import DashboardHeader from '@/components/dashboard/DashboardHeader';
+import StreakTracker from '@/components/dashboard/StreakTracker';
+import DailyGoalBar from '@/components/dashboard/DailyGoalBar';
+import MorningBrief from '@/components/dashboard/MorningBrief';
+import DayPanel from '@/components/dashboard/DayPanel';
+import { computeCoreStats, getTodayStats, getDailySequence } from '@/lib/performanceMetrics';
 
 export default function Dashboard() {
-  // Set up cross-tab sync for dashboard
   useTradeEvents();
+  const [selectedDay, setSelectedDay] = useState(null);
 
-  // Get account settings
-  const { data: settings = [], isLoading: settingsLoading } = useQuery({
+  const { data: settings=[] } = useQuery({
     queryKey: ['settings'],
     queryFn: () => base44.entities.Settings.list(),
-    refetchOnWindowFocus: false,
-    staleTime: 5 * 60 * 1000,
+    refetchOnWindowFocus: false, staleTime: 5*60*1000,
   });
 
-  const { data: trades = [], isLoading: tradesLoading } = useQuery({
-    queryKey: ['dashboard-trades'],
+  const { data: trades=[] } = useQuery({
+    queryKey: ['journal-trades'],
     queryFn: () => {
-      // Load trades from localStorage (same as Journal)
       try {
-        if (typeof window !== 'undefined' && window.localStorage) {
-          const stored = window.localStorage.getItem('trades');
-          const trades = stored ? JSON.parse(stored) : [];
-          
-          // Sort trades by date for calendar
-          return trades.sort((a, b) => 
-            new Date(b.entry_time || b.created_date) - new Date(a.entry_time || a.created_date)
-          );
-        }
-      } catch (e) {
-        console.error('Failed to load trades from localStorage:', e);
-        return [];
-      }
+        const s = window.localStorage.getItem('trades');
+        const p = s ? JSON.parse(s) : [];
+        return p.sort((a,b)=>new Date(b.entry_time||b.created_date)-new Date(a.entry_time||a.created_date));
+      } catch { return []; }
     },
-    staleTime: 0, // Always check for fresh data
-    refetchOnWindowFocus: true, // Refresh when window gains focus
-    refetchInterval: 30000, // Refresh every 30 seconds
+    staleTime: 0,
+    refetchOnWindowFocus: true,
   });
 
-  // Calculate current balance and metrics
-  const balanceMetrics = React.useMemo(() => {
-    const initialBalance = settings?.[0]?.account_size || 50000;
-    const totalPnL = trades.reduce((sum, trade) => sum + (trade.pnl || 0), 0);
-    const currentBalance = initialBalance + totalPnL;
-    const balanceChange = totalPnL;
-    const balanceChangePercent = initialBalance > 0 ? (balanceChange / initialBalance) * 100 : 0;
-    
-    return {
-      initialBalance,
-      currentBalance,
-      totalPnL,
-      balanceChange,
-      balanceChangePercent
-    };
-  }, [settings, trades]);
+  const accountSize   = settings?.[0]?.account_size || 50000;
+  const targetProfit  = parseFloat(settings?.[0]?.target_profit_dollars) || 500;
+  const maxDailyLoss  = -(parseFloat(settings?.[0]?.max_dollars) || 250);
+
+  const allStats   = useMemo(()=>computeCoreStats(trades),[trades]);
+  const todayStats = useMemo(()=>getTodayStats(trades),[trades]);
+  const sequence   = useMemo(()=>getDailySequence(trades,20),[trades]);
 
   return (
-    <div className="space-y-6">
-      {/* Compact header with balance boxes */}
-      <div className="flex justify-end gap-2 mb-2">
-        <div className="flex items-center gap-4">
-          {/* Compact Balance Boxes */}
-          <div className="flex gap-4">
-            <div className="glass-card rounded-lg px-4 py-3">
-              <p className="text-2xl font-bold text-white">
-                ${balanceMetrics.currentBalance.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
-              </p>
-            </div>
-            <div className="glass-card rounded-lg px-4 py-3">
-              <p className={`text-2xl font-bold ${balanceMetrics.balanceChange >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                {balanceMetrics.balanceChange >= 0 ? '+' : ''}${balanceMetrics.balanceChange.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
-              </p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2 text-xs text-white/50">
-            <Calendar className="w-4 h-4" />
-            <span>{format(new Date(), 'EEE, MMM d')}</span>
-          </div>
-        </div>
-      </div>
+    <div className="space-y-5">
+      <DashboardHeader
+        currentBalance={accountSize + allStats.totalPnL}
+        totalPnL={allStats.totalPnL}
+        todayPnL={todayStats.totalPnL}
+        winRate={allStats.winRate}
+        avgR={allStats.avgR}
+        todayTrades={todayStats.totalTrades}
+      />
 
-      {/* Trading Calendar and Improve Section */}
+      <DailyGoalBar
+        todayPnL={todayStats.totalPnL}
+        targetProfit={targetProfit}
+        maxDailyLoss={maxDailyLoss}
+      />
+
+      <StreakTracker sequence={sequence} />
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
         <div className="lg:col-span-2">
-          <TradingCalendar trades={trades} />
+          <TradingCalendar trades={trades} onDaySelect={setSelectedDay} />
         </div>
-        <ImproveSection trades={trades} />
+        {selectedDay
+          ? <DayPanel day={selectedDay} trades={trades} onClose={()=>setSelectedDay(null)} />
+          : <MorningBrief trades={trades} />
+        }
       </div>
 
-      {/* Performance Breakdown (Full Width) */}
       <PerformanceBreakdown trades={trades} />
     </div>
   );

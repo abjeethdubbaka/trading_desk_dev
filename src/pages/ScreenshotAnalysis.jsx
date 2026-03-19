@@ -19,11 +19,12 @@ import {
   parseDollarish
 } from '@/components/screenshot-analysis/utils';
 import { AdvancedSummary } from '@/components/screenshot-analysis/AdvancedAnalysisPanels';
+import { useScreenshotAI } from '@/components/screenshot-analysis/useScreenshotAI';
 
 export default function ScreenshotAnalysis() {
   const [screenshots, setScreenshots] = useState([]);
   const [analysisMap, setAnalysisMap] = useState({});
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const { analyzeAll, imageStates, getState, getError, isAnyLoading: isAnalyzing } = useScreenshotAI();
 
   const [sessionHistory, setSessionHistory] = useState(() => {
     try {
@@ -52,6 +53,15 @@ export default function ScreenshotAnalysis() {
     return { count: entries.length, avgScore, reviewRequired, totalPotential };
   }, [analysisMap]);
 
+  const analysisProgress = useMemo(() => {
+    if (!isAnalyzing || screenshots.length === 0) return null;
+    const done = screenshots.filter((shot) => {
+      const state = imageStates[shot.id];
+      return state === 'done' || state === 'error';
+    }).length;
+    return { done, total: screenshots.length };
+  }, [imageStates, isAnalyzing, screenshots]);
+
   const handleUpload = async (event) => {
     const files = Array.from(event.target.files || []);
     if (files.length === 0) return;
@@ -71,21 +81,24 @@ export default function ScreenshotAnalysis() {
   const runAnalysis = async () => {
     if (screenshots.length === 0) return;
 
-    setIsAnalyzing(true);
-    try {
-      const next = { ...analysisMap };
-      screenshots.forEach((shot) => {
-        next[shot.id] = {
-          image_id: shot.id,
+    await analyzeAll(screenshots, (id, result) => {
+      const shot = screenshots.find((item) => item.id === id);
+      if (!shot) return;
+
+      setAnalysisMap((prev) => ({
+        ...prev,
+        [id]: {
+          image_id: id,
           source_name: shot.name,
           ...generateSuggestion(shot.name),
-          advanced_analysis: generateAdvancedAnalysis(shot.name),
-        };
-      });
-      setAnalysisMap(next);
-    } finally {
-      setIsAnalyzing(false);
-    }
+          ...result,
+          advanced_analysis: {
+            ...generateAdvancedAnalysis(shot.name),
+            ...(result?.advanced_analysis || {})
+          }
+        }
+      }));
+    });
   };
 
   const updateAnalysisField = (imageId, field, value) => {
@@ -144,6 +157,7 @@ export default function ScreenshotAnalysis() {
       <UploadControls
         uploadedCount={screenshots.length}
         isAnalyzing={isAnalyzing}
+        analysisProgress={analysisProgress}
         canSave={Object.keys(analysisMap).length > 0}
         onUpload={handleUpload}
         onRunAnalysis={runAnalysis}
@@ -160,6 +174,8 @@ export default function ScreenshotAnalysis() {
                 key={shot.id}
                 shot={shot}
                 row={row}
+                aiState={getState(shot.id)}
+                aiError={getError(shot.id)}
                 setupOptions={SETUP_OPTIONS}
                 statusOptions={STATUS_OPTIONS}
                 entryTimingOptions={ENTRY_TIMING_OPTIONS}

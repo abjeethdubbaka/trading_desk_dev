@@ -48,3 +48,5 @@ export function PerformanceByMonthOfYear({ data }) {
     </div>
   );
 }
+
+export default PerformanceByMonthOfYear;

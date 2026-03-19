@@ -1,13 +1,21 @@
 import React from 'react';
-import { formatCurrency, formatPercentage } from '../utils';
+import {
+  calculatePerformanceByHourOfDay,
+  formatCurrency,
+  formatPercentage
+} from '../utils';
 import { CHART_COLORS } from '../constants';
 
-export function PerformanceByHourOfDay({ data }) {
+export function PerformanceByHourOfDay({ data, trades = [] }) {
+  const resolvedData = Array.isArray(data)
+    ? data
+    : calculatePerformanceByHourOfDay(Array.isArray(trades) ? trades : []);
+
   return (
     <div className="glass-card rounded-xl p-6">
       <h3 className="text-lg font-semibold text-white mb-4">Hour of Day</h3>
       
-      {data.length === 0 || data.every(d => d.trades === 0) ? (
+      {resolvedData.length === 0 || resolvedData.every(d => d.trades === 0) ? (
         <div className="h-64 mb-4">
           <div className="text-center py-8">
             <p className="text-gray-400">No trade data available</p>
@@ -15,7 +23,7 @@ export function PerformanceByHourOfDay({ data }) {
         </div>
       ) : (
         <div className="space-y-3">
-          {data.filter(d => d.trades > 0).map((hour, index) => (
+          {resolvedData.filter(d => d.trades > 0).map((hour, index) => (
             <div key={index} className="bg-white/5 rounded-lg p-3">
               <div className="flex justify-between items-center mb-2">
                 <div className="font-medium text-white">{hour.hour}</div>
@@ -49,3 +57,5 @@ export function PerformanceByHourOfDay({ data }) {
     </div>
   );
 }
+
+export default PerformanceByHourOfDay;

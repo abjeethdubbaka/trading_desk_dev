@@ -1,19 +1,27 @@
 import React from 'react';
-import { formatCurrency, formatPercentage } from '../utils';
+import {
+  calculatePerformanceBySetupType,
+  formatCurrency,
+  formatPercentage
+} from '../utils';
 import { CHART_COLORS } from '../constants';
 
-export function PerformanceBySetupType({ data }) {
+export function PerformanceBySetupType({ data, trades = [] }) {
+  const resolvedData = Array.isArray(data)
+    ? data
+    : calculatePerformanceBySetupType(Array.isArray(trades) ? trades : []);
+
   return (
     <div className="glass-card rounded-xl p-6">
       <h3 className="text-lg font-semibold text-white mb-4">Setup Type</h3>
       
-      {data.length === 0 || data.every(d => d.trades === 0) ? (
+      {resolvedData.length === 0 || resolvedData.every(d => d.trades === 0) ? (
         <div className="text-center py-8">
           <p className="text-gray-400">No trade data available</p>
         </div>
       ) : (
         <div className="space-y-3">
-          {data.filter(d => d.trades > 0).map((setup, index) => (
+          {resolvedData.filter(d => d.trades > 0).map((setup, index) => (
             <div key={index} className="bg-white/5 rounded-lg p-3">
               <div className="flex justify-between items-center mb-2">
                 <div className="font-medium text-white truncate" title={setup.setup}>
@@ -50,3 +58,5 @@ export function PerformanceBySetupType({ data }) {
     </div>
   );
 }
+
+export default PerformanceBySetupType;

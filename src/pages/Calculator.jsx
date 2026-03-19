@@ -1,16 +1,9 @@
 import React from 'react';
-import FloatPositionSizer from '@/components/calculator/FloatPositionSizer';
 import { useLocation } from 'react-router-dom';
+import FloatPositionSizer from '@/components/calculator/FloatPositionSizer';
 
 export default function Calculator() {
   const location = useLocation();
-  const historyData = location.state?.historyItem;
-
-  return (
-    <div className="space-y-8">
-      <section>
-        <FloatPositionSizer historyData={historyData} />
-      </section>
-    </div>
-  );
+  const historyData = location.state?.historyItem || null;
+  return <FloatPositionSizer historyData={historyData} />;
 }
