@@ -1,0 +1,68 @@
+{
+  "name": "TradePlan",
+  "type": "object",
+  "properties": {
+    "symbol": {
+      "type": "string"
+    },
+    "direction": {
+      "type": "string",
+      "enum": [
+        "long",
+        "short"
+      ]
+    },
+    "entry_price": {
+      "type": "number"
+    },
+    "stop_loss": {
+      "type": "number"
+    },
+    "target_1": {
+      "type": "number"
+    },
+    "target_2": {
+      "type": "number"
+    },
+    "target_3": {
+      "type": "number"
+    },
+    "position_size": {
+      "type": "number",
+      "description": "Number of shares"
+    },
+    "risk_amount": {
+      "type": "number",
+      "description": "Dollar risk for this trade"
+    },
+    "setup_type": {
+      "type": "string",
+      "description": "Type of setup (e.g., breakout, pullback)"
+    },
+    "timeframe": {
+      "type": "string"
+    },
+    "notes": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "planned",
+        "active",
+        "executed",
+        "cancelled"
+      ],
+      "default": "planned"
+    },
+    "strategy_preset_id": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "symbol",
+    "direction",
+    "entry_price",
+    "stop_loss"
+  ]
+}

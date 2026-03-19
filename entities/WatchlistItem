@@ -1,0 +1,60 @@
+{
+  "name": "WatchlistItem",
+  "type": "object",
+  "properties": {
+    "symbol": {
+      "type": "string",
+      "description": "Stock ticker symbol"
+    },
+    "notes": {
+      "type": "string"
+    },
+    "catalyst": {
+      "type": "string",
+      "description": "News or catalyst driving interest"
+    },
+    "premarket_high": {
+      "type": "number"
+    },
+    "premarket_low": {
+      "type": "number"
+    },
+    "premarket_volume": {
+      "type": "number"
+    },
+    "float_size": {
+      "type": "string",
+      "enum": [
+        "micro",
+        "small",
+        "mid",
+        "large"
+      ]
+    },
+    "sector": {
+      "type": "string"
+    },
+    "priority": {
+      "type": "string",
+      "enum": [
+        "high",
+        "medium",
+        "low"
+      ],
+      "default": "medium"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "watching",
+        "ready",
+        "triggered",
+        "passed"
+      ],
+      "default": "watching"
+    }
+  },
+  "required": [
+    "symbol"
+  ]
+}

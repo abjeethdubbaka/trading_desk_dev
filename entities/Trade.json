@@ -1,0 +1,88 @@
+{
+  "name": "Trade",
+  "type": "object",
+  "properties": {
+    "symbol": {
+      "type": "string"
+    },
+    "direction": {
+      "type": "string",
+      "enum": [
+        "long",
+        "short"
+      ]
+    },
+    "entry_price": {
+      "type": "number"
+    },
+    "exit_price": {
+      "type": "number"
+    },
+    "position_size": {
+      "type": "number"
+    },
+    "entry_time": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "exit_time": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "pnl": {
+      "type": "number",
+      "description": "Profit/Loss in dollars"
+    },
+    "r_multiple": {
+      "type": "number",
+      "description": "R-multiple achieved"
+    },
+    "setup_type": {
+      "type": "string"
+    },
+    "notes": {
+      "type": "string"
+    },
+    "emotions": {
+      "type": "string",
+      "enum": [
+        "confident",
+        "nervous",
+        "fomo",
+        "revenge",
+        "disciplined",
+        "neutral"
+      ]
+    },
+    "followed_plan": {
+      "type": "boolean"
+    },
+    "mistakes": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "lessons": {
+      "type": "string"
+    },
+    "screenshots": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "trade_plan_id": {
+      "type": "string"
+    },
+    "strategy_preset_id": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "symbol",
+    "direction",
+    "entry_price",
+    "position_size"
+  ]
+}

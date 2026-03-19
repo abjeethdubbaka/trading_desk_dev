@@ -1,0 +1,146 @@
+{
+  "tables": {
+    "Trades": {
+      "fields": {
+        "symbol": {
+          "type": "string",
+          "required": true,
+          "label": "Symbol",
+          "description": "Trading symbol (e.g., AAPL, TSLA)"
+        },
+        "direction": {
+          "type": "enum",
+          "options": ["long", "short"],
+          "required": true,
+          "label": "Direction",
+          "description": "Trade direction"
+        },
+        "entry_price": {
+          "type": "decimal",
+          "required": true,
+          "precision": 10,
+          "scale": 2,
+          "label": "Entry Price",
+          "description": "Price at which trade was entered"
+        },
+        "exit_price": {
+          "type": "decimal",
+          "required": false,
+          "precision": 10,
+          "scale": 2,
+          "label": "Exit Price",
+          "description": "Price at which trade was exited"
+        },
+        "position_size": {
+          "type": "integer",
+          "required": true,
+          "label": "Position Size",
+          "description": "Number of shares/contracts"
+        },
+        "pnl": {
+          "type": "decimal",
+          "required": false,
+          "precision": 12,
+          "scale": 2,
+          "label": "P&L",
+          "description": "Profit and loss amount"
+        },
+        "r_multiple": {
+          "type": "decimal",
+          "required": false,
+          "precision": 8,
+          "scale": 2,
+          "label": "R Multiple",
+          "description": "Risk multiple (R:1 ratio)"
+        },
+        "setup_type": {
+          "type": "string",
+          "required": false,
+          "label": "Setup Type",
+          "description": "Type of trading setup (e.g., breakout, pullback)"
+        },
+        "notes": {
+          "type": "text",
+          "required": false,
+          "label": "Notes",
+          "description": "Trade notes and observations"
+        },
+        "emotions": {
+          "type": "string",
+          "required": false,
+          "label": "Emotions",
+          "description": "Emotional state during trade"
+        },
+        "followed_plan": {
+          "type": "boolean",
+          "required": false,
+          "default": false,
+          "label": "Followed Plan",
+          "description": "Whether the trading plan was followed"
+        },
+        "mistakes": {
+          "type": "text",
+          "required": false,
+          "label": "Mistakes",
+          "description": "Mistakes made during the trade"
+        },
+        "lessons": {
+          "type": "text",
+          "required": false,
+          "label": "Lessons",
+          "description": "Lessons learned from the trade"
+        },
+        "screenshots": {
+          "type": "json",
+          "required": false,
+          "label": "Screenshots",
+          "description": "Array of screenshot URLs or base64 images"
+        },
+        "entry_time": {
+          "type": "datetime",
+          "required": true,
+          "label": "Entry Time",
+          "description": "Date and time of trade entry"
+        },
+        "exit_time": {
+          "type": "datetime",
+          "required": false,
+          "label": "Exit Time",
+          "description": "Date and time of trade exit"
+        }
+      },
+      "indexes": [
+        {
+          "name": "idx_trades_symbol",
+          "fields": ["symbol"]
+        },
+        {
+          "name": "idx_trades_entry_time",
+          "fields": ["entry_time"]
+        },
+        {
+          "name": "idx_trades_direction",
+          "fields": ["direction"]
+        },
+        {
+          "name": "idx_trades_setup_type",
+          "fields": ["setup_type"]
+        }
+      ],
+      "permissions": {
+        "read": ["authenticated"],
+        "create": ["authenticated"],
+        "update": ["authenticated"],
+        "delete": ["authenticated"]
+      }
+    }
+  },
+  "relationships": [
+    {
+      "from": "Trades",
+      "to": "TradePlans",
+      "type": "many-to-one",
+      "foreign_key": "trade_plan_id"
+    }
+  ]
+}

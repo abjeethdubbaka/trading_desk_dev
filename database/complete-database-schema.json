@@ -1,0 +1,575 @@
+{
+  "tables": {
+    "Trades": {
+      "fields": {
+        "symbol": {
+          "type": "string",
+          "required": true,
+          "label": "Symbol",
+          "description": "Trading symbol (e.g., AAPL, TSLA)"
+        },
+        "direction": {
+          "type": "enum",
+          "options": ["long", "short"],
+          "required": true,
+          "label": "Direction",
+          "description": "Trade direction"
+        },
+        "entry_price": {
+          "type": "decimal",
+          "required": true,
+          "precision": 10,
+          "scale": 2,
+          "label": "Entry Price",
+          "description": "Price at which trade was entered"
+        },
+        "exit_price": {
+          "type": "decimal",
+          "required": false,
+          "precision": 10,
+          "scale": 2,
+          "label": "Exit Price",
+          "description": "Price at which trade was exited"
+        },
+        "position_size": {
+          "type": "integer",
+          "required": true,
+          "label": "Position Size",
+          "description": "Number of shares/contracts"
+        },
+        "pnl": {
+          "type": "decimal",
+          "required": false,
+          "precision": 12,
+          "scale": 2,
+          "label": "P&L",
+          "description": "Profit and loss amount"
+        },
+        "r_multiple": {
+          "type": "decimal",
+          "required": false,
+          "precision": 8,
+          "scale": 2,
+          "label": "R Multiple",
+          "description": "Risk multiple (R:1 ratio)"
+        },
+        "fee": {
+          "type": "decimal",
+          "required": false,
+          "precision": 10,
+          "scale": 2,
+          "label": "Fee",
+          "description": "Trading fees and commissions"
+        },
+        "setup_type": {
+          "type": "string",
+          "required": false,
+          "label": "Setup Type",
+          "description": "Type of trading setup"
+        },
+        "notes": {
+          "type": "text",
+          "required": false,
+          "label": "Notes",
+          "description": "Trade notes and observations"
+        },
+        "emotions": {
+          "type": "string",
+          "required": false,
+          "label": "Emotions",
+          "description": "Emotional state during trade"
+        },
+        "followed_plan": {
+          "type": "boolean",
+          "required": false,
+          "default": false,
+          "label": "Followed Plan",
+          "description": "Whether the trading plan was followed"
+        },
+        "mistakes": {
+          "type": "text",
+          "required": false,
+          "label": "Mistakes",
+          "description": "Mistakes made during the trade"
+        },
+        "lessons": {
+          "type": "text",
+          "required": false,
+          "label": "Lessons",
+          "description": "Lessons learned from the trade"
+        },
+        "screenshots": {
+          "type": "json",
+          "required": false,
+          "label": "Screenshots",
+          "description": "Array of screenshot URLs"
+        },
+        "entry_time": {
+          "type": "datetime",
+          "required": true,
+          "label": "Entry Time",
+          "description": "Date and time of trade entry"
+        },
+        "exit_time": {
+          "type": "datetime",
+          "required": false,
+          "label": "Exit Time",
+          "description": "Date and time of trade exit"
+        },
+        "trade_plan_id": {
+          "type": "integer",
+          "required": false,
+          "label": "Trade Plan",
+          "description": "Reference to the trade plan"
+        },
+        "strategy_preset_id": {
+          "type": "integer",
+          "required": false,
+          "label": "Strategy Preset",
+          "description": "Reference to the strategy preset used"
+        }
+      },
+      "indexes": [
+        {"name": "idx_trades_symbol", "fields": ["symbol"]},
+        {"name": "idx_trades_entry_time", "fields": ["entry_time"]},
+        {"name": "idx_trades_direction", "fields": ["direction"]},
+        {"name": "idx_trades_setup_type", "fields": ["setup_type"]},
+        {"name": "idx_trades_trade_plan", "fields": ["trade_plan_id"]}
+      ]
+    },
+    "TradePlans": {
+      "fields": {
+        "symbol": {
+          "type": "string",
+          "required": true,
+          "label": "Symbol"
+        },
+        "direction": {
+          "type": "enum",
+          "options": ["long", "short"],
+          "required": true,
+          "label": "Direction"
+        },
+        "entry_price": {
+          "type": "decimal",
+          "required": true,
+          "precision": 10,
+          "scale": 2,
+          "label": "Entry Price"
+        },
+        "stop_loss": {
+          "type": "decimal",
+          "required": true,
+          "precision": 10,
+          "scale": 2,
+          "label": "Stop Loss"
+        },
+        "target_1": {
+          "type": "decimal",
+          "required": false,
+          "precision": 10,
+          "scale": 2,
+          "label": "Target 1"
+        },
+        "target_2": {
+          "type": "decimal",
+          "required": false,
+          "precision": 10,
+          "scale": 2,
+          "label": "Target 2"
+        },
+        "target_3": {
+          "type": "decimal",
+          "required": false,
+          "precision": 10,
+          "scale": 2,
+          "label": "Target 3"
+        },
+        "position_size": {
+          "type": "integer",
+          "required": true,
+          "label": "Position Size"
+        },
+        "risk_amount": {
+          "type": "decimal",
+          "required": true,
+          "precision": 10,
+          "scale": 2,
+          "label": "Risk Amount"
+        },
+        "setup_type": {
+          "type": "string",
+          "required": false,
+          "label": "Setup Type"
+        },
+        "timeframe": {
+          "type": "string",
+          "required": false,
+          "label": "Timeframe"
+        },
+        "notes": {
+          "type": "text",
+          "required": false,
+          "label": "Notes"
+        },
+        "status": {
+          "type": "enum",
+          "options": ["planned", "active", "completed", "cancelled"],
+          "default": "planned",
+          "label": "Status"
+        },
+        "strategy_preset_id": {
+          "type": "integer",
+          "required": false,
+          "label": "Strategy Preset"
+        }
+      },
+      "indexes": [
+        {"name": "idx_plans_symbol", "fields": ["symbol"]},
+        {"name": "idx_plans_status", "fields": ["status"]},
+        {"name": "idx_plans_strategy", "fields": ["strategy_preset_id"]}
+      ]
+    },
+    "WatchlistItems": {
+      "fields": {
+        "symbol": {
+          "type": "string",
+          "required": true,
+          "label": "Symbol"
+        },
+        "notes": {
+          "type": "text",
+          "required": false,
+          "label": "Notes"
+        },
+        "catalyst": {
+          "type": "string",
+          "required": false,
+          "label": "Catalyst"
+        },
+        "premarket_high": {
+          "type": "decimal",
+          "required": false,
+          "precision": 10,
+          "scale": 2,
+          "label": "Premarket High"
+        },
+        "premarket_low": {
+          "type": "decimal",
+          "required": false,
+          "precision": 10,
+          "scale": 2,
+          "label": "Premarket Low"
+        },
+        "premarket_volume": {
+          "type": "integer",
+          "required": false,
+          "label": "Premarket Volume"
+        },
+        "float_size": {
+          "type": "enum",
+          "options": ["small", "mid", "large"],
+          "required": false,
+          "label": "Float Size"
+        },
+        "sector": {
+          "type": "string",
+          "required": false,
+          "label": "Sector"
+        },
+        "priority": {
+          "type": "enum",
+          "options": ["low", "medium", "high"],
+          "default": "medium",
+          "label": "Priority"
+        },
+        "status": {
+          "type": "enum",
+          "options": ["watching", "ready", "traded"],
+          "default": "watching",
+          "label": "Status"
+        }
+      },
+      "indexes": [
+        {"name": "idx_watchlist_symbol", "fields": ["symbol"]},
+        {"name": "idx_watchlist_priority", "fields": ["priority"]},
+        {"name": "idx_watchlist_status", "fields": ["status"]}
+      ]
+    },
+    "StrategyPresets": {
+      "fields": {
+        "name": {
+          "type": "string",
+          "required": true,
+          "label": "Name"
+        },
+        "description": {
+          "type": "text",
+          "required": false,
+          "label": "Description"
+        },
+        "max_risk_per_trade": {
+          "type": "decimal",
+          "required": true,
+          "precision": 5,
+          "scale": 2,
+          "label": "Max Risk per Trade (%)"
+        },
+        "max_daily_loss": {
+          "type": "decimal",
+          "required": true,
+          "precision": 10,
+          "scale": 2,
+          "label": "Max Daily Loss ($)"
+        },
+        "max_positions": {
+          "type": "integer",
+          "required": true,
+          "label": "Max Positions"
+        },
+        "default_risk_reward": {
+          "type": "decimal",
+          "required": true,
+          "precision": 5,
+          "scale": 2,
+          "label": "Default Risk:Reward"
+        },
+        "entry_rules": {
+          "type": "json",
+          "required": false,
+          "label": "Entry Rules"
+        },
+        "exit_rules": {
+          "type": "json",
+          "required": false,
+          "label": "Exit Rules"
+        },
+        "is_active": {
+          "type": "boolean",
+          "default": true,
+          "label": "Active"
+        }
+      },
+      "indexes": [
+        {"name": "idx_strategies_active", "fields": ["is_active"]}
+      ]
+    },
+    "Settings": {
+      "fields": {
+        "account_size": {
+          "type": "decimal",
+          "required": true,
+          "precision": 12,
+          "scale": 2,
+          "label": "Account Size"
+        },
+        "default_risk_percent": {
+          "type": "decimal",
+          "required": true,
+          "precision": 5,
+          "scale": 2,
+          "label": "Default Risk (%)"
+        },
+        "max_daily_trades": {
+          "type": "integer",
+          "required": true,
+          "label": "Max Daily Trades"
+        },
+        "trading_hours_start": {
+          "type": "time",
+          "required": true,
+          "label": "Trading Hours Start"
+        },
+        "trading_hours_end": {
+          "type": "time",
+          "required": true,
+          "label": "Trading Hours End"
+        },
+        "premarket_start": {
+          "type": "time",
+          "required": false,
+          "label": "Premarket Start"
+        },
+        "timezone": {
+          "type": "string",
+          "required": true,
+          "default": "America/New_York",
+          "label": "Timezone"
+        },
+        "notification_sound": {
+          "type": "boolean",
+          "default": true,
+          "label": "Notification Sound"
+        },
+        "dark_mode": {
+          "type": "boolean",
+          "default": true,
+          "label": "Dark Mode"
+        }
+      }
+    },
+    "Notifications": {
+      "fields": {
+        "message": {
+          "type": "text",
+          "required": true,
+          "label": "Message"
+        },
+        "type": {
+          "type": "enum",
+          "options": ["info", "warning", "success", "error"],
+          "default": "info",
+          "label": "Type"
+        },
+        "is_read": {
+          "type": "boolean",
+          "default": false,
+          "label": "Read"
+        },
+        "is_active": {
+          "type": "boolean",
+          "default": true,
+          "label": "Active"
+        },
+        "created_date": {
+          "type": "datetime",
+          "required": true,
+          "label": "Created Date"
+        }
+      },
+      "indexes": [
+        {"name": "idx_notifications_read", "fields": ["is_read"]},
+        {"name": "idx_notifications_active", "fields": ["is_active"]},
+        {"name": "idx_notifications_created", "fields": ["created_date"]}
+      ]
+    },
+    "PerformanceMetrics": {
+      "description": "Pre-calculated performance metrics",
+      "fields": {
+        "id": {
+          "type": "uuid",
+          "primary": true,
+          "required": true,
+          "label": "ID"
+        },
+        "date": {
+          "type": "date",
+          "description": "Date of metrics",
+          "required": true,
+          "label": "Date"
+        },
+        "user_id": {
+          "type": "string",
+          "description": "User ID",
+          "required": true,
+          "maxLength": 255,
+          "label": "User ID"
+        },
+        "total_trades": {
+          "type": "integer",
+          "description": "Total trades for the period",
+          "label": "Total Trades"
+        },
+        "profitable_trades": {
+          "type": "integer",
+          "description": "Winning trades",
+          "label": "Profitable Trades"
+        },
+        "total_pnl": {
+          "type": "decimal",
+          "description": "Total P&L",
+          "precision": 15,
+          "scale": 2,
+          "label": "Total P&L"
+        },
+        "avg_pnl": {
+          "type": "decimal",
+          "description": "Average P&L per trade",
+          "precision": 10,
+          "scale": 2,
+          "label": "Average P&L"
+        },
+        "win_rate": {
+          "type": "decimal",
+          "description": "Win rate percentage",
+          "precision": 5,
+          "scale": 2,
+          "label": "Win Rate"
+        },
+        "largest_win": {
+          "type": "decimal",
+          "description": "Largest winning trade",
+          "precision": 10,
+          "scale": 2,
+          "label": "Largest Win"
+        },
+        "largest_loss": {
+          "type": "decimal",
+          "description": "Largest losing trade",
+          "precision": 10,
+          "scale": 2,
+          "label": "Largest Loss"
+        },
+        "avg_r_multiple": {
+          "type": "decimal",
+          "description": "Average R-multiple",
+          "precision": 5,
+          "scale": 2,
+          "label": "Average R Multiple"
+        },
+        "sharpe_ratio": {
+          "type": "decimal",
+          "description": "Risk-adjusted return",
+          "precision": 10,
+          "scale": 4,
+          "label": "Sharpe Ratio"
+        },
+        "max_drawdown": {
+          "type": "decimal",
+          "description": "Maximum drawdown",
+          "precision": 10,
+          "scale": 2,
+          "label": "Max Drawdown"
+        },
+        "period": {
+          "type": "enum",
+          "options": ["daily", "weekly", "monthly", "yearly"],
+          "description": "Time period",
+          "label": "Period"
+        },
+        "created_date": {
+          "type": "timestamp",
+          "default": "now()",
+          "label": "Created Date"
+        }
+      },
+      "indexes": [
+        {
+          "name": "idx_performance_user_date",
+          "fields": ["user_id", "date"],
+          "unique": false
+        }
+      ]
+    }
+  },
+  "relationships": [
+    {
+      "from": "Trades",
+      "to": "TradePlans",
+      "type": "many-to-one",
+      "foreign_key": "trade_plan_id"
+    },
+    {
+      "from": "Trades",
+      "to": "StrategyPresets",
+      "type": "many-to-one",
+      "foreign_key": "strategy_preset_id"
+    },
+    {
+      "from": "TradePlans",
+      "to": "StrategyPresets",
+      "type": "many-to-one",
+      "foreign_key": "strategy_preset_id"
+    }
+  ]
+}

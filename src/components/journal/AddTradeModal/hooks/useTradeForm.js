@@ -1,0 +1,191 @@
+import { useState, useEffect, useMemo, useCallback } from 'react';
+import { calculatePnL } from '../utils/calculationUtils';
+import { getCurrentLocalDateTime, utcToLocalDateTime } from '../utils/dateUtils';
+import { formatCurrency } from '../../utils/formatters';
+
+export const useTradeForm = (initialData, userId = 'user-123') => {
+  const getDefaultReflectionAnswers = () => ({
+    what_went_wrong: '',
+    what_went_right: '',
+    what_learned: '',
+    what_to_repeat: ''
+  });
+
+  const defaultBreakoutChecklist = {
+    step1Time: '',
+    step1: {
+      smoothVWAPPullback: false,
+      controlledRedCandles: false,
+      holdsAboveVWAP: false,
+      lowerWicksDipBuyers: false,
+      notes: ''
+    },
+    step2DurationMins: '',
+    step2: {
+      tightRange3to6Candles: false,
+      volumeDriesUp: false,
+      higherLowsForming: false,
+      vwapSlopesUpward: false,
+      notes: ''
+    },
+    step3Time: '',
+    step3: {
+      breakAboveBaseHigh: false,
+      volumeIncreases: false,
+      vwapRising: false,
+      notes: ''
+    }
+  };
+
+  const [formData, setFormData] = useState({
+    symbol: '',
+    direction: 'long',
+    entry_price: '',
+    exit_price: '',
+    position_size: '',
+    entry_time: getCurrentLocalDateTime(),
+    exit_time: '',
+    fee: '',
+    setup_type: '',
+    custom_setup_type: '',
+    notes: '',
+    emotions: 'neutral',
+    followed_plan: true,
+    mistakes: [],
+    lessons: '',
+    reflection_answers: getDefaultReflectionAnswers(),
+    setup_grade: '',
+    breakout_checklist: defaultBreakoutChecklist,
+    screenshots: [],
+    trade_plan_id: null,
+    strategy_preset_id: null
+  });
+
+  // Initialize form with initial data
+  useEffect(() => {
+    if (initialData) {
+      const entryTimeLocal = utcToLocalDateTime(initialData.entry_time);
+      const exitTimeLocal = utcToLocalDateTime(initialData.exit_time);
+      
+      setFormData({
+        symbol: initialData.symbol || '',
+        direction: initialData.direction || 'long',
+        entry_price: initialData.entry_price?.toString() || '',
+        exit_price: initialData.exit_price?.toString() || '',
+        position_size: initialData.position_size?.toString() || '',
+        entry_time: entryTimeLocal || getCurrentLocalDateTime(),
+        exit_time: exitTimeLocal || '',
+        fee: initialData.fee?.toString() || '',
+        setup_type: initialData.setup_type || '',
+        custom_setup_type: initialData.custom_setup_type || '',
+        notes: initialData.notes || '',
+        emotions: initialData.emotions || 'neutral',
+        followed_plan: initialData.followed_plan ?? true,
+        mistakes: initialData.mistakes || [],
+        lessons: initialData.lessons || '',
+        reflection_answers: {
+          ...getDefaultReflectionAnswers(),
+          ...(initialData.reflection_answers || {})
+        },
+        setup_grade: initialData.setup_grade || '',
+        breakout_checklist: {
+          ...defaultBreakoutChecklist,
+          ...(initialData.breakout_checklist || {}),
+          step1: {
+            ...defaultBreakoutChecklist.step1,
+            ...(initialData.breakout_checklist?.step1 || {})
+          },
+          step2: {
+            ...defaultBreakoutChecklist.step2,
+            ...(initialData.breakout_checklist?.step2 || {})
+          },
+          step3: {
+            ...defaultBreakoutChecklist.step3,
+            ...(initialData.breakout_checklist?.step3 || {})
+          }
+        },
+        screenshots: initialData.screenshots || [],
+        trade_plan_id: initialData.trade_plan_id || null,
+        strategy_preset_id: initialData.strategy_preset_id || null
+      });
+    }
+  }, [initialData]);
+
+  const updateField = useCallback((field, value) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+  }, []);
+
+  const resetForm = useCallback(() => {
+    setFormData({
+      symbol: '',
+      direction: 'long',
+      entry_price: '',
+      exit_price: '',
+      position_size: '',
+      entry_time: getCurrentLocalDateTime(),
+      exit_time: '',
+      fee: '',
+      setup_type: '',
+      custom_setup_type: '',
+      notes: '',
+      emotions: 'neutral',
+      followed_plan: true,
+      mistakes: [],
+      lessons: '',
+      reflection_answers: getDefaultReflectionAnswers(),
+      setup_grade: '',
+      breakout_checklist: defaultBreakoutChecklist,
+      screenshots: [],
+      trade_plan_id: null,
+      strategy_preset_id: null
+    });
+  }, []);
+
+  const prepareForSubmission = useCallback(() => {
+    // Calculate final values for submission
+    const { pnl, stopLoss, rMultiple } = calculatePnL({
+      entryPrice: formData.entry_price,
+      exitPrice: formData.exit_price,
+      positionSize: formData.position_size,
+      direction: formData.direction,
+      fee: formData.fee
+    });
+
+    return {
+      ...formData,
+      symbol: formData.symbol.toUpperCase().trim(),
+      entry_price: parseFloat(formData.entry_price) || 0,
+      exit_price: formData.exit_price ? parseFloat(formData.exit_price) : null,
+      position_size: parseInt(formData.position_size) || 0,
+      pnl,
+      r_multiple: rMultiple,
+      stop_loss: stopLoss > 0 ? stopLoss : null,
+      fee: formData.fee ? parseFloat(formData.fee) : null,
+      user_id: userId,
+      mistakes: formData.mistakes.length > 0 ? formData.mistakes : null,
+      screenshots: formData.screenshots.length > 0 ? formData.screenshots : null,
+      reflection_answers: {
+        ...getDefaultReflectionAnswers(),
+        ...(formData.reflection_answers || {}),
+        outcome:
+          pnl < 0 ? 'loss' :
+          pnl > 0 ? 'profit' :
+          'neutral'
+      },
+      trade_plan_id: formData.trade_plan_id || null,
+      strategy_preset_id: formData.strategy_preset_id || null,
+      // Handle setup type - use custom if Manual, otherwise use selected setup
+      setup_type: formData.setup_type === 'Manual' 
+        ? (formData.custom_setup_type || 'Manual') 
+        : formData.setup_type
+      // Note: entry_time and exit_time are handled in the main component
+    };
+  }, [formData, userId]);
+
+  return {
+    formData,
+    updateField,
+    resetForm,
+    prepareForSubmission
+  };
+};

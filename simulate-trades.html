@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trade Simulator</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #1a1a24;
+            color: white;
+        }
+        .container {
+            background: #2a2a3a;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+        }
+        button {
+            background: #4f46e5;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 10px 5px;
+        }
+        button:hover {
+            background: #6366f1;
+        }
+        .status {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 5px;
+        }
+        .success {
+            background: #10b981;
+        }
+        .error {
+            background: #ef4444;
+        }
+        .info {
+            background: #3b82f6;
+        }
+    </style>
+</head>
+<body>
+    <h1>Journal Trade Simulator</h1>
+    
+    <div class="container">
+        <h2>Trade Simulation Tools</h2>
+        <p>This tool will generate realistic sample trades to test the journal functionality.</p>
+        
+        <button onclick="generateAndAddTrades(100)">Generate 100 Trades</button>
+        <button onclick="generateAndAddTrades(50)">Generate 50 Trades</button>
+        <button onclick="generateAndAddTrades(25)">Generate 25 Trades</button>
+        <button onclick="clearAllTrades()">Clear All Trades</button>
+        <button onclick="showTradeStats()">Show Current Stats</button>
+        
+        <div id="status"></div>
+    </div>
+
+    <div class="container">
+        <h2>Current Trades</h2>
+        <div id="tradeCount">Loading...</div>
+        <div id="tradeStats"></div>
+    </div>
+
+    <script>
+        function updateStatus(message, type = 'info') {
+            const statusDiv = document.getElementById('status');
+            statusDiv.className = `status ${type}`;
+            statusDiv.textContent = message;
+        }
+
+        function generateSimulatedTrades(count) {
+            const trades = [];
+            const setupTypes = ['Breakout', 'Pullback', 'Reversal', 'Momentum', 'Scalp', 'Swing', 'Position', 'News'];
+            const directions = ['long', 'short'];
+            const symbols = ['AAPL', 'GOOGL', 'MSFT', 'TSLA', 'AMZN', 'NVDA', 'META', 'NFLX', 'AMD', 'INTC'];
+            
+            const now = new Date();
+            
+            for (let i = 0; i < count; i++) {
+                const direction = directions[Math.floor(Math.random() * directions.length)];
+                const symbol = symbols[Math.floor(Math.random() * symbols.length)];
+                const setupType = setupTypes[Math.floor(Math.random() * setupTypes.length)];
+                
+                const entryPrice = Math.random() * 500 + 50;
+                const priceMovement = (Math.random() - 0.5) * 20;
+                const exitPrice = Math.max(entryPrice + priceMovement, 1);
+                
+                const positionSize = Math.floor(Math.random() * 1000) + 100;
+                
+                const grossPnL = direction === 'long' 
+                    ? (exitPrice - entryPrice) * positionSize 
+                    : (entryPrice - exitPrice) * positionSize;
+                
+                const fee = positionSize * 0.01;
+                const netPnL = grossPnL - fee;
+                
+                const stopLoss = Math.abs(entryPrice - exitPrice) * 0.5;
+                const rMultiple = positionSize > 0 && stopLoss > 0 ? (netPnL / (stopLoss * positionSize)) : 0;
+                
+                const daysAgo = Math.floor(Math.random() * 90);
+                const tradeDate = new Date(now.getTime() - (daysAgo * 24 * 60 * 60 * 1000));
+                
+                const entryTime = new Date(tradeDate.getTime() + Math.random() * 8 * 60 * 60 * 1000);
+                const exitTime = new Date(entryTime.getTime() + Math.random() * 4 * 60 * 60 * 1000);
+                
+                const trade = {
+                    id: Date.now() + i,
+                    symbol: symbol,
+                    direction: direction,
+                    setup_type: setupType,
+                    entry_price: parseFloat(entryPrice.toFixed(2)),
+                    exit_price: parseFloat(exitPrice.toFixed(2)),
+                    position_size: positionSize,
+                    pnl: parseFloat(netPnL.toFixed(2)),
+                    r_multiple: parseFloat(rMultiple.toFixed(2)),
+                    fee: parseFloat(fee.toFixed(2)),
+                    stop_loss: parseFloat(stopLoss.toFixed(2)),
+                    entry_time: entryTime.toISOString(),
+                    exit_time: exitTime.toISOString(),
+                    notes: `Simulated trade #${i + 1} - ${setupType} setup`,
+                    tags: [setupType.toLowerCase(), direction],
+                    created_at: tradeDate.toISOString(),
+                    updated_at: tradeDate.toISOString()
+                };
+                
+                trades.push(trade);
+            }
+            
+            return trades;
+        }
+
+        function generateAndAddTrades(count) {
+            try {
+                updateStatus(`Generating ${count} simulated trades...`, 'info');
+                
+                const existingTrades = JSON.parse(localStorage.getItem('trades') || '[]');
+                const newTrades = generateSimulatedTrades(count);
+                const allTrades = [...existingTrades, ...newTrades];
+                
+                localStorage.setItem('trades', JSON.stringify(allTrades));
+                
+                updateStatus(`Successfully added ${count} trades to the journal! Total: ${allTrades.length}`, 'success');
+                updateTradeDisplay();
+                
+                // Calculate and display stats
+                const stats = calculateTradeStats(allTrades);
+                displayStats(stats);
+                
+            } catch (error) {
+                updateStatus(`Error: ${error.message}`, 'error');
+            }
+        }
+
+        function clearAllTrades() {
+            try {
+                localStorage.removeItem('trades');
+                updateStatus('All trades cleared from journal!', 'success');
+                updateTradeDisplay();
+            } catch (error) {
+                updateStatus(`Error clearing trades: ${error.message}`, 'error');
+            }
+        }
+
+        function showTradeStats() {
+            const trades = JSON.parse(localStorage.getItem('trades') || '[]');
+            const stats = calculateTradeStats(trades);
+            displayStats(stats);
+        }
+
+        function calculateTradeStats(trades) {
+            if (trades.length === 0) {
+                return { totalPnL: 0, winRate: 0, winners: 0, losers: 0, avgWin: 0, avgLoss: 0 };
+            }
+            
+            const totalPnL = trades.reduce((sum, trade) => sum + trade.pnl, 0);
+            const winners = trades.filter(trade => trade.pnl > 0);
+            const losers = trades.filter(trade => trade.pnl < 0);
+            const winRate = (winners.length / trades.length) * 100;
+            
+            return {
+                totalPnL,
+                winRate,
+                winners: winners.length,
+                losers: losers.length,
+                avgWin: winners.length > 0 ? winners.reduce((sum, t) => sum + t.pnl, 0) / winners.length : 0,
+                avgLoss: losers.length > 0 ? losers.reduce((sum, t) => sum + t.pnl, 0) / losers.length : 0
+            };
+        }
+
+        function displayStats(stats) {
+            const statsDiv = document.getElementById('tradeStats');
+            statsDiv.innerHTML = `
+                <h3>Trade Statistics</h3>
+                <p><strong>Total P&L:</strong> $${stats.totalPnL.toFixed(2)}</p>
+                <p><strong>Win Rate:</strong> ${stats.winRate.toFixed(1)}%</p>
+                <p><strong>Winners:</strong> ${stats.winners}</p>
+                <p><strong>Losers:</strong> ${stats.losers}</p>
+                <p><strong>Average Win:</strong> $${stats.avgWin.toFixed(2)}</p>
+                <p><strong>Average Loss:</strong> $${stats.avgLoss.toFixed(2)}</p>
+            `;
+        }
+
+        function updateTradeDisplay() {
+            const trades = JSON.parse(localStorage.getItem('trades') || '[]');
+            document.getElementById('tradeCount').textContent = `Current trade count: ${trades.length}`;
+            
+            if (trades.length > 0) {
+                const stats = calculateTradeStats(trades);
+                displayStats(stats);
+            } else {
+                document.getElementById('tradeStats').innerHTML = '<p>No trades in journal</p>';
+            }
+        }
+
+        // Initialize display
+        updateTradeDisplay();
+    </script>
+</body>
+</html>
