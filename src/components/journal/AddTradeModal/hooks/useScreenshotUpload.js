@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { base44 } from '@/api/base44Client';
 
 const fileToDataUrl = (file) => new Promise((resolve, reject) => {
   const reader = new FileReader();
@@ -27,41 +26,39 @@ export const useScreenshotUpload = (initialScreenshots = []) => {
         setUploadProgress({ ...newProgress });
         
         try {
-          console.log('Uploading file:', file.name, file.type, file.size);
+          console.log('Processing file:', file.name, file.type, file.size);
           
-          // Simulate progress (you can replace with actual upload progress)
+          // Simulate upload progress
           newProgress[file.name] = 50;
           setUploadProgress({ ...newProgress });
           
-          const { file_url } = await base44.integrations.Core.UploadFile({ file });
-          console.log('Upload successful:', file_url);
+          // Convert file to data URL (base64)
+          const dataUrl = await fileToDataUrl(file);
+          console.log('File processed successfully');
           
           newProgress[file.name] = 100;
-          urls.push(file_url);
-        } catch (uploadError) {
-          console.error('Upload failed for file:', file.name, uploadError);
+          setUploadProgress({ ...newProgress });
           
-          // Fallback: persistable local data URL (blob URLs break after reload)
-          const fallbackUrl = await fileToDataUrl(file);
-          console.log('Using fallback URL:', fallbackUrl);
-          urls.push(fallbackUrl);
+          urls.push({
+            url: dataUrl,
+            name: file.name,
+            type: file.type,
+            size: file.size
+          });
           
-          newProgress[file.name] = 100; // Mark as complete even though it's fallback
+        } catch (fileError) {
+          console.error(`Error processing file ${file.name}:`, fileError);
+          // Continue with other files even if one fails
         }
-        
-        setUploadProgress({ ...newProgress });
       }
       
       setScreenshots(prev => [...prev, ...urls]);
       
-      const successCount = urls.filter(url => !url.startsWith('blob:')).length;
-      const fallbackCount = urls.filter(url => url.startsWith('blob:')).length;
-      
       return {
         success: true,
         urls,
-        successCount,
-        fallbackCount,
+        successCount: urls.length,
+        fallbackCount: 0,
         totalCount: urls.length
       };
     } catch (error) {

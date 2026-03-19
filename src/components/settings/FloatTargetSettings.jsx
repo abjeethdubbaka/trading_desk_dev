@@ -1,7 +1,7 @@
 import React from 'react';
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useSettings } from './SettingsProvider';
+import { useSettings } from '@/lib/SettingsContext';
 
 export default function FloatTargetSettings() {
   const { settings, loading, saving, updateSettings } = useSettings();

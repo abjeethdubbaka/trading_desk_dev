@@ -1,10 +1,10 @@
 import React from 'react';
 import { cn } from '@/lib/utils';
-import { computeStreaks } from '@/lib/performanceMetrics';
+import { calcStreaks } from '@/lib/calculations/trades';
 
 export default function StreakTracker({ sequence = [] }) {
   const trades = sequence.map((d) => ({ pnl: d.pnl, entry_time: d.date }));
-  const { currentStreak, currentType, bestWin } = computeStreaks(trades);
+  const { currentStreak, currentType, bestWin } = calcStreaks(trades);
   if (!sequence.length) return null;
 
   return (

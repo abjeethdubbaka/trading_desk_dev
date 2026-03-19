@@ -2,7 +2,7 @@ import React from 'react';
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Layers } from 'lucide-react';
-import { useSettings } from './SettingsProvider';
+import { useSettings } from '@/lib/SettingsContext';
 
 export default function FloatCategoriesSettings() {
   const { settings, loading, saving, updateFloatCategory } = useSettings();

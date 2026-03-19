@@ -1,51 +1,67 @@
+/**
+ * @file src/pages/Dashboard.jsx
+ *
+ * Phase 2 — wired to useTrades() + useSettings() (Firebase).
+ * All analytics use src/lib/calculations/trades.js pure functions.
+ */
+
 import React, { useState, useMemo } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { base44 } from '@/api/base44Client';
-import { useTradeEvents } from '@/components/journal/hooks/useTradeEvents';
-import TradingCalendar from '@/components/dashboard/TradingCalendar';
+import { useTrades }        from '@/hooks/useTrades';
+import { useSettings }      from '@/lib/SettingsContext';
+import { useTradeEvents }   from '@/components/journal/hooks/useTradeEvents';
+import {
+  calcCoreStats,
+  calcTodayStats,
+  getDailySequence,
+  buildEquityCurve,
+  calcMaxDrawdown,
+  calcSharpeRatio,
+} from '@/lib/calculations/trades';
+
+import TradingCalendar    from '@/components/dashboard/TradingCalendar';
 import PerformanceBreakdown from '@/components/dashboard/PerformanceBreakdown';
-import DashboardHeader from '@/components/dashboard/DashboardHeader';
-import StreakTracker from '@/components/dashboard/StreakTracker';
-import DailyGoalBar from '@/components/dashboard/DailyGoalBar';
-import MorningBrief from '@/components/dashboard/MorningBrief';
-import DayPanel from '@/components/dashboard/DayPanel';
-import { computeCoreStats, getTodayStats, getDailySequence } from '@/lib/performanceMetrics';
+import DashboardHeader    from '@/components/dashboard/DashboardHeader';
+import StreakTracker       from '@/components/dashboard/StreakTracker';
+import DailyGoalBar        from '@/components/dashboard/DailyGoalBar';
+import MorningBrief        from '@/components/dashboard/MorningBrief';
+import DayPanel            from '@/components/dashboard/DayPanel';
 
 export default function Dashboard() {
   useTradeEvents();
   const [selectedDay, setSelectedDay] = useState(null);
 
-  const { data: settings=[] } = useQuery({
-    queryKey: ['settings'],
-    queryFn: () => base44.entities.Settings.list(),
-    refetchOnWindowFocus: false, staleTime: 5*60*1000,
-  });
+  const { data: trades = [], isLoading } = useTrades({ sortBy: 'entry_time', sortDir: 'desc' });
+  const {
+    accountSize,
+    targetProfitDollars,
+    maxDollars,
+  } = useSettings();
 
-  const { data: trades=[] } = useQuery({
-    queryKey: ['journal-trades'],
-    queryFn: () => {
-      try {
-        const s = window.localStorage.getItem('trades');
-        const p = s ? JSON.parse(s) : [];
-        return p.sort((a,b)=>new Date(b.entry_time||b.created_date)-new Date(a.entry_time||a.created_date));
-      } catch { return []; }
-    },
-    staleTime: 0,
-    refetchOnWindowFocus: true,
-  });
+  // ── Analytics (pure functions, no extra queries) ──────────────────────────
+  const allStats   = useMemo(() => calcCoreStats(trades),          [trades]);
+  const todayStats = useMemo(() => calcTodayStats(trades),         [trades]);
+  const sequence   = useMemo(() => getDailySequence(trades, 20),   [trades]);
+  const curve      = useMemo(() => buildEquityCurve(trades, accountSize), [trades, accountSize]);
+  const maxDD      = useMemo(() => calcMaxDrawdown(curve),         [curve]);
+  const sharpe     = useMemo(() => calcSharpeRatio(trades),        [trades]);
 
-  const accountSize   = settings?.[0]?.account_size || 50000;
-  const targetProfit  = parseFloat(settings?.[0]?.target_profit_dollars) || 500;
-  const maxDailyLoss  = -(parseFloat(settings?.[0]?.max_dollars) || 250);
+  const currentBalance = accountSize + allStats.totalPnL;
+  const maxDailyLoss   = -(maxDollars || 250);
 
-  const allStats   = useMemo(()=>computeCoreStats(trades),[trades]);
-  const todayStats = useMemo(()=>getTodayStats(trades),[trades]);
-  const sequence   = useMemo(()=>getDailySequence(trades,20),[trades]);
+  if (isLoading) {
+    return (
+      <div className="space-y-5">
+        {[1,2,3].map(i => (
+          <div key={i} className="h-24 bg-white/5 rounded-2xl animate-pulse" />
+        ))}
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-5">
       <DashboardHeader
-        currentBalance={accountSize + allStats.totalPnL}
+        currentBalance={currentBalance}
         totalPnL={allStats.totalPnL}
         todayPnL={todayStats.totalPnL}
         winRate={allStats.winRate}
@@ -55,7 +71,7 @@ export default function Dashboard() {
 
       <DailyGoalBar
         todayPnL={todayStats.totalPnL}
-        targetProfit={targetProfit}
+        targetProfit={targetProfitDollars}
         maxDailyLoss={maxDailyLoss}
       />
 
@@ -66,7 +82,7 @@ export default function Dashboard() {
           <TradingCalendar trades={trades} onDaySelect={setSelectedDay} />
         </div>
         {selectedDay
-          ? <DayPanel day={selectedDay} trades={trades} onClose={()=>setSelectedDay(null)} />
+          ? <DayPanel day={selectedDay} trades={trades} onClose={() => setSelectedDay(null)} />
           : <MorningBrief trades={trades} />
         }
       </div>

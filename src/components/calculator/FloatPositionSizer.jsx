@@ -1,152 +1,234 @@
-import React from 'react';
-import { Card, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Plus } from 'lucide-react';
-import { toast } from 'sonner';
-import { useTradingContext } from '@/lib/TradingContext';
+/**
+ * @file src/components/calculator/FloatPositionSizer.jsx
+ *
+ * Phase 2 — main calculator component.
+ * Wired to useSettings() (Firebase) and accepts onCalculationSaved callback.
+ * Cleaned of all console.log debug noise.
+ */
 
-// Import modular components from float-position-sizer folder
-import FloatInputForm from './input/FloatInputForm';
-import ResultsDisplay from './results/ResultsDisplay';
-import FloatInfoBox from './input/FloatInfoBox';
-import useFloatPositionSizer from "./float-position-sizer/useFloatPositionSizer";
-import { TradeCreator } from "./float-position-sizer/TradeCreator";
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { Card, CardContent }  from '@/components/ui/card';
+import { Button }             from '@/components/ui/button';
+import { Plus, RotateCcw }    from 'lucide-react';
+import { toast }              from 'sonner';
+import { useSettings }        from '@/lib/SettingsContext';
+import { useTradingContext }   from '@/lib/TradingContext';
+import {
+  calcPosition,
+  calcExitTargets,
+} from '@/lib/calculations/trades';
 
-export default function FloatPositionSizer({ historyData }) {
+import FloatInputForm  from './input/FloatInputForm';
+import FloatInfoBox    from './input/FloatInfoBox';
+import ResultsDisplay from "./position-size/ResultsDisplay";
+import { TradeCreator } from './float-position-sizer/TradeCreator';
+import { FloatDataService } from './float-position-sizer/FloatDataService';
+
+const floatDataService = new FloatDataService();
+
+export default function FloatPositionSizer({ historyData, onCalculationSaved }) {
   const { selectedSymbol, selectedEntryPrice } = useTradingContext();
-
   const {
-    // State
-    symbol,
-    setSymbol,
-    entryPrice,
-    setEntryPrice,
-    direction,
-    setDirection,
-    customStopLossPrice,
-    setCustomStopLossPrice,
-    loading,
-    shareFloat,
-    floatCategory,
-    calculation,
-    floatData,
-    
-    // Actions
-    fetchShareFloat,
-    calculatePosition,
-  } = useFloatPositionSizer({
-    selectedSymbol,
-    selectedEntryPrice
-  });
+    accountSize,
+    riskAmount,
+    positionSizingPct,
+    defaultStopLossPct,
+    targetProfitDollars,
+    maxDollars,
+    floatCategories,
+  } = useSettings();
 
-  // Sync local state from shared trading context when selection changes
-  React.useEffect(() => {
-    if (setSymbol && setEntryPrice) {
-      if (selectedSymbol) {
-        setSymbol(selectedSymbol.toUpperCase());
-      }
-      if (selectedEntryPrice) {
-        setEntryPrice(selectedEntryPrice.toString());
-      }
-    }
-  }, [selectedSymbol, selectedEntryPrice, setSymbol, setEntryPrice]);
+  // ── Form state ────────────────────────────────────────────────────────────
+  const [symbol,          setSymbol]          = useState('');
+  const [entryPrice,      setEntryPrice]       = useState('');
+  const [customStop,      setCustomStop]       = useState('');
+  const [direction,       setDirection]        = useState('long');
+  const [shareFloat,      setShareFloat]       = useState(null);
+  const [floatCategory,   setFloatCategory]    = useState(null);
+  const [floatData,       setFloatData]        = useState(null);
+  const [loadingFloat,    setLoadingFloat]     = useState(false);
+  const [calculation,     setCalculation]      = useState(null);
 
-  // Load history data when provided (from CalcHistory navigation)
-  React.useEffect(() => {
-    if (historyData && setSymbol && setEntryPrice && setDirection) {
-      try {
-        console.log('Loading history data into calculator:', historyData);
-        setSymbol(historyData.symbol);
-        setEntryPrice(historyData.entryPrice);
-        setDirection(historyData.direction);
-        
-        toast.success(`Loaded calculation for ${historyData.symbol} from history`);
-      } catch (error) {
-        console.error('Error loading history data:', error);
-      }
-    }
-  }, [historyData, setSymbol, setEntryPrice, setDirection]);
+  // Clear stale result when any input changes
+  useEffect(() => { setCalculation(null); }, [entryPrice, customStop, direction, symbol]);
 
-  const handleAddToJournal = async () => {
-    if (!entryPrice) {
-      toast.error('Please enter entry price to create a trade');
+  // Sync from trading context (when user clicks "Use in Calculator" from Journal)
+  useEffect(() => {
+    if (selectedSymbol && selectedSymbol !== symbol) setSymbol(selectedSymbol);
+    if (selectedEntryPrice != null) setEntryPrice(String(selectedEntryPrice));
+  }, [selectedSymbol, selectedEntryPrice]);
+
+  // Load from CalcHistory navigation state
+  useEffect(() => {
+    if (!historyData) return;
+    setSymbol(historyData.symbol ?? '');
+    setEntryPrice(String(historyData.entryPrice ?? ''));
+    setDirection(historyData.direction ?? 'long');
+    toast.info(`Loaded ${historyData.symbol} from history`);
+  }, [historyData]);
+
+  // ── Float fetch ───────────────────────────────────────────────────────────
+  const fetchShareFloat = useCallback(async () => {
+    if (!symbol) { toast.error('Enter a symbol first'); return; }
+
+    const cached = floatDataService.loadSavedFloatData();
+    if (floatDataService.isCacheValid(cached, symbol)) {
+      setFloatData(cached);
+      setShareFloat(cached.share_float);
+      setFloatCategory(resolveCategory(cached.share_float));
+      toast.success(`Loaded float data for ${symbol} (cached)`);
       return;
     }
 
-    const normalizedSymbol = symbol?.trim() ? symbol.trim() : 'N?N';
+    setLoadingFloat(true);
+    try {
+      const data = await floatDataService.fetchFloatData(symbol);
+      floatDataService.saveFloatData(data);
+      setFloatData(data);
+      setShareFloat(data.share_float);
+      setFloatCategory(resolveCategory(data.share_float));
+      toast.success(`Float data loaded for ${symbol}`);
+    } catch (e) {
+      toast.error('Failed to fetch float data');
+    } finally {
+      setLoadingFloat(false);
+    }
+  }, [symbol, floatCategories]);
+
+  function resolveCategory(floatSize) {
+    if (!floatSize || !floatCategories) return null;
+    for (const [key, cat] of Object.entries(floatCategories)) {
+      if (floatSize >= cat.min && floatSize < cat.max) return key;
+    }
+    return null;
+  }
+
+  // ── Calculate ─────────────────────────────────────────────────────────────
+  const handleCalculate = useCallback(() => {
+    if (!entryPrice) { toast.error('Enter an entry price'); return; }
 
     try {
+      const result = calcPosition({
+        entryPrice,
+        direction,
+        accountSize,
+        positionPct:        positionSizingPct,
+        stopPct:            defaultStopLossPct,
+        stopLossPrice:      customStop || undefined,
+        riskAmount:         customStop ? riskAmount : undefined,
+        shareFloat:         shareFloat ?? undefined,
+        floatCategory:      floatCategory ?? undefined,
+        floatCategories,
+        maxDollars,
+        targetProfitDollars,
+        riskRewardRatio:    3,
+      });
+
+      setCalculation(result);
+
+      // Persist to history (Firebase via callback from Calculator page)
+      const historyItem = {
+        timestamp:          new Date().toISOString(),
+        symbol:             symbol || 'N/A',
+        entryPrice:         result.entryPrice,
+        shares:             result.shares,
+        stopLossPrice:      result.stopLossPrice,
+        targetPrice:        result.targetPrice,
+        positionValue:      result.positionValue,
+        actualRisk:         result.actualRisk,
+        potentialProfit:    result.targetProfit,
+        direction:          result.direction,
+        riskLevel:          result.riskLevel,
+        useIntelligentFlow: result.mode === 'float-aware',
+        floatCategory:      result.floatCategory,
+        calculatedAt:       result.calculatedAt,
+      };
+
+      onCalculationSaved?.(historyItem);
+      toast.success(`${result.shares.toLocaleString()} shares · ${result.riskLevel} risk`);
+    } catch (e) {
+      toast.error(e.message);
+    }
+  }, [
+    entryPrice, direction, accountSize, positionSizingPct,
+    defaultStopLossPct, customStop, riskAmount,
+    shareFloat, floatCategory, floatCategories,
+    maxDollars, targetProfitDollars, symbol, onCalculationSaved,
+  ]);
+
+  // ── Add to Journal ────────────────────────────────────────────────────────
+  const handleAddToJournal = useCallback(async () => {
+    if (!entryPrice) { toast.error('Enter an entry price first'); return; }
+    try {
       const tradeData = await TradeCreator.createTrade({
-        symbol: normalizedSymbol,
+        symbol:       symbol || 'N/A',
         entryPrice,
         direction,
         calculation,
-        shares: calculation?.shares,
         floatData,
-        floatCategory
+        floatCategory,
       });
-
-      const response = await TradeCreator.saveTrade(tradeData);
-
-      if (response) {
-        toast.success(`Comprehensive trade created for ${normalizedSymbol.toUpperCase()} at $${entryPrice}`);
-        
-        // Trigger refresh event
-        window.dispatchEvent(new CustomEvent('tradeCreated', { 
-          detail: { trade: response }
-        }));
-      }
-    } catch (error) {
-      console.error('Error in handleAddToJournal:', error);
-      toast.error('Failed to create trade. Please try again.');
+      await TradeCreator.saveTrade(tradeData);
+      toast.success(`Trade added to journal`);
+      window.dispatchEvent(new CustomEvent('trades-updated', { detail: { action: 'create' } }));
+    } catch (e) {
+      toast.error(`Failed: ${e.message}`);
     }
+  }, [symbol, entryPrice, direction, calculation, floatData, floatCategory]);
+
+  const handleReset = () => {
+    setSymbol(''); setEntryPrice(''); setCustomStop('');
+    setShareFloat(null); setFloatCategory(null); setFloatData(null);
+    setCalculation(null);
   };
 
+  // ── Render ────────────────────────────────────────────────────────────────
   return (
-    <div className="space-y-4">
-      {/* Input Form */}
+    <div className="space-y-4 max-w-3xl">
       <Card className="bg-[#1a1a24] border-white/10">
-        <CardContent className="space-y-6">
+        <CardContent className="p-6 space-y-6">
           <FloatInputForm
             symbol={symbol}
             setSymbol={setSymbol}
             entryPrice={entryPrice}
             setEntryPrice={setEntryPrice}
-            customStopLossPrice={customStopLossPrice}
-            setCustomStopLossPrice={setCustomStopLossPrice}
+            customStopLossPrice={customStop}
+            setCustomStopLossPrice={setCustomStop}
             direction={direction}
             setDirection={setDirection}
-            loading={loading}
+            loading={loadingFloat}
             fetchShareFloat={fetchShareFloat}
-            onCalculate={calculatePosition}
+            onCalculate={handleCalculate}
           />
         </CardContent>
       </Card>
 
-      {/* Float Information */}
       {shareFloat && floatData && (
         <FloatInfoBox
+          symbol={symbol}
           shareFloat={shareFloat}
-          floatData={floatData}
           floatCategory={floatCategory}
+          calculation={calculation}
         />
       )}
 
-      {/* Calculation Results */}
-      <ResultsDisplay
-        key={`calc-${calculation?.calculatedAt || Date.now()}`}
-        calculation={calculation}
-      />
+      {calculation && <ResultsDisplay {...calculation} />}
 
-      {/* Action Buttons */}
-      <div className="flex justify-end gap-3 pt-4 border-t border-white/10">
+      <div className="flex justify-between items-center pt-2 border-t border-white/5">
+        <Button
+          variant="ghost"
+          onClick={handleReset}
+          className="text-white/30 hover:text-white/60 gap-2"
+        >
+          <RotateCcw className="w-4 h-4" />Reset
+        </Button>
+
         <Button
           onClick={handleAddToJournal}
-          disabled={!entryPrice || !calculation}
-          className="bg-emerald-600 hover:bg-emerald-700"
+          disabled={!entryPrice}
+          className="bg-emerald-600 hover:bg-emerald-700 gap-2"
         >
-          <Plus className="w-4 h-4 mr-2" />
-          Add to Journal
+          <Plus className="w-4 h-4" />Add to Journal
         </Button>
       </div>
     </div>

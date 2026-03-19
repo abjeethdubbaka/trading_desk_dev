@@ -1,4 +1,4 @@
-import { base44 } from '@/api/base44Client';
+import { db } from '@/lib/db';
 
 export class TradeCreator {
   static async createTrade(params) {
@@ -89,7 +89,7 @@ export class TradeCreator {
   static async saveTrade(tradeData) {
     try {
       console.log('Creating comprehensive trade with data:', tradeData);
-      const response = await base44.entities.Trade.create(tradeData);
+      const response = await db.trades.create(tradeData);
       console.log('Trade creation response:', response);
       return response;
     } catch (error) {
