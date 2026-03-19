@@ -1,81 +1,119 @@
-import React, { useState, useEffect } from 'react';
-import AddTradeModal from '@/components/journal/AddTradeModal';
-import JournalToolbar from '@/components/journal/components/JournalToolbar';
-import CompactView from '@/components/journal/components/CompactView';
-import DetailedView from '@/components/journal/components/DetailedView';
-import EmptyState from '@/components/journal/components/EmptyState';
-import AnalysisPanel from '@/components/journal/components/Analysis';
-import JournalStatsBar from '@/components/journal/components/JournalStatsBar';
-import { useJournalTrades } from '@/components/journal/hooks/useJournalTrades';
-import { useJournalFilters } from '@/components/journal/hooks/useJournalFilters';
-import { useJournalImagePreloader } from '@/components/journal/utils/imageUtils';
-import { useTradeReview } from '@/lib/useTradeReview';
-import { VIEW_MODES } from '@/components/journal/utils/constants';
-import { validateTrade, sanitizeTrade } from '@/components/journal/utils/validators';
-import { cn } from '@/lib/utils';
+/**
+ * @file src/pages/Journal.jsx
+ *
+ * Phase 2 — rewired to useJournal() (Firebase-backed).
+ * All trade CRUD flows through the new db layer.
+ */
+
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { useJournal }           from '@/hooks/useTrades';
+import { useJournalFilters }    from '@/components/journal/hooks/useJournalFilters';
+import AddTradeModal            from '@/components/journal/AddTradeModal';
+import JournalToolbar           from '@/components/journal/components/JournalToolbar';
+import CompactView              from '@/components/journal/components/CompactView';
+import DetailedView             from '@/components/journal/components/DetailedView';
+import EmptyState               from '@/components/journal/components/EmptyState';
+import AnalysisPanel            from '@/components/journal/components/Analysis';
+import JournalStatsBar          from '@/components/journal/components/JournalStatsBar';
+import { useTradeReview }       from '@/lib/useTradeReview';
+import { VIEW_MODES }           from '@/components/journal/utils/constants';
+import { validateTrade, sanitizeTrade } from '@/lib/validation/trades';
+import { cn }                   from '@/lib/utils';
+import { toast }                from 'sonner';
 
 export default function Journal() {
-  const [showModal, setShowModal] = useState(false);
-  const [editingTrade, setEditingTrade] = useState(null);
-  const [viewMode, setViewMode] = useState(VIEW_MODES.COMPACT);
-  const [isPanelExpanded, setPanelExpanded] = useState(false);
+  const [showModal,      setShowModal]      = useState(false);
+  const [editingTrade,   setEditingTrade]   = useState(null);
+  const [viewMode,       setViewMode]       = useState(VIEW_MODES.COMPACT);
+  const [isPanelExpanded,setPanelExpanded]  = useState(false);
 
-  const { trades, isLoading, createTrade, updateTrade, deleteTrade } = useJournalTrades();
-  const { searchTerm, setSearchTerm, filter, setFilter, dateRange, setDateRange, filteredTrades } = useJournalFilters(trades);
-  const { preloadImages } = useJournalImagePreloader(filteredTrades);
+  // ── Data (Firebase via useTrades) ────────────────────────────────────────
+  const { trades, isLoading, createTrade, updateTrade, deleteTrade, isSaving } = useJournal();
+
+  // ── Filters (client-side on fetched data) ────────────────────────────────
+  const {
+    searchTerm, setSearchTerm,
+    filter,     setFilter,
+    dateRange,  setDateRange,
+    filteredTrades,
+  } = useJournalFilters(trades);
+
   const { reviews, loading: reviewLoading, reviewTrade, clearReview } = useTradeReview();
 
+  // ── Listen for external "open modal" events (e.g. from Calculator) ───────
   useEffect(() => {
-    if (!isLoading && filteredTrades.length > 0) {
-      const t = setTimeout(preloadImages, 500);
-      return () => clearTimeout(t);
-    }
-  }, [filteredTrades, isLoading, preloadImages]);
-
-  useEffect(() => {
-    const h = (e) => {
-      setEditingTrade(e.detail.tradeData);
+    const handler = (e) => {
+      setEditingTrade(e.detail?.tradeData ?? null);
       setShowModal(true);
     };
-
-    window.addEventListener('open-add-trade-modal', h);
-    return () => window.removeEventListener('open-add-trade-modal', h);
+    window.addEventListener('open-add-trade-modal', handler);
+    return () => window.removeEventListener('open-add-trade-modal', handler);
   }, []);
 
-  const handleSave = async (data) => {
-    try {
-      let sanitizedData = sanitizeTrade(data);
-
-      if (sanitizedData.entry_price) {
-        sanitizedData.entry_price = parseFloat(sanitizedData.entry_price.toFixed(4));
-      }
-      if (sanitizedData.exit_price) {
-        sanitizedData.exit_price = parseFloat(sanitizedData.exit_price.toFixed(4));
-      }
-      if (sanitizedData.fee) {
-        sanitizedData.fee = parseFloat(sanitizedData.fee.toFixed(4));
-      }
-      
-      const validation = validateTrade(sanitizedData);
-
-      if (!validation.isValid) {
-        alert(`Validation: ${validation.errors.join(', ')}`);
-        return;
-      }
-
-      if (editingTrade) {
-        await updateTrade({ id: editingTrade.id, data: sanitizedData });
-        setShowModal(false);
-        setEditingTrade(null);
-      } else {
-        await createTrade(sanitizedData);
-        setShowModal(false);
-      }
-    } catch {
-      alert('Failed to save trade. Please try again.');
+  // ── Save handler ─────────────────────────────────────────────────────────
+  const handleSave = useCallback(async (data) => {
+    console.log('📝 Journal Handle Save - START:', data);
+    console.log('📝 Journal Handle Save - Editing Trade:', editingTrade);
+    
+    const validation = validateTrade(data);
+    console.log('📝 Journal Handle Save - Validation Result:', validation);
+    console.log('📝 Journal Handle Save - Validation Errors:', validation.errors);
+    console.log('📝 Journal Handle Save - Validation Warnings:', validation.warnings);
+    
+    if (!validation.isValid) {
+      console.error('❌ Journal Handle Save - Validation Failed:', validation.errors);
+      toast.error('Fix validation errors before saving');
+      validation.errors.forEach(e => {
+        console.error('❌ Validation Error:', e);
+        toast.error(e);
+      });
+      return;
     }
-  };
+    if (validation.hasWarnings) {
+      validation.warnings.forEach(w => toast.warning(w));
+    }
 
+    try {
+      if (editingTrade) {
+        console.log('📝 Journal Handle Save - UPDATING trade:', editingTrade.id);
+        await updateTrade(editingTrade.id, data);
+        toast.success(`${data.symbol} updated`);
+      } else {
+        console.log('📝 Journal Handle Save - CREATING new trade');
+        await createTrade(data);
+        toast.success(`${data.symbol} logged`);
+      }
+      console.log('📝 Journal Handle Save - SUCCESS');
+      setShowModal(false);
+      setEditingTrade(null);
+    } catch (err) {
+      console.error('💥 Journal Handle Save - ERROR:', err);
+      console.error('💥 Journal Handle Save - ERROR MESSAGE:', err.message);
+      toast.error(`Failed to save: ${err.message}`);
+    }
+  }, [editingTrade, createTrade, updateTrade]);
+
+  const handleEdit = useCallback((trade) => {
+    setEditingTrade(trade);
+    setShowModal(true);
+  }, []);
+
+  const handleDelete = useCallback(async (id) => {
+    if (!window.confirm('Delete this trade?')) return;
+    try {
+      await deleteTrade(id);
+      toast.success('Trade deleted');
+    } catch (err) {
+      toast.error(`Delete failed: ${err.message}`);
+    }
+  }, [deleteTrade]);
+
+  const handleClose = useCallback(() => {
+    setShowModal(false);
+    setEditingTrade(null);
+  }, []);
+
+  // ── Render ────────────────────────────────────────────────────────────────
   return (
     <div className="space-y-4">
       <JournalToolbar
@@ -88,13 +126,14 @@ export default function Journal() {
         viewMode={viewMode}
         onViewModeChange={setViewMode}
         onAddTrade={() => setShowModal(true)}
+        trades={filteredTrades}
       />
 
       <JournalStatsBar trades={filteredTrades} />
 
       {isLoading ? (
         <div className="space-y-1">
-          {[1, 2, 3, 4, 5].map(i => (
+          {Array.from({ length: 6 }).map((_, i) => (
             <div key={i} className="bg-white/5 border border-white/10 rounded p-2 h-12 animate-pulse" />
           ))}
         </div>
@@ -105,12 +144,13 @@ export default function Journal() {
         />
       ) : (
         <div className="flex gap-4">
+          {/* Trade list */}
           <div className="flex-1 bg-[#1a1a24] border border-white/10 rounded overflow-hidden">
-            {viewMode === 'compact' ? (
+            {viewMode === VIEW_MODES.COMPACT ? (
               <CompactView
                 trades={filteredTrades}
-                onEdit={t => { setEditingTrade(t); setShowModal(true); }}
-                onDelete={deleteTrade}
+                onEdit={handleEdit}
+                onDelete={handleDelete}
                 reviews={reviews}
                 reviewLoading={reviewLoading}
                 onReviewTrade={reviewTrade}
@@ -119,7 +159,7 @@ export default function Journal() {
             ) : (
               <DetailedView
                 trades={filteredTrades}
-                onEdit={t => { setEditingTrade(t); setShowModal(true); }}
+                onEdit={handleEdit}
                 reviews={reviews}
                 reviewLoading={reviewLoading}
                 onReviewTrade={reviewTrade}
@@ -128,19 +168,16 @@ export default function Journal() {
             )}
           </div>
 
+          {/* Analysis panel — expands on hover */}
           <div
-            className="relative"
             onMouseEnter={() => setPanelExpanded(true)}
             onMouseLeave={() => setPanelExpanded(false)}
           >
             <div className={cn(
-              "transition-all duration-300 ease-in-out",
-              isPanelExpanded ? "w-80 opacity-100" : "w-12 opacity-60"
+              'transition-all duration-300 ease-in-out',
+              isPanelExpanded ? 'w-80 opacity-100' : 'w-12 opacity-60',
             )}>
-              <AnalysisPanel 
-                trades={filteredTrades} 
-                isCollapsed={!isPanelExpanded}
-              />
+              <AnalysisPanel trades={filteredTrades} isCollapsed={!isPanelExpanded} />
             </div>
           </div>
         </div>
@@ -148,9 +185,10 @@ export default function Journal() {
 
       <AddTradeModal
         open={showModal}
-        onClose={() => { setShowModal(false); setEditingTrade(null); }}
+        onClose={handleClose}
         onSave={handleSave}
         initialData={editingTrade}
+        isSaving={isSaving}
       />
     </div>
   );

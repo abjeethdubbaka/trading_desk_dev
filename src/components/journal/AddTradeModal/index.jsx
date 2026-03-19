@@ -19,7 +19,7 @@ import {
 } from "@/components/ui/select";
 import { Loader2 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
-import { base44 } from '@/api/base44Client';
+import { db } from '@/lib/db';
 import { cn } from "@/lib/utils";
 
 // Custom hooks
@@ -74,9 +74,7 @@ export default function AddTradeModal({ open, onClose, onSave, initialData }) {
   // Fetch strategy presets
   const { data: presets = [] } = useQuery({
     queryKey: ['strategy-presets', userId],
-    queryFn: () => base44.database.StrategyPresets.findMany({
-      where: { user_id: userId, active: true }
-    }),
+    queryFn: () => db.strategyPresets.list({ userId }),
     enabled: open // Only fetch when modal is open
   });
 
