@@ -1,11 +1,43 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 import { formatDate, formatCurrency, formatPercent } from '../utils/formatters';
 import { Image, Edit, Trash2, Maximize2, AlertCircle } from 'lucide-react';
+import { createMediaService } from '@/lib/services/MediaService.js';
+import { db } from '@/lib/db/index.js';
+import { indexedDBAdapter } from '@/lib/db/adapters/IndexedDBAdapter.js';
+
+// Create media service instance
+const mediaService = createMediaService(db, indexedDBAdapter);
 
 export default function CompactView({ trades, onEdit, onDelete }) {
   const [expandedTrade, setExpandedTrade] = useState(null);
   const [imageStates, setImageStates] = useState({});
+  const [screenshotUrls, setScreenshotUrls] = useState({});
+
+  // Resolve screenshot URLs from IDs
+  useEffect(() => {
+    const allScreenshotIds = trades.flatMap(trade => trade.screenshots || []);
+    
+    if (allScreenshotIds.length === 0) {
+      setScreenshotUrls({});
+      return;
+    }
+
+    Promise.all(
+      allScreenshotIds.map(async (id) => {
+        try {
+          const media = await mediaService.get(id);
+          const url = media?.file_url || URL.createObjectURL(media?.file);
+          return [id, url];
+        } catch (error) {
+          console.error('Failed to load screenshot:', id, error);
+          return [id, null];
+        }
+      })
+    ).then(pairs => {
+      setScreenshotUrls(Object.fromEntries(pairs.filter(([_, url]) => url !== null)));
+    });
+  }, [trades]);
 
   const handleImageLoad = (tradeId, index) => {
     setImageStates(prev => ({
@@ -191,7 +223,7 @@ export default function CompactView({ trades, onEdit, onDelete }) {
                       ? "bg-emerald-500/20 text-emerald-400" 
                       : "bg-red-500/20 text-red-400"
                   )}>
-                    {trade.direction === 'long' ? 'L' : 'S'}
+                    {trade.direction === 'long' ? 'Long' : 'Short'}
                   </span>
                 </td>
                 
@@ -235,9 +267,10 @@ export default function CompactView({ trades, onEdit, onDelete }) {
                 <td className="p-2 text-center">
                   {trade.screenshots && trade.screenshots.length > 0 ? (
                     <div className="flex gap-1 items-center justify-center">
-                      {trade.screenshots.slice(0, 3).map((screenshot, index) => {
+                      {trade.screenshots.slice(0, 3).map((screenshotId, index) => {
                         const imageKey = `${trade.id}-${index}`;
                         const imageState = imageStates[imageKey];
+                        const screenshotUrl = screenshotUrls[screenshotId];
                         
                         return (
                           <div key={imageKey} className="w-8 h-8 relative">
@@ -251,7 +284,7 @@ export default function CompactView({ trades, onEdit, onDelete }) {
                               </div>
                             )}
                             <img
-                              src={screenshot}
+                              src={screenshotUrl}
                               alt={`Trade ${trade.id} Screenshot ${index + 1}`}
                               className={cn(
                                 "w-8 h-8 object-cover rounded cursor-pointer hover:opacity-80 transition-opacity",
@@ -259,8 +292,8 @@ export default function CompactView({ trades, onEdit, onDelete }) {
                               )}
                               onClick={(e) => {
                                 e.stopPropagation();
-                                if (imageState === 'loaded') {
-                                  handleViewImage(screenshot);
+                                if (imageState === 'loaded' && screenshotUrl) {
+                                  handleViewImage(screenshotUrl);
                                 }
                               }}
                               onLoad={() => handleImageLoad(trade.id, index)}

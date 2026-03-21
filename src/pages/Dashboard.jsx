@@ -6,7 +6,7 @@
  */
 
 import React, { useState, useMemo } from 'react';
-import { useTrades }        from '@/hooks/useTrades';
+import { useTrades } from '@/lib/hooks/useTrades';
 import { useSettings }      from '@/lib/SettingsContext';
 import { useTradeEvents }   from '@/components/journal/hooks/useTradeEvents';
 import {

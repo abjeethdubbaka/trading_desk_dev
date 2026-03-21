@@ -6,7 +6,7 @@
  */
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { useJournal }           from '@/hooks/useTrades';
+import { useJournal, useTradesMutation } from '@/lib/hooks/useTrades';
 import { useJournalFilters }    from '@/components/journal/hooks/useJournalFilters';
 import AddTradeModal            from '@/components/journal/AddTradeModal';
 import JournalToolbar           from '@/components/journal/components/JournalToolbar';
@@ -28,7 +28,8 @@ export default function Journal() {
   const [isPanelExpanded,setPanelExpanded]  = useState(false);
 
   // ── Data (Firebase via useTrades) ────────────────────────────────────────
-  const { trades, isLoading, createTrade, updateTrade, deleteTrade, isSaving } = useJournal();
+  const { trades, isLoading, error, refetch } = useJournal();
+  const { createTrade, updateTrade, deleteTrade, isSaving } = useTradesMutation();
 
   // ── Filters (client-side on fetched data) ────────────────────────────────
   const {

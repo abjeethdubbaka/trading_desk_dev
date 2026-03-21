@@ -3,7 +3,7 @@ import { useTradingContext } from '@/lib/TradingContext';
 import { useCurrentBalance } from '@/lib/balanceUtils';
 import { getFloatCategory, getCategoryInfo } from '@/components/calculator/utils/floatCategories';
 import { useFloatData } from './hooks/useFloatData';
-import { useSettings } from '@/components/settings/SettingsProvider';
+import { useSettings } from '@/lib/SettingsContext';
 import { toast } from 'sonner';
 
 export default function useFloatPositionSizer({ selectedSymbol, selectedEntryPrice }) {

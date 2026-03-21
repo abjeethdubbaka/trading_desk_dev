@@ -7,7 +7,7 @@
 import React, { useMemo }     from 'react';
 import { useNavigate }         from 'react-router-dom';
 import { createPageUrl }       from '@/utils';
-import { useCalcHistory }      from '@/hooks/useCalcHistory';
+import { useCalcHistory } from '@/lib/hooks/useCalcHistory';
 import { Card, CardContent }   from '@/components/ui/card';
 import { Button }              from '@/components/ui/button';
 import { Badge }               from '@/components/ui/badge';
@@ -48,7 +48,7 @@ function FloatBadge({ category }) {
 
 export default function CalcHistory() {
   const navigate = useNavigate();
-  const { history, isLoading, deleteItem, clearHistory } = useCalcHistory();
+  const { data: history = [], isLoading, deleteItem, clearHistory } = useCalcHistory();
 
   const summary = useMemo(() => ({
     totalRisk:         history.reduce((s, i) => s + (i.actualRisk       ?? 0), 0),

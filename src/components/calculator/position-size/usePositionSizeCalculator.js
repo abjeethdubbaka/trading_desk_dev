@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { useCurrentBalance } from '@/lib/balanceUtils';
-import { useSettings } from '@/components/settings/SettingsProvider'; // Use SettingsProvider's hook
+import { useSettings } from '@/lib/SettingsContext'; // Use SettingsContext's hook
 
 export function usePositionSizeCalculator() {
   const { currentBalance } = useCurrentBalance();

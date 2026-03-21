@@ -7,7 +7,7 @@
 import React, { useEffect } from 'react';
 import { useLocation }       from 'react-router-dom';
 import FloatPositionSizer    from '@/components/calculator/FloatPositionSizer';
-import { useCalcHistory }    from '@/hooks/useCalcHistory';
+import { useCalcHistory } from '@/lib/hooks/useCalcHistory';
 
 export default function Calculator() {
   const location    = useLocation();

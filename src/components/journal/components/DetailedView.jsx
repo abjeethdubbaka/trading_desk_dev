@@ -1,10 +1,42 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 import { formatDate, formatTime, formatCurrency } from '../utils/formatters';
 import { Image, Maximize2, AlertCircle } from 'lucide-react';
+import { createMediaService } from '@/lib/services/MediaService.js';
+import { db } from '@/lib/db/index.js';
+import { indexedDBAdapter } from '@/lib/db/adapters/IndexedDBAdapter.js';
+
+// Create media service instance
+const mediaService = createMediaService(db, indexedDBAdapter);
 
 export default function DetailedView({ trades, onEdit }) {
   const [imageStates, setImageStates] = useState({});
+  const [screenshotUrls, setScreenshotUrls] = useState({});
+
+  // Resolve screenshot URLs from IDs
+  useEffect(() => {
+    const allScreenshotIds = trades.flatMap(trade => trade.screenshots || []);
+    
+    if (allScreenshotIds.length === 0) {
+      setScreenshotUrls({});
+      return;
+    }
+
+    Promise.all(
+      allScreenshotIds.map(async (id) => {
+        try {
+          const media = await mediaService.get(id);
+          const url = media?.file_url || URL.createObjectURL(media?.file);
+          return [id, url];
+        } catch (error) {
+          console.error('Failed to load screenshot:', id, error);
+          return [id, null];
+        }
+      })
+    ).then(pairs => {
+      setScreenshotUrls(Object.fromEntries(pairs.filter(([_, url]) => url !== null)));
+    });
+  }, [trades]);
 
   const isVWAPPullback = (setupType) => (setupType || '').toLowerCase().trim() === 'vwap pullback';
   const getStepStatus = (step, keys) => keys.every((key) => !!step?.[key]);
@@ -260,9 +292,10 @@ export default function DetailedView({ trades, onEdit }) {
           {trade.screenshots && trade.screenshots.length > 0 && (
             <div className="mt-2 pt-2 border-t border-white/10">
               <div className="flex gap-1 flex-wrap">
-                {trade.screenshots.slice(0, 4).map((screenshot, index) => {
+                {trade.screenshots.slice(0, 4).map((screenshotId, index) => {
                   const imageKey = `${trade.id}-${index}`;
                   const imageState = imageStates[imageKey];
+                  const screenshotUrl = screenshotUrls[screenshotId];
                   
                   return (
                     <div key={imageKey} className="w-12 h-12 relative">
@@ -276,7 +309,7 @@ export default function DetailedView({ trades, onEdit }) {
                         </div>
                       )}
                       <img
-                        src={screenshot}
+                        src={screenshotUrl}
                         alt={`Trade ${trade.id} Screenshot ${index + 1}`}
                         className={cn(
                           "w-12 h-12 object-cover rounded cursor-pointer hover:opacity-80 transition-opacity",
@@ -284,8 +317,8 @@ export default function DetailedView({ trades, onEdit }) {
                         )}
                         onClick={(e) => {
                           e.stopPropagation();
-                          if (imageState === 'loaded') {
-                            handleViewImage(screenshot);
+                          if (imageState === 'loaded' && screenshotUrl) {
+                            handleViewImage(screenshotUrl);
                           }
                         }}
                         onLoad={() => handleImageLoad(trade.id, index)}

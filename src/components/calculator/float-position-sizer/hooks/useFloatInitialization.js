@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { useFloatCategories } from '@/hooks/useFloatCategories';
-import { useSettings } from '@/hooks/useSettings';
+import { useFloatCategories } from '@/lib/hooks/useFloatCategories';
+import { useSettings } from '@/lib/hooks/useSettings';
 
 export function useFloatInitialization() {
   const { floatCategories } = useFloatCategories();

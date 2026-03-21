@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -24,7 +24,7 @@ import { cn } from "@/lib/utils";
 
 // Custom hooks
 import { useTradeForm } from './hooks/useTradeForm';
-import { useScreenshotUpload } from './hooks/useScreenshotUpload';
+import { useMedia, useMediaMutation } from '@/lib/hooks/useCalcHistory';
 
 // Components
 import DirectionToggle from './components/DirectionToggle';
@@ -70,6 +70,7 @@ const getAutoSetupGrade = (breakoutChecklist) => {
 export default function AddTradeModal({ open, onClose, onSave, initialData }) {
   const [loading, setLoading] = useState(false);
   const [userId] = useState('user-123');
+  const [screenshotsInitialized, setScreenshotsInitialized] = useState(false);
   
   // Fetch strategy presets
   const { data: presets = [] } = useQuery({
@@ -78,22 +79,50 @@ export default function AddTradeModal({ open, onClose, onSave, initialData }) {
     enabled: open // Only fetch when modal is open
   });
 
-  // Form state management
+  // Form state management - pass initialData directly, handle screenshots separately
   const { formData, updateField, prepareForSubmission } = useTradeForm(initialData, userId);
   
-  // Screenshot management
-  const {
-    screenshots,
-    uploading,
-    uploadFiles,
-    removeScreenshot,
-    setScreenshots
-  } = useScreenshotUpload(initialData?.screenshots);
+  // Media management - separate from form initialization
+  const initialIds = initialData?.screenshots?.map(s => s.id) || [];
+  const { media: screenshots } = useMedia({ filters: { ids: initialIds } });
+  const { uploadFile, deleteMedia, isUploading: uploading } = useMediaMutation();
+  
+  // Extract screenshot IDs from media
+  const screenshotIds = screenshots?.map(s => s.id) || initialIds;
+  
+  // Initialize screenshots only once when modal opens
+  useEffect(() => {
+    if (open && !screenshotsInitialized && screenshotIds.length > 0) {
+      updateField('screenshots', screenshotIds);
+      setScreenshotsInitialized(true);
+    }
+    if (!open) {
+      setScreenshotsInitialized(false);
+    }
+  }, [open, screenshotIds, screenshotsInitialized, updateField]);
 
-  // Update screenshots in form data when they change
-  React.useEffect(() => {
-    updateField('screenshots', screenshots);
-  }, [screenshots, updateField]);
+  // Handle file uploads
+  const handleUploadFiles = async (files) => {
+    const uploadPromises = files.map(file => uploadFile({ file, metadata: { media_type: 'screenshot' } }));
+    const results = await Promise.all(uploadPromises);
+    const newIds = results.map(result => result.id);
+    
+    // Update form data directly
+    const currentScreenshots = formData.screenshots || [];
+    updateField('screenshots', [...currentScreenshots, ...newIds]);
+    
+    return newIds;
+  };
+
+  // Handle screenshot removal
+  const handleRemoveById = async (id) => {
+    await deleteMedia(id);
+    
+    // Update form data directly
+    const currentScreenshots = formData.screenshots || [];
+    const updatedScreenshots = currentScreenshots.filter(screenshotId => screenshotId !== id);
+    updateField('screenshots', updatedScreenshots);
+  };
 
   const handleBreakoutChecklistChange = React.useCallback((stepKey, itemKey, value) => {
     const current = formData.breakout_checklist || {};
@@ -156,7 +185,10 @@ export default function AddTradeModal({ open, onClose, onSave, initialData }) {
     setLoading(true);
     
     try {
-      const submissionData = prepareForSubmission();
+      const submissionData = {
+        ...prepareForSubmission(),
+        screenshots: screenshotIds,  // IDs, not base64
+      };
       
       // Convert times to UTC for storage - this is the correct place
       const entryTimeUTC = localToUTCISO(formData.entry_time);
@@ -266,10 +298,10 @@ export default function AddTradeModal({ open, onClose, onSave, initialData }) {
             </div>
 
             <ScreenshotUpload
-              screenshots={screenshots}
+              screenshotIds={screenshotIds}
               uploading={uploading}
-              onUpload={uploadFiles}
-              onRemove={removeScreenshot}
+              onUpload={handleUploadFiles}
+              onRemove={handleRemoveById}
             />
           </div>
 

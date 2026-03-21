@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { createPageUrl } from './utils';
-import { useElectron } from '@/hooks/useElectron';
+import { useElectron } from '@/lib/hooks/useElectron';
 import {
   LayoutDashboard,
   BookOpen,

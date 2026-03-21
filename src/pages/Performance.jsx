@@ -6,7 +6,7 @@
  */
 
 import React, { useMemo }    from 'react';
-import { useTrades }          from '@/hooks/useTrades';
+import { useTrades } from '@/lib/hooks/useTrades';
 import { useSettings }        from '@/lib/SettingsContext';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {

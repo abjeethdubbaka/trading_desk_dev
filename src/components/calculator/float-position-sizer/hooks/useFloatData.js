@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import { toast } from 'sonner';
-import { useFloatCategories } from '@/hooks/useFloatCategories';
+import { useFloatCategories } from '@/lib/hooks/useFloatCategories';
 
 export function useFloatData(symbol, entryPrice, setShareFloat, setFloatCategory, setManualCalculation, floatDataService) {
   const [loading, setLoading] = useState(false);

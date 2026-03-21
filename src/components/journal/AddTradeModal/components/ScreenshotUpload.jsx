@@ -1,9 +1,15 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Label } from "@/components/ui/label";
 import { Upload, X, Loader2, Maximize2 } from 'lucide-react';
 import { cn } from "@/lib/utils";
+import { createMediaService } from '@/lib/services/MediaService.js';
+import { db } from '@/lib/db/index.js';
+import { indexedDBAdapter } from '@/lib/db/adapters/IndexedDBAdapter.js';
 
-const ScreenshotPreview = ({ url, index, onRemove, onView }) => {
+// Create media service instance
+const mediaService = createMediaService(db, indexedDBAdapter);
+
+const ScreenshotPreview = ({ id, index, onRemove, onView, url }) => {
   return (
     <div className="relative group">
       <img
@@ -18,25 +24,47 @@ const ScreenshotPreview = ({ url, index, onRemove, onView }) => {
           type="button"
           onClick={() => onView(url)}
           className="p-1 hover:bg-white/20 rounded"
-          title="View full size"
         >
-          <Maximize2 className="w-4 h-4" />
+          <Maximize2 className="w-3 h-3 text-white" />
         </button>
         <button
           type="button"
-          onClick={() => onRemove(index)}
-          className="p-1 hover:bg-white/20 rounded"
-          title="Remove"
+          onClick={() => onRemove(id)}
+          className="p-1 hover:bg-red-500/80 rounded"
         >
-          <X className="w-4 h-4" />
+          <X className="w-4 h-4 text-white" />
         </button>
       </div>
     </div>
   );
 };
 
-const ScreenshotUpload = ({ screenshots, uploading, onUpload, onRemove }) => {
+const ScreenshotUpload = ({ screenshotIds, uploading, onUpload, onRemove }) => {
   const fileInputRef = React.useRef(null);
+  const [urls, setUrls] = useState({});
+
+  // Resolve URLs from media IDs
+  useEffect(() => {
+    if (!screenshotIds || screenshotIds.length === 0) {
+      setUrls({});
+      return;
+    }
+
+    Promise.all(
+      screenshotIds.map(async (id) => {
+        try {
+          const media = await mediaService.get(id);
+          const url = media?.file_url || URL.createObjectURL(media?.file);
+          return [id, url];
+        } catch (error) {
+          console.error('Failed to load screenshot:', id, error);
+          return [id, null];
+        }
+      })
+    ).then(pairs => {
+      setUrls(Object.fromEntries(pairs.filter(([_, url]) => url !== null)));
+    });
+  }, [screenshotIds]);
 
   const handleFileChange = async (e) => {
     const files = Array.from(e.target.files);
@@ -160,11 +188,12 @@ const ScreenshotUpload = ({ screenshots, uploading, onUpload, onRemove }) => {
     <div className="space-y-2">
       <Label>Screenshots</Label>
       <div className="flex flex-wrap gap-2">
-        {screenshots.map((url, i) => (
+        {screenshotIds.map((id, i) => (
           <ScreenshotPreview
-            key={`${url}-${i}`}
-            url={url}
+            key={id}
+            id={id}
             index={i}
+            url={urls[id]}
             onRemove={onRemove}
             onView={handleViewImage}
           />
@@ -197,9 +226,9 @@ const ScreenshotUpload = ({ screenshots, uploading, onUpload, onRemove }) => {
         </label>
       </div>
       
-      {screenshots.length > 0 && (
+      {screenshotIds.length > 0 && (
         <p className="text-xs text-white/50 mt-2">
-          {screenshots.length} screenshot(s) added. Click to view full size.
+          {screenshotIds.length} screenshot(s) added. Click to view full size.
         </p>
       )}
     </div>

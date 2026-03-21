@@ -7,7 +7,7 @@ import {
   Percent,
   TrendingUp
 } from 'lucide-react';
-import { useSettings } from './SettingsProvider';
+import { useSettings } from '@/lib/SettingsContext';
 
 export default function GeneralSettings() {
   const { settings, loading, saving, updateSettings, updateRiskAmount, riskAmount } = useSettings();

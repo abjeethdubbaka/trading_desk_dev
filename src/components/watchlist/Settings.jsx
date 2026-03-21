@@ -3,7 +3,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Check, AlertTriangle } from 'lucide-react';
-import { useSettings } from '@/components/settings/SettingsProvider';
+import { useSettings } from '@/lib/SettingsContext';
 import FloatCategoriesSettings from '@/components/settings/FloatCategoriesSettings';
 import FloatTargetSettings from '@/components/settings/FloatTargetSettings';
 import { cn } from '@/lib/utils';

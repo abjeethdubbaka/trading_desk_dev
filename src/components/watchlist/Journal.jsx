@@ -6,12 +6,12 @@ import DetailedView from '@/components/journal/components/DetailedView';
 import EmptyState from '@/components/journal/components/EmptyState';
 import AnalysisPanel from '@/components/journal/components/Analysis';
 import JournalStatsBar from '@/components/journal/components/JournalStatsBar';
-import { useJournalTrades } from '@/components/journal/hooks/useJournalTrades';
+import { useJournal } from '@/lib/hooks/useTrades';
 import { useJournalFilters } from '@/components/journal/hooks/useJournalFilters';
 import { useJournalImagePreloader } from '@/components/journal/utils/imageUtils';
 import { useTradeReview } from '@/lib/useTradeReview';
 import { VIEW_MODES } from '@/components/journal/utils/constants';
-import { validateTrade, sanitizeTrade } from '@/components/journal/utils/validators';
+import { validateTrade, sanitizeTrade } from '@/lib/validation/trades';
 import { cn } from '@/lib/utils';
 
 export default function Journal() {
@@ -20,7 +20,7 @@ export default function Journal() {
   const [viewMode, setViewMode]           = useState(VIEW_MODES.COMPACT);
   const [isPanelExpanded, setPanelExpanded] = useState(false);
 
-  const { trades, isLoading, createTrade, updateTrade, deleteTrade } = useJournalTrades();
+  const { trades, isLoading, createTrade, updateTrade, deleteTrade, isSaving } = useJournal();
   const { searchTerm, setSearchTerm, filter, setFilter, dateRange, setDateRange, filteredTrades } = useJournalFilters(trades);
   const { preloadImages } = useJournalImagePreloader(filteredTrades);
   const { reviews, loading: reviewLoading, reviewTrade, clearReview } = useTradeReview();
