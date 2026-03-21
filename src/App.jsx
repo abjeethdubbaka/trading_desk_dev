@@ -8,9 +8,6 @@ import PageNotFound from './lib/PageNotFound';
 import { TradingProvider } from '@/lib/TradingContext';
 import { SettingsProvider } from '@/lib/SettingsContext';
 import { AuthProvider } from '@/lib/AuthContext';
-// Import test utilities to make them available in console
-import '@/lib/testFirebase';
-import '@/lib/runMigration';
 
 const { Pages, Layout, mainPage } = pagesConfig;
 const mainPageKey = mainPage ?? Object.keys(Pages)[0];

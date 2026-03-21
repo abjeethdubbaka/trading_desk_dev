@@ -18,32 +18,7 @@ export default function ResultsDisplay({
   calculatedAt,
   mode
 }) {
-  // Debug logging - Force immediate render tracking
-  const renderId = Math.random().toString(36).substr(2, 9);
-  console.log(`🔍 ResultsDisplay RENDER #${renderId} - Component Rendered with props:`, {
-    renderId,
-    entryPrice,
-    shares,
-    positionValue,
-    actualRisk,
-    riskRewardRatio,
-    targetProfit,
-    timestamp: new Date().toISOString()
-  });
 
-  // Force a re-render check every 2 seconds
-  useEffect(() => {
-    const interval = setInterval(() => {
-      console.log(`🔍 ResultsDisplay CHECK #${renderId} - Still mounted, props check:`, {
-        currentShares: shares,
-        currentPositionValue: positionValue,
-        currentActualRisk: actualRisk,
-        timestamp: new Date().toISOString()
-      });
-    }, 2000);
-    
-    return () => clearInterval(interval);
-  }, [shares, positionValue, actualRisk]);
 
   // Generate exit targets
   const targets = shares && stopLossPrice ? [

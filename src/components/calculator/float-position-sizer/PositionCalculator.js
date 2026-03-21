@@ -74,32 +74,6 @@ export class PositionCalculator {
       floatCategories = {},
       settings = {}
     } = params;
-    
-    console.log('🔍 Complete settings object inspection:', {
-      settings,
-      settingsStringified: JSON.stringify(settings, null, 2),
-      hasRiskAmount: 'risk_amount' in settings,
-      riskAmountValue: settings?.risk_amount,
-      riskAmountType: typeof settings?.risk_amount
-    });
-
-    console.log('🔍 === CALCULATION START ===');
-    console.log('🔍 All params received:', {
-      entryPrice,
-      accountSize,
-      positionSizingPercent,
-      stopLossPercent,
-      stopLossPrice,
-      stopLossPriceType: typeof stopLossPrice,
-      stopLossPriceValue: stopLossPrice,
-      direction,
-      symbol,
-      shareFloat,
-      floatCategory,
-      floatCategories: Object.keys(floatCategories || {}),
-      settings,
-      settingsKeys: settings ? Object.keys(settings) : []
-    });
 
     if (!entryPrice || !accountSize) {
       throw new Error('Missing required parameters');
@@ -122,14 +96,7 @@ export class PositionCalculator {
     let finalShares, riskAmount, actualRisk, stopLossPriceCalculated, riskPerShare, positionValue, actualStopLossPercent, actualCategoryInfo;
     
     // Use custom stop loss price if provided
-    console.log('🔍 Checking custom stop loss logic:', {
-      stopLossPrice,
-      stopLossPriceType: typeof stopLossPrice,
-      stopLossPriceValue: stopLossPrice ? `'${stopLossPrice}'` : 'null/undefined'
-    });
-    
     if (stopLossPrice) {
-      console.log('🔍 Using custom stop loss price:', stopLossPrice);
       
       // Use actual stop loss input value
       if (direction === 'long') {
@@ -149,53 +116,14 @@ export class PositionCalculator {
       const hasSettings = settings && typeof settings === 'object' && Object.keys(settings).length > 0;
       const hasValidRiskAmount = hasSettings && typeof settings.risk_amount === 'number' && settings.risk_amount > 0;
       
-      console.log('🔍 === CONDITION CHECK ===');
-      console.log('🔍 hasSettings:', hasSettings);
-      console.log('🔍 hasValidRiskAmount:', hasValidRiskAmount);
-      console.log('🔍 settings.risk_amount:', settings?.risk_amount);
-      console.log('🔍 typeof settings.risk_amount:', typeof settings?.risk_amount);
-      
       const riskAmount = hasValidRiskAmount ? settings.risk_amount : 1500;
-      console.log('🔍 Final risk amount decision:', {
-        hasValidRiskAmount,
-        riskAmount,
-        fallbackUsed: !hasValidRiskAmount,
-        settingsType: typeof settings
-      });
-      console.log('🔍 Risk amount from settings:', {
-        settingsRiskAmount: settings?.riskAmount,
-        parsedRiskAmount: riskAmount,
-        fallbackUsed: riskAmount === 1500
-      });
       finalShares = Math.round(riskAmount / riskPerShare); // Simple rounding instead of floor
       
       positionValue = finalShares * entry;
       actualRisk = finalShares * riskPerShare;
       actualStopLossPercent = (riskPerShare / entry) * 100;
       
-      console.log('🔍 === CALCULATION PATH USED ===');
-      console.log('🔍 Custom stop loss path taken:', {
-        customStopLossProvided: true,
-        riskAmountUsed: riskAmount,
-        riskPerShareCalculated: riskPerShare,
-        sharesCalculated: finalShares,
-        actualRiskCalculated: actualRisk
-      });
-      
-      console.log('🔍 Custom stop loss calculation:', {
-        direction,
-        entry,
-        stopLossPrice: stopLossPriceCalculated,
-        riskPerShare,
-        riskAmount,
-        finalShares,
-        positionValue,
-        actualRisk,
-        actualStopLossPercent
-      });
-      
     } else {
-      console.log('🔍 Using ELSE block - no custom stop loss price provided');
       // Original calculation logic when no custom stop loss price is provided
       if (useIntelligentFlow) {
       // Intelligent flow with float data - position size as % of account
@@ -313,47 +241,12 @@ export class PositionCalculator {
   }
 
   calculateTargets(calculation, targetProfitDollars, floatSize = null, settings = {}, floatCategories = {}) {
-    console.log('🔍 === TARGET CALCULATION ===');
-    console.log('🔍 calculateTargets received settings:', {
-      settings,
-      settingsType: typeof settings,
-      settingsKeys: settings ? Object.keys(settings) : 'null',
-      'settings.max_dollars': settings?.max_dollars,
-      'settings.max_dollars type': typeof settings?.max_dollars,
-      'settings has max_dollars': settings?.hasOwnProperty('max_dollars')
-    });
-    
     const { actualRisk, shares, entryPrice, direction, stopLossPercent } = calculation;
-    
-    console.log('🔍 Target Calculation Input:', {
-      targetProfitDollars,
-      floatSize,
-      actualRisk,
-      shares,
-      entryPrice,
-      direction,
-      isMegaCap: floatSize >= 1000000000,
-      shouldUseFloatBased: floatSize && actualRisk && floatSize >= 1000000000
-    });
     
     let calculatedTargetProfit = targetProfitDollars;
     // Use float-based target profit when share float data is available (not just mega caps)
     if (floatSize && actualRisk) {
       calculatedTargetProfit = this.getFloatBasedTargetProfit(floatSize, actualRisk, settings, floatCategories);
-      console.log('🔍 Using Intelligent Float-Based Target Profit:', {
-        baseTargetProfit: targetProfitDollars,
-        calculatedTargetProfit,
-        usingFloatBased: true,
-        floatSize,
-        floatSizeFormatted: (floatSize / 1000000).toFixed(0) + 'M shares'
-      });
-    } else {
-      console.log('🔍 Using Default Target Profit:', {
-        targetProfitDollars,
-        usingFloatBased: false,
-        reason: !floatSize ? 'No float data' : 'No actual risk',
-        floatSize: floatSize ? (floatSize / 1000000).toFixed(0) + 'M shares' : 'null'
-      });
     }
     
     const targetPrice = direction === 'long' 
@@ -367,16 +260,6 @@ export class PositionCalculator {
     const stopLossPrice = direction === 'long' 
       ? entryPrice * (1 - (stopLossPercent / 100))
       : entryPrice * (1 + (stopLossPercent / 100));
-    
-    console.log('🔍 Target Price Calculation:', {
-      direction,
-      calculatedTargetProfit,
-      shares,
-      entryPrice,
-      targetPrice,
-      stopLossPrice,
-      floatCategory
-    });
     
     // Calculate default position sizing amount
     const defaultPositionValue = calculation.accountSize * (calculation.percentOfAccount / 100);
@@ -403,19 +286,6 @@ export class PositionCalculator {
       maxShares: settings?.max_dollars && calculatedDefaultTargetPrice && entryPrice ? 
         Math.floor(parseFloat(settings.max_dollars) / (calculatedDefaultTargetPrice - entryPrice)) : null
     };
-    
-    console.log('🔍 PositionCalculator - Max $ calculation:', {
-      'settings.max_dollars': settings?.max_dollars,
-      'settings.max_dollars type': typeof settings?.max_dollars,
-      'settings object keys': settings ? Object.keys(settings) : 'null',
-      'settings object': settings,
-      'calculation.accountSize': calculation.accountSize,
-      'calculation.percentOfAccount': calculation.percentOfAccount,
-      'defaultPositionValue': defaultPositionValue,
-      'calculatedDefaultTargetPrice': calculatedDefaultTargetPrice,
-      'resultMaxDollars': result.maxDollars
-    });
-    console.log('🔍 === END TARGET CALCULATION ===');
     
     return result;
   }

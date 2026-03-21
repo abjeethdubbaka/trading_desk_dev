@@ -52,38 +52,22 @@ export default function Journal() {
 
   // ── Save handler ─────────────────────────────────────────────────────────
   const handleSave = useCallback(async (data) => {
-    console.log('📝 Journal Handle Save - START:', data);
-    console.log('📝 Journal Handle Save - Editing Trade:', editingTrade);
-    
     const validation = validateTrade(data);
-    console.log('📝 Journal Handle Save - Validation Result:', validation);
-    console.log('📝 Journal Handle Save - Validation Errors:', validation.errors);
-    console.log('📝 Journal Handle Save - Validation Warnings:', validation.warnings);
     
     if (!validation.isValid) {
       console.error('❌ Journal Handle Save - Validation Failed:', validation.errors);
-      toast.error('Fix validation errors before saving');
-      validation.errors.forEach(e => {
-        console.error('❌ Validation Error:', e);
-        toast.error(e);
-      });
+      toast.error('Please fix validation errors');
       return;
-    }
-    if (validation.hasWarnings) {
-      validation.warnings.forEach(w => toast.warning(w));
     }
 
     try {
       if (editingTrade) {
-        console.log('📝 Journal Handle Save - UPDATING trade:', editingTrade.id);
         await updateTrade(editingTrade.id, data);
         toast.success(`${data.symbol} updated`);
       } else {
-        console.log('📝 Journal Handle Save - CREATING new trade');
         await createTrade(data);
         toast.success(`${data.symbol} logged`);
       }
-      console.log('📝 Journal Handle Save - SUCCESS');
       setShowModal(false);
       setEditingTrade(null);
     } catch (err) {

@@ -118,8 +118,6 @@ export default function useFloatPositionSizer({ selectedSymbol, selectedEntryPri
         calculatedAt: new Date().toLocaleString(),
         calculationType: 'float'
       };
-
-      console.log('🔍 Feature 3 - Float calculation:', { symbol, entry, shareFloat, shares, positionValue });
     }
 
     // Feature 2: Entry price + stop loss - use account balance and risk amount
@@ -166,21 +164,9 @@ export default function useFloatPositionSizer({ selectedSymbol, selectedEntryPri
         calculationType: 'entry-stop'
       };
 
-      console.log('🔍 Feature 2 - Entry + Stop calculation:', {
-        entry,
-        stopLoss,
-        dollarRisk,
-        sharesByRisk,
-        sharesByBalance,
-        shares,
-        positionValue,
-        realizedRisk,
-        accountSize,
-        riskAmount: dollarRisk
-      });
     }
 
-    // Feature 1: Entry price (with or without symbol) - use default settings
+    // Feature 1: Entry price only - use default stop loss percentagefault settings
     else if (!customStopLossPrice) {
       calcKey = `entry-only-${entry}-${positionSizingPercent}-${defaultStopLossPercent}-${targetProfitDollars}-${maxDollars}-${accountSize}`;
       
@@ -226,8 +212,6 @@ export default function useFloatPositionSizer({ selectedSymbol, selectedEntryPri
         calculatedAt: new Date().toLocaleString(),
         calculationType: 'entry-only'
       };
-
-      console.log('🔍 Feature 1 - Entry only calculation:', { entry, stopLossPrice, shares, positionValue: finalPositionSize });
     }
 
     if (result) {
