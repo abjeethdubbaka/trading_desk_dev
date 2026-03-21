@@ -61,55 +61,69 @@ export const useTradeForm = (initialData, userId = 'user-123') => {
     strategy_preset_id: null
   });
 
-  // Initialize form with initial data
+  // Initialize form with initial data - only run when initialData actually changes
+  const initialFormData = useMemo(() => {
+    if (!initialData) return null;
+    
+    const entryTimeLocal = utcToLocalDateTime(initialData.entry_time);
+    const exitTimeLocal = utcToLocalDateTime(initialData.exit_time);
+    
+    // Handle screenshots - extract IDs if they're objects
+    const screenshotIds = initialData.screenshots 
+      ? Array.isArray(initialData.screenshots) 
+        ? initialData.screenshots.map(s => typeof s === 'object' ? s.id : s).filter(Boolean)
+        : []
+      : [];
+    
+    return {
+      symbol: initialData.symbol || '',
+      direction: initialData.direction || 'long',
+      entry_price: initialData.entry_price?.toString() || '',
+      exit_price: initialData.exit_price?.toString() || '',
+      position_size: initialData.position_size?.toString() || '',
+      entry_time: entryTimeLocal || getCurrentLocalDateTime(),
+      exit_time: exitTimeLocal || '',
+      fee: initialData.fee?.toString() || '',
+      setup_type: initialData.setup_type || '',
+      custom_setup_type: initialData.custom_setup_type || '',
+      notes: initialData.notes || '',
+      emotions: initialData.emotions || 'neutral',
+      followed_plan: initialData.followed_plan ?? true,
+      mistakes: initialData.mistakes || [],
+      lessons: initialData.lessons || '',
+      reflection_answers: {
+        ...getDefaultReflectionAnswers(),
+        ...(initialData.reflection_answers || {})
+      },
+      setup_grade: initialData.setup_grade || '',
+      breakout_checklist: {
+        ...defaultBreakoutChecklist,
+        ...(initialData.breakout_checklist || {}),
+        step1: {
+          ...defaultBreakoutChecklist.step1,
+          ...(initialData.breakout_checklist?.step1 || {})
+        },
+        step2: {
+          ...defaultBreakoutChecklist.step2,
+          ...(initialData.breakout_checklist?.step2 || {})
+        },
+        step3: {
+          ...defaultBreakoutChecklist.step3,
+          ...(initialData.breakout_checklist?.step3 || {})
+        }
+      },
+      screenshots: screenshotIds,
+      trade_plan_id: initialData.trade_plan_id || null,
+      strategy_preset_id: initialData.strategy_preset_id || null
+    };
+  }, [initialData?.id]); // Only depend on the ID, not the whole object
+
+  // Apply initial form data when it changes
   useEffect(() => {
-    if (initialData) {
-      const entryTimeLocal = utcToLocalDateTime(initialData.entry_time);
-      const exitTimeLocal = utcToLocalDateTime(initialData.exit_time);
-      
-      setFormData({
-        symbol: initialData.symbol || '',
-        direction: initialData.direction || 'long',
-        entry_price: initialData.entry_price?.toString() || '',
-        exit_price: initialData.exit_price?.toString() || '',
-        position_size: initialData.position_size?.toString() || '',
-        entry_time: entryTimeLocal || getCurrentLocalDateTime(),
-        exit_time: exitTimeLocal || '',
-        fee: initialData.fee?.toString() || '',
-        setup_type: initialData.setup_type || '',
-        custom_setup_type: initialData.custom_setup_type || '',
-        notes: initialData.notes || '',
-        emotions: initialData.emotions || 'neutral',
-        followed_plan: initialData.followed_plan ?? true,
-        mistakes: initialData.mistakes || [],
-        lessons: initialData.lessons || '',
-        reflection_answers: {
-          ...getDefaultReflectionAnswers(),
-          ...(initialData.reflection_answers || {})
-        },
-        setup_grade: initialData.setup_grade || '',
-        breakout_checklist: {
-          ...defaultBreakoutChecklist,
-          ...(initialData.breakout_checklist || {}),
-          step1: {
-            ...defaultBreakoutChecklist.step1,
-            ...(initialData.breakout_checklist?.step1 || {})
-          },
-          step2: {
-            ...defaultBreakoutChecklist.step2,
-            ...(initialData.breakout_checklist?.step2 || {})
-          },
-          step3: {
-            ...defaultBreakoutChecklist.step3,
-            ...(initialData.breakout_checklist?.step3 || {})
-          }
-        },
-        screenshots: initialData.screenshots || [],
-        trade_plan_id: initialData.trade_plan_id || null,
-        strategy_preset_id: initialData.strategy_preset_id || null
-      });
+    if (initialFormData) {
+      setFormData(initialFormData);
     }
-  }, [initialData]);
+  }, [initialFormData]);
 
   const updateField = useCallback((field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -156,14 +170,16 @@ export const useTradeForm = (initialData, userId = 'user-123') => {
       symbol: formData.symbol.toUpperCase().trim(),
       entry_price: parseFloat(formData.entry_price) || 0,
       exit_price: formData.exit_price ? parseFloat(formData.exit_price) : null,
-      position_size: parseInt(formData.position_size) || 0,
+      quantity: parseInt(formData.position_size) || 0, // Map position_size to quantity
       pnl,
       r_multiple: rMultiple,
       stop_loss: stopLoss > 0 ? stopLoss : null,
       fee: formData.fee ? parseFloat(formData.fee) : null,
       user_id: userId,
       mistakes: formData.mistakes.length > 0 ? formData.mistakes : null,
+      lessons: formData.lessons || null,
       screenshots: formData.screenshots.length > 0 ? formData.screenshots : null,
+      emotions: formData.emotions ? [formData.emotions] : [], // Convert string to array
       reflection_answers: {
         ...getDefaultReflectionAnswers(),
         ...(formData.reflection_answers || {}),

@@ -65,30 +65,15 @@ export default function CalcHistory() {
     <div className="min-h-screen bg-[#0a0a0f] text-white p-4 lg:p-8">
       <div className="max-w-6xl mx-auto space-y-6">
 
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" onClick={() => navigate(createPageUrl('Calculator'))} className="text-white/60">
-              <ArrowLeft className="w-4 h-4 mr-2" />Back
-            </Button>
-            <div>
-              <h1 className="text-2xl font-bold flex items-center gap-2">
-                <History className="w-6 h-6 text-blue-400" />
-                Calculation History
-              </h1>
-              <p className="text-white/40 text-sm mt-0.5">Click any row to reload into the calculator</p>
-            </div>
-          </div>
-          {history.length > 0 && (
-            <Button
-              variant="ghost"
-              onClick={() => window.confirm('Clear all history?') && clearHistory()}
-              className="text-red-400 hover:text-red-300 hover:bg-red-500/10"
-            >
-              <Trash2 className="w-4 h-4 mr-2" />Clear All
-            </Button>
-          )}
-        </div>
+        {history.length > 0 && (
+          <Button
+            variant="ghost"
+            onClick={() => window.confirm('Clear all history?') && clearHistory()}
+            className="text-red-400 hover:text-red-300 hover:bg-red-500/10"
+          >
+            <Trash2 className="w-4 h-4 mr-2" />Clear All
+          </Button>
+        )}
 
         {/* Summary */}
         {history.length > 0 && (

@@ -28,15 +28,35 @@ const floatDataService = new FloatDataService();
 
 export default function FloatPositionSizer({ historyData, onCalculationSaved }) {
   const { selectedSymbol, selectedEntryPrice } = useTradingContext();
-  const {
+  const settingsData = useSettings();
+  
+  console.log('🧮 Full useSettings return:', settingsData);
+  
+  // Extract values from settings object
+  const { settings, isLoading, refetch: refetchSettings } = settingsData;
+  
+  const accountSize = settings?.account_size;
+  const riskAmount = settings?.risk_amount;
+  const positionSizingPct = settings?.position_sizing_percent;
+  const defaultStopLossPct = settings?.default_stop_loss_percent;
+  const targetProfitDollars = settings?.target_profit_dollars;
+  const maxDollars = settings?.max_dollars;
+  const floatCategories = settings?.float_categories;
+
+  console.log('🧮 FloatPositionSizer Settings:', {
+    settings,
     accountSize,
     riskAmount,
     positionSizingPct,
     defaultStopLossPct,
     targetProfitDollars,
-    maxDollars,
-    floatCategories,
-  } = useSettings();
+    maxDollars
+  });
+
+  // Log when settings change
+  useEffect(() => {
+    console.log('🧮 Settings Updated in Calculator:', { riskAmount, accountSize });
+  }, [riskAmount, accountSize]);
 
   // ── Form state ────────────────────────────────────────────────────────────
   const [symbol,          setSymbol]          = useState('');
@@ -108,6 +128,18 @@ export default function FloatPositionSizer({ historyData, onCalculationSaved }) 
     if (!entryPrice) { toast.error('Enter an entry price'); return; }
 
     try {
+      console.log('🔍 FloatPositionSizer Debug:', {
+        riskAmount,
+        accountSize,
+        positionSizingPct,
+        customStop,
+        currentSettings: {
+          risk_amount: riskAmount,
+          account_size: accountSize,
+          position_sizing_percent: positionSizingPct
+        }
+      });
+      
       const result = calcPosition({
         entryPrice,
         direction,
@@ -115,13 +147,18 @@ export default function FloatPositionSizer({ historyData, onCalculationSaved }) 
         positionPct:        positionSizingPct,
         stopPct:            defaultStopLossPct,
         stopLossPrice:      customStop || undefined,
-        riskAmount:         customStop ? riskAmount : undefined,
+        riskAmount:         riskAmount, // Always pass risk amount
         shareFloat:         shareFloat ?? undefined,
         floatCategory:      floatCategory ?? undefined,
         floatCategories,
         maxDollars,
         targetProfitDollars,
         riskRewardRatio:    3,
+      });
+
+      console.log('🔍 CalcPosition Result:', {
+        actualRisk: result.actualRisk,
+        riskAmount: result.riskAmount
       });
 
       setCalculation(result);
@@ -137,17 +174,17 @@ export default function FloatPositionSizer({ historyData, onCalculationSaved }) 
         positionValue:      result.positionValue,
         actualRisk:         result.actualRisk,
         potentialProfit:    result.targetProfit,
-        direction:          result.direction,
         riskLevel:          result.riskLevel,
-        useIntelligentFlow: result.mode === 'float-aware',
-        floatCategory:      result.floatCategory,
-        calculatedAt:       result.calculatedAt,
+        riskRewardRatio:    3,
+        direction,
+        mode:               result.mode,
       };
 
       onCalculationSaved?.(historyItem);
-      toast.success(`${result.shares.toLocaleString()} shares · ${result.riskLevel} risk`);
-    } catch (e) {
-      toast.error(e.message);
+      toast.success('Position calculated!');
+    } catch (err) {
+      console.error('🔍 FloatPositionSizer Error:', err);
+      toast.error(err.message);
     }
   }, [
     entryPrice, direction, accountSize, positionSizingPct,
@@ -155,6 +192,18 @@ export default function FloatPositionSizer({ historyData, onCalculationSaved }) 
     shareFloat, floatCategory, floatCategories,
     maxDollars, targetProfitDollars, symbol, onCalculationSaved,
   ]);
+
+  // Refresh settings
+  const handleRefreshSettings = async () => {
+    console.log('🧮 Refreshing settings...');
+    try {
+      await refetchSettings();
+      toast.success('Settings refreshed!');
+    } catch (error) {
+      console.error('🧮 Failed to refresh settings:', error);
+      toast.error('Failed to refresh settings');
+    }
+  };
 
   // ── Add to Journal ────────────────────────────────────────────────────────
   const handleAddToJournal = useCallback(async () => {
@@ -184,7 +233,7 @@ export default function FloatPositionSizer({ historyData, onCalculationSaved }) 
 
   // ── Render ────────────────────────────────────────────────────────────────
   return (
-    <div className="space-y-4 max-w-3xl">
+    <div className="space-y-4 w-full">
       <Card className="bg-[#1a1a24] border-white/10">
         <CardContent className="p-6 space-y-6">
           <FloatInputForm
@@ -215,13 +264,23 @@ export default function FloatPositionSizer({ historyData, onCalculationSaved }) 
       {calculation && <ResultsDisplay {...calculation} />}
 
       <div className="flex justify-between items-center pt-2 border-t border-white/5">
-        <Button
-          variant="ghost"
-          onClick={handleReset}
-          className="text-white/30 hover:text-white/60 gap-2"
-        >
-          <RotateCcw className="w-4 h-4" />Reset
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            variant="ghost"
+            onClick={handleRefreshSettings}
+            className="text-white/30 hover:text-white/60 gap-2 text-xs"
+          >
+            🔄 Refresh Settings
+          </Button>
+          
+          <Button
+            variant="ghost"
+            onClick={handleReset}
+            className="text-white/30 hover:text-white/60 gap-2"
+          >
+            <RotateCcw className="w-4 h-4" />Reset
+          </Button>
+        </div>
 
         <Button
           onClick={handleAddToJournal}

@@ -65,12 +65,6 @@ export default function PerformancePage() {
 
   return (
     <div className="space-y-5">
-      <div>
-        <h1 className="text-2xl font-bold">Performance</h1>
-        <p className="text-white/40 text-sm mt-1">
-          {trades.length} trades · all data synced from Firebase
-        </p>
-      </div>
 
       {/* KPI row */}
       <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3">

@@ -110,10 +110,26 @@ function Field({ label, hint, children }) {
 }
 
 export default function SettingsPage() {
-  const { settings, isLoading, isSaving, updateSettings } = useSettings();
+  const { settings, isLoading, isSaving, updateFields, savePending } = useSettings({ autoSave: false });
   const { user, signOut } = useAuth();
 
-  const handle = (key) => (e) => updateSettings({ [key]: e.target.value });
+  const handle = (key) => (e) => {
+    const value = e.target.value;
+    updateFields({ [key]: value });
+  };
+
+  const handleSave = async () => {
+    console.log('🚀 SAVE BUTTON CLICKED!');
+    try {
+      console.log('🚀 Calling savePending...');
+      const result = await savePending();
+      console.log('🚀 Save completed:', result);
+      toast.success('Settings saved successfully!');
+    } catch (error) {
+      console.error('🚀 Save failed:', error);
+      toast.error(`Failed to save: ${error.message}`);
+    }
+  };
 
   const exportCSV = () => {
     // Still reads local for now — Phase 3 will stream from Firebase
@@ -133,15 +149,16 @@ export default function SettingsPage() {
   };
 
   return (
-    <div className="space-y-5 max-w-3xl">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-bold">Settings</h1>
-          <p className="text-white/40 text-xs mt-0.5">
-            {isSaving ? 'Saving…' : 'Changes save automatically'}
-          </p>
-        </div>
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
         <div className="flex items-center gap-4">
+          <button
+            onClick={handleSave}
+            disabled={isSaving}
+            className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed text-white text-xs font-medium rounded transition-colors"
+          >
+            {isSaving ? 'Saving…' : 'Save Changes'}
+          </button>
           <SyncBadge />
           {user && (
             <button
@@ -167,8 +184,14 @@ export default function SettingsPage() {
             <div className="space-y-4">
               <h2 className="text-sm font-semibold text-white/70">Account</h2>
               <Field label="Account size ($)" hint="Starting capital for all calculations">
-                <Input type="number" value={settings.account_size || ''} onChange={handle('account_size')}
-                  placeholder="50000" className="bg-white/5 border-white/10" disabled={isLoading} />
+                <Input 
+                  type="number" 
+                  value={settings.account_size || ''} 
+                  onChange={handle('account_size')}
+                  placeholder="50000" 
+                  className="bg-white/5 border-white/10" 
+                  disabled={isLoading} 
+                />
               </Field>
               <Field label="Daily profit target ($)" hint="Shown as progress bar on dashboard">
                 <Input type="number" step="50" value={settings.target_profit_dollars || ''} onChange={handle('target_profit_dollars')}
@@ -222,19 +245,19 @@ export default function SettingsPage() {
 
             <button
               onClick={() => {
-                if (window.confirm('Delete ALL local trades? Firebase data is unaffected.') &&
-                    window.prompt('Type DELETE to confirm:') === 'DELETE') {
-                  localStorage.removeItem('trades');
-                  window.dispatchEvent(new CustomEvent('trades-updated', { detail: { action:'reset' } }));
-                  toast.success('Local cache cleared');
+                if (window.confirm('Delete ALL local trades? Firebase data is unaffected.')) {
+                  const confirmation = window.confirm('Are you absolutely sure? This cannot be undone.');
+                  if (confirmation) {
+                    localStorage.removeItem('trades');
+                    window.dispatchEvent(new CustomEvent('trades-updated', { detail: { action:'reset' } }));
+                    toast.success('Local cache cleared');
+                  }
                 }
               }}
               className="flex flex-col items-start gap-1 bg-red-500/8 hover:bg-red-500/12 border border-red-500/20 rounded-xl p-4 transition-colors text-left"
             >
-              <span className="text-sm font-semibold text-red-400 flex items-center gap-2">
-                <AlertTriangle className="w-3.5 h-3.5" />Clear local cache
-              </span>
-              <span className="text-xs text-red-400/50">Removes localStorage — Firebase data stays safe</span>
+              <span className="text-sm font-semibold text-red-300">Clear local cache</span>
+              <span className="text-xs text-white/40">Removes localStorage — Firebase data stays safe</span>
             </button>
           </div>
         </TabsContent>

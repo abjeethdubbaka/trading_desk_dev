@@ -128,18 +128,35 @@ const trades = {
 
 const settings = {
   async get() {
-    const snap = await getDoc(doc(db, 'settings', 'main'));
-    return fromDoc(snap);
+    try {
+      console.log('🔥 Firebase Settings Getting Document');
+      const snap = await getDoc(doc(db, 'settings', 'main'));
+      const result = fromDoc(snap);
+      console.log('🔥 Firebase Settings Get Result:', result);
+      return result;
+    } catch (error) {
+      console.error('🔥 Firebase Settings Get Error:', error);
+      throw error;
+    }
   },
 
   async save(data) {
+    console.log('🔥 Firebase Settings Save Input:', data);
     const clean = prepareWrite(data);
+    console.log('🔥 Firebase Settings Clean Data:', clean);
     clean.updated_date = serverTimestamp();
     
-    await setDoc(doc(db, 'settings', 'main'), clean, { merge: true });
-    const result = { id: 'main', ...clean };
-    broadcast('settings-updated', { action: 'save', settings: result });
-    return result;
+    try {
+      await setDoc(doc(db, 'settings', 'main'), clean, { merge: true });
+      console.log('🔥 Firebase Settings Save Success');
+      const result = { id: 'main', ...clean };
+      console.log('🔥 Firebase Settings Result:', result);
+      broadcast('settings-updated', { action: 'save', settings: result });
+      return result;
+    } catch (error) {
+      console.error('🔥 Firebase Settings Save Error:', error);
+      throw error;
+    }
   }
 };
 
@@ -179,6 +196,48 @@ export const firebaseSimpleAdapter = {
   settings,
   calcHistory,
   watchlist,
+  media: {
+    async list(options = {}) {
+      const q = query(collection(db, 'media'), orderBy('created_at', 'desc'));
+      const snapshot = await getDocs(q);
+      const items = snapshot.docs.map(fromDoc);
+      
+      // Apply filtering
+      if (options.media_type) {
+        return items.filter(item => item.media_type === options.media_type);
+      }
+      if (options.trade_id) {
+        return items.filter(item => item.trade_id === options.trade_id);
+      }
+      
+      return items;
+    },
+    
+    async create(data) {
+      const clean = prepareWrite(withDefaults(data, {
+        created_at: serverTimestamp(),
+        updated_at: serverTimestamp()
+      }));
+      const docRef = await addDoc(collection(db, 'media'), clean);
+      return { id: docRef.id, ...clean };
+    },
+    
+    async get(id) {
+      const snap = await getDoc(doc(db, 'media', id));
+      return fromDoc(snap);
+    },
+    
+    async update(id, data) {
+      const clean = prepareWrite({ ...data, updated_at: serverTimestamp() });
+      await updateDoc(doc(db, 'media', id), clean);
+      return this.get(id);
+    },
+    
+    async delete(id) {
+      await deleteDoc(doc(db, 'media', id));
+      broadcast('media:deleted', { id });
+    }
+  },
   
   // Additional collections with minimal implementation
   dosAndDonts: {

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { useCurrentBalance } from '@/lib/balanceUtils';
@@ -58,10 +58,10 @@ export function usePositionSizeCalculator() {
   const effectiveStopLoss = stopLoss || autoStopPrice;
 
   // Calculate risk & position
-  const riskAmount = accountBalance * (riskPercent / 100);
+  const riskAmount = settings?.risk_amount || 1500; // Use fixed risk amount from settings
   const riskPerShare = Math.abs(entryPrice - effectiveStopLoss);
   const shares = riskPerShare > 0 ? Math.floor(riskAmount / riskPerShare) : 0;
-  const positionCost = accountBalance * (riskPercent / 100); // Fixed: Should be based on risk amount, not shares * entryPrice
+  const positionCost = shares * entryPrice; // Fixed: Should be shares * entryPrice
   const rewardPerShare = riskPerShare * rrRatio;
 
   // Debug logging for position calculation

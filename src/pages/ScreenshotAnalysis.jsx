@@ -147,12 +147,6 @@ export default function ScreenshotAnalysis() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">Screenshot Analysis Lab</h1>
-        <p className="text-white/60 mt-1">
-          Separate workflow for uploading chart screenshots, reviewing AI suggestions, and saving analysis sessions.
-        </p>
-      </div>
 
       <UploadControls
         uploadedCount={screenshots.length}

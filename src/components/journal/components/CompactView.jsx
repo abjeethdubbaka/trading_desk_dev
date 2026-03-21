@@ -1,349 +1,326 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { cn } from '@/lib/utils';
-import { formatDate, formatCurrency, formatPercent } from '../utils/formatters';
-import { Image, Edit, Trash2, Maximize2, AlertCircle } from 'lucide-react';
+import { formatDate, formatTime, formatCurrency } from '../utils/formatters';
+import { Image, AlertCircle, ChevronDown, Edit2, Trash2 } from 'lucide-react';
+import { PnlBadge, DirectionBadge, RMultipleBadge, EmotionBadge, SetupBadge } from '@/components/ui/TradeBadge';
+import TradeReviewPanel from './TradeReviewPanel';
 import { createMediaService } from '@/lib/services/MediaService.js';
 import { db } from '@/lib/db/index.js';
 import { indexedDBAdapter } from '@/lib/db/adapters/IndexedDBAdapter.js';
 
-// Create media service instance
 const mediaService = createMediaService(db, indexedDBAdapter);
 
-export default function CompactView({ trades, onEdit, onDelete }) {
-  const [expandedTrade, setExpandedTrade] = useState(null);
-  const [imageStates, setImageStates] = useState({});
-  const [screenshotUrls, setScreenshotUrls] = useState({});
+/* ─── Thumbnail ────────────────────────────────────────────────────────── */
+function Thumb({ screenshotId, tradeId, index, onView }) {
+  const [url,   setUrl]   = useState(null);
+  const [state, setState] = useState('loading');
 
-  // Resolve screenshot URLs from IDs
   useEffect(() => {
-    const allScreenshotIds = trades.flatMap(trade => trade.screenshots || []);
-    
-    if (allScreenshotIds.length === 0) {
-      setScreenshotUrls({});
-      return;
-    }
+    let cancelled = false;
+    mediaService.get(screenshotId).then(media => {
+      if (cancelled) return;
+      const u = media?.file_url || (media?.file ? URL.createObjectURL(media.file) : null);
+      setUrl(u);
+      setState(u ? 'loaded' : 'error');
+    }).catch(() => setState('error'));
+    return () => { cancelled = true; };
+  }, [screenshotId]);
 
-    Promise.all(
-      allScreenshotIds.map(async (id) => {
-        try {
-          const media = await mediaService.get(id);
-          const url = media?.file_url || URL.createObjectURL(media?.file);
-          return [id, url];
-        } catch (error) {
-          console.error('Failed to load screenshot:', id, error);
-          return [id, null];
-        }
-      })
-    ).then(pairs => {
-      setScreenshotUrls(Object.fromEntries(pairs.filter(([_, url]) => url !== null)));
-    });
-  }, [trades]);
-
-  const handleImageLoad = (tradeId, index) => {
-    setImageStates(prev => ({
-      ...prev,
-      [`${tradeId}-${index}`]: 'loaded'
-    }));
-  };
-
-  const handleImageError = (tradeId, index) => {
-    setImageStates(prev => ({
-      ...prev,
-      [`${tradeId}-${index}`]: 'error'
-    }));
-  };
-
-  const handleViewImage = (url) => {
-    let scale = 1;
-    const minScale = 0.5;
-    const maxScale = 5;
-
-    const modal = document.createElement('div');
-    modal.className = 'fixed inset-0 z-50 bg-black/95 p-3';
-
-    const stage = document.createElement('div');
-    stage.className = 'relative w-full h-full flex items-center justify-center';
-
-    const controls = document.createElement('div');
-    controls.className = 'absolute top-3 left-3 z-10 flex items-center gap-2 bg-black/60 border border-white/20 rounded-md px-2 py-1 text-white';
-
-    const zoomOutBtn = document.createElement('button');
-    zoomOutBtn.type = 'button';
-    zoomOutBtn.className = 'px-2 py-1 bg-white/10 rounded hover:bg-white/20 transition-colors';
-    zoomOutBtn.textContent = '-';
-
-    const zoomLabel = document.createElement('span');
-    zoomLabel.className = 'text-xs min-w-[48px] text-center';
-
-    const zoomInBtn = document.createElement('button');
-    zoomInBtn.type = 'button';
-    zoomInBtn.className = 'px-2 py-1 bg-white/10 rounded hover:bg-white/20 transition-colors';
-    zoomInBtn.textContent = '+';
-
-    const resetBtn = document.createElement('button');
-    resetBtn.type = 'button';
-    resetBtn.className = 'px-2 py-1 bg-white/10 rounded hover:bg-white/20 transition-colors text-xs';
-    resetBtn.textContent = 'Reset';
-
-    const closeBtn = document.createElement('button');
-    closeBtn.type = 'button';
-    closeBtn.className = 'absolute top-3 right-3 z-10 p-2 bg-white/10 rounded-full hover:bg-white/20 transition-colors text-white';
-    closeBtn.innerHTML = '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>';
-
-    const imageWrap = document.createElement('div');
-    imageWrap.className = 'w-full h-full overflow-auto flex items-center justify-center';
-
-    const img = document.createElement('img');
-    img.src = url;
-    img.alt = 'Trade screenshot';
-    img.className = 'max-w-[92vw] max-h-[92vh] object-contain rounded-lg shadow-2xl select-none';
-    img.style.transformOrigin = 'center center';
-    img.style.transition = 'transform 120ms ease-out';
-
-    const applyScale = () => {
-      img.style.transform = `scale(${scale})`;
-      zoomLabel.textContent = `${Math.round(scale * 100)}%`;
-    };
-
-    const closeModal = () => {
-      window.removeEventListener('keydown', onKeyDown);
-      modal.remove();
-    };
-
-    const onKeyDown = (event) => {
-      if (event.key === 'Escape') {
-        closeModal();
-      }
-    };
-
-    zoomOutBtn.onclick = (event) => {
-      event.stopPropagation();
-      scale = Math.max(minScale, Math.round((scale - 0.1) * 10) / 10);
-      applyScale();
-    };
-
-    zoomInBtn.onclick = (event) => {
-      event.stopPropagation();
-      scale = Math.min(maxScale, Math.round((scale + 0.1) * 10) / 10);
-      applyScale();
-    };
-
-    resetBtn.onclick = (event) => {
-      event.stopPropagation();
-      scale = 1;
-      applyScale();
-    };
-
-    imageWrap.onwheel = (event) => {
-      event.preventDefault();
-      const delta = event.deltaY > 0 ? -0.1 : 0.1;
-      scale = Math.min(maxScale, Math.max(minScale, Math.round((scale + delta) * 10) / 10));
-      applyScale();
-    };
-
-    modal.onclick = closeModal;
-    stage.onclick = (event) => event.stopPropagation();
-    closeBtn.onclick = (event) => {
-      event.stopPropagation();
-      closeModal();
-    };
-
-    controls.appendChild(zoomOutBtn);
-    controls.appendChild(zoomLabel);
-    controls.appendChild(zoomInBtn);
-    controls.appendChild(resetBtn);
-
-    imageWrap.appendChild(img);
-    stage.appendChild(controls);
-    stage.appendChild(closeBtn);
-    stage.appendChild(imageWrap);
-    modal.appendChild(stage);
-    document.body.appendChild(modal);
-    window.addEventListener('keydown', onKeyDown);
-    applyScale();
-  };
-
-  // Debug: Log trade images to verify isolation
-  if (process.env.NODE_ENV === 'development') {
-    trades.forEach(trade => {
-      if (trade.screenshots && trade.screenshots.length > 0) {
-        console.log(`🖼️ Trade ${trade.id} has ${trade.screenshots.length} unique images:`, trade.screenshots);
-      }
-    });
-  }
+  if (state === 'error') return null;
 
   return (
+    <button
+      onClick={() => url && onView(url)}
+      className="w-8 h-8 rounded overflow-hidden border border-white/10 flex-shrink-0 hover:border-white/25 transition-colors relative"
+    >
+      {state === 'loading' && (
+        <div className="absolute inset-0 bg-white/5 animate-pulse" />
+      )}
+      {url && (
+        <img
+          src={url}
+          alt={`Screenshot ${index + 1}`}
+          className="w-full h-full object-cover"
+          loading="lazy"
+        />
+      )}
+    </button>
+  );
+}
+
+/* ─── Lightbox ─────────────────────────────────────────────────────────── */
+function openLightbox(url) {
+  let scale = 1;
+  const modal   = document.createElement('div');
+  modal.className = 'fixed inset-0 z-[100] bg-black/95 flex items-center justify-center';
+  const img = document.createElement('img');
+  img.src = url;
+  img.className = 'max-w-[92vw] max-h-[92vh] object-contain rounded-xl shadow-2xl select-none';
+  img.style.transition = 'transform 120ms ease';
+
+  const apply = () => { img.style.transform = `scale(${scale})`; };
+
+  const close = () => { document.removeEventListener('keydown', onKey); modal.remove(); };
+  const onKey = (e) => { if (e.key === 'Escape') close(); };
+  document.addEventListener('keydown', onKey);
+
+  modal.addEventListener('wheel', (e) => {
+    e.preventDefault();
+    scale = Math.min(5, Math.max(0.5, scale + (e.deltaY > 0 ? -0.1 : 0.1)));
+    apply();
+  }, { passive: false });
+  modal.addEventListener('click', close);
+
+  modal.appendChild(img);
+  document.body.appendChild(modal);
+  apply();
+}
+
+/* ─── Row component ────────────────────────────────────────────────────── */
+function TradeRow({
+  trade,
+  onEdit,
+  onDelete,
+  review,
+  reviewLoading,
+  onReviewTrade,
+  onClearReview,
+  index,
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const [reviewOpen, setReviewOpen] = useState(false);
+
+  const pnl = trade.pnl || 0;
+  const entryPrice   = trade.entry_price    || 0;
+  const exitPrice    = trade.exit_price     || 0;
+  const positionSize = trade.position_size  || 0;
+  const screenshots  = trade.screenshots   || [];
+
+  const pnlPct = entryPrice && positionSize
+    ? ((pnl / (entryPrice * positionSize)) * 100).toFixed(1)
+    : null;
+
+  return (
+    <div
+      className={cn(
+        'group border-b border-white/[0.04] last:border-0',
+        'transition-colors duration-150',
+        'hover:bg-white/[0.02]',
+        'animate-fade-in',
+      )}
+      style={{ animationDelay: `${Math.min(index * 20, 200)}ms` }}
+    >
+      {/* ── Main row ── */}
+      <div className="flex items-center gap-0 px-3 py-2.5 cursor-pointer" onClick={() => setExpanded(e => !e)}>
+
+        {/* Expand toggle */}
+        <ChevronDown
+          className={cn('w-3 h-3 text-white/20 flex-shrink-0 mr-2 transition-transform duration-200', expanded && 'rotate-180')}
+        />
+
+        {/* Date */}
+        <div className="w-[82px] flex-shrink-0">
+          <span className="text-[11px] text-white/40 font-mono">
+            {formatDate(trade.entry_time || trade.created_date)}
+          </span>
+        </div>
+
+        {/* Symbol + direction */}
+        <div className="w-[110px] flex-shrink-0 flex items-center gap-1.5">
+          <span className="font-semibold text-[13px] text-white tracking-wide">
+            {trade.symbol || '—'}
+          </span>
+          <DirectionBadge direction={trade.direction} size="xs" />
+        </div>
+
+        {/* Entry / Exit */}
+        <div className="w-[100px] flex-shrink-0 hidden sm:block">
+          <span className="text-[11px] font-mono text-white/50">
+            {formatCurrency(entryPrice)}
+            {exitPrice ? <span className="text-white/25"> → {formatCurrency(exitPrice)}</span> : null}
+          </span>
+        </div>
+
+        {/* Size */}
+        <div className="w-[58px] flex-shrink-0 hidden md:block">
+          <span className="text-[11px] font-mono text-white/40">{positionSize || '—'}</span>
+        </div>
+
+        {/* P&L */}
+        <div className="flex-1 min-w-[90px]">
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <PnlBadge value={pnl} size="sm" />
+            {pnlPct && (
+              <span className={cn('text-[10px] font-mono', pnl >= 0 ? 'text-emerald-400/50' : 'text-rose-400/50')}>
+                {pnl >= 0 ? '+' : ''}{pnlPct}%
+              </span>
+            )}
+          </div>
+        </div>
+
+        {/* R-multiple */}
+        <div className="w-[52px] flex-shrink-0 hidden lg:block">
+          <RMultipleBadge value={trade.r_multiple} />
+        </div>
+
+        {/* Setup */}
+        <div className="w-[110px] flex-shrink-0 hidden xl:block">
+          <SetupBadge setup={trade.setup_type} />
+        </div>
+
+        {/* Thumbnails */}
+        <div className="flex items-center gap-1 mx-2 flex-shrink-0">
+          {screenshots.slice(0, 2).map((id, i) => (
+            <Thumb
+              key={id ?? i}
+              screenshotId={id}
+              tradeId={trade.id}
+              index={i}
+              onView={openLightbox}
+            />
+          ))}
+          {screenshots.length > 2 && (
+            <span className="text-[10px] text-white/25 font-mono">+{screenshots.length - 2}</span>
+          )}
+          {!screenshots.length && (
+            <Image className="w-3.5 h-3.5 text-white/12" />
+          )}
+        </div>
+
+        {/* Actions — only on hover */}
+        <div
+          className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity duration-150 flex-shrink-0"
+          onClick={e => e.stopPropagation()}
+        >
+          <button
+            onClick={() => onEdit(trade)}
+            className="p-1.5 rounded text-white/30 hover:text-white/70 hover:bg-white/8 transition-colors"
+            title="Edit"
+          >
+            <Edit2 className="w-3 h-3" />
+          </button>
+          <button
+            onClick={() => onDelete(trade.id)}
+            className="p-1.5 rounded text-white/30 hover:text-rose-400 hover:bg-rose-500/10 transition-colors"
+            title="Delete"
+          >
+            <Trash2 className="w-3 h-3" />
+          </button>
+        </div>
+      </div>
+
+      {/* ── Expanded detail ── */}
+      {expanded && (
+        <div
+          className="px-8 pb-3 space-y-2 animate-fade-in border-t border-white/[0.03]"
+          onClick={e => e.stopPropagation()}
+        >
+          {/* Meta row */}
+          <div className="flex flex-wrap items-center gap-2 pt-2">
+            {trade.emotions    && <EmotionBadge emotion={trade.emotions} />}
+            {trade.setup_grade && (
+              <span className="text-[10px] px-1.5 py-0.5 rounded border border-blue-500/20 bg-blue-500/10 text-blue-300/70">
+                Grade: {trade.setup_grade}
+              </span>
+            )}
+            {trade.followed_plan === false && (
+              <span className="text-[10px] px-1.5 py-0.5 rounded border border-rose-500/20 bg-rose-500/10 text-rose-300/70">
+                Deviated from plan
+              </span>
+            )}
+            {trade.followed_plan === true && (
+              <span className="text-[10px] px-1.5 py-0.5 rounded border border-emerald-500/15 bg-emerald-500/8 text-emerald-300/60">
+                Followed plan
+              </span>
+            )}
+          </div>
+
+          {/* Notes */}
+          {trade.notes && (
+            <p className="text-[11px] text-white/40 leading-relaxed max-w-xl">{trade.notes}</p>
+          )}
+
+          {/* Mistakes */}
+          {trade.mistakes?.length > 0 && (
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <AlertCircle className="w-3 h-3 text-amber-400/60 flex-shrink-0" />
+              {(Array.isArray(trade.mistakes) ? trade.mistakes : [trade.mistakes]).map((m, i) => (
+                <span key={i} className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/8 border border-amber-500/15 text-amber-300/60">
+                  {m}
+                </span>
+              ))}
+            </div>
+          )}
+
+          {/* AI Review */}
+          <TradeReviewPanel
+            trade={trade}
+            review={review}
+            isLoading={reviewLoading?.[trade.id]}
+            onRequest={onReviewTrade}
+            isOpen={reviewOpen}
+            onToggle={() => setReviewOpen(o => !o)}
+            onClear={onClearReview}
+          />
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ─── Table header ─────────────────────────────────────────────────────── */
+function Header() {
+  return (
+    <div className="flex items-center gap-0 px-3 py-2 border-b border-white/[0.06] bg-white/[0.015]">
+      <div className="w-5 mr-2 flex-shrink-0" />
+      <div className="w-[82px] flex-shrink-0">
+        <span className="text-[9px] font-semibold uppercase tracking-widest text-white/25">Date</span>
+      </div>
+      <div className="w-[110px] flex-shrink-0">
+        <span className="text-[9px] font-semibold uppercase tracking-widest text-white/25">Symbol</span>
+      </div>
+      <div className="w-[100px] flex-shrink-0 hidden sm:block">
+        <span className="text-[9px] font-semibold uppercase tracking-widest text-white/25">Entry → Exit</span>
+      </div>
+      <div className="w-[58px] flex-shrink-0 hidden md:block">
+        <span className="text-[9px] font-semibold uppercase tracking-widest text-white/25">Size</span>
+      </div>
+      <div className="flex-1 min-w-[90px]">
+        <span className="text-[9px] font-semibold uppercase tracking-widest text-white/25">P&L</span>
+      </div>
+      <div className="w-[52px] flex-shrink-0 hidden lg:block">
+        <span className="text-[9px] font-semibold uppercase tracking-widest text-white/25">R</span>
+      </div>
+      <div className="w-[110px] flex-shrink-0 hidden xl:block">
+        <span className="text-[9px] font-semibold uppercase tracking-widest text-white/25">Setup</span>
+      </div>
+      <div className="w-20 flex-shrink-0">
+        <span className="text-[9px] font-semibold uppercase tracking-widest text-white/25">Img</span>
+      </div>
+    </div>
+  );
+}
+
+/* ─── Main export ──────────────────────────────────────────────────────── */
+export default function CompactView({ trades, onEdit, onDelete, reviews, reviewLoading, onReviewTrade, onClearReview }) {
+  return (
     <div className="overflow-x-auto">
-      <table className="w-full text-xs border-collapse">
-        <thead className="bg-white/5 border-b border-white/10">
-          <tr className="text-white/70 font-semibold uppercase tracking-wider">
-            <th className="p-2 text-left w-[90px]">Date</th>
-            <th className="p-2 text-left w-[80px]">Symbol</th>
-            <th className="p-2 text-left w-[60px]">Dir</th>
-            <th className="p-2 text-right w-[90px]">Entry</th>
-            <th className="p-2 text-right w-[90px]">Exit</th>
-            <th className="p-2 text-right w-[70px]">Size</th>
-            <th className="p-2 text-right w-[100px]">P&L ($)</th>
-            <th className="p-2 text-right w-[80px]">P&L (%)</th>
-            <th className="p-2 text-left w-[140px]">Setup / Quality</th>
-            <th className="p-2 text-center w-[120px]">Images</th>
-            <th className="p-2 text-center w-[80px]">Actions</th>
-          </tr>
-        </thead>
-        
-        <tbody className="divide-y divide-white/10">
-          {trades.map(trade => {
-            const pnl = trade.pnl || 0;
-            const entryPrice = trade.entry_price || 0;
-            const positionSize = trade.position_size || 0;
-            const pnlPercent = entryPrice && positionSize 
-              ? (pnl / (entryPrice * positionSize)) * 100 
-              : 0;
-            
-            return (
-              <tr 
-                key={trade.id}
-                className="hover:bg-white/5 transition-colors cursor-pointer group"
-                onClick={() => onEdit(trade)}
-              >
-                <td className="p-2 text-white/60 whitespace-nowrap">
-                  {formatDate(trade.entry_time || trade.created_date)}
-                </td>
-                
-                <td className="p-2">
-                  <span className="font-semibold text-white">
-                    {trade.symbol || '-'}
-                  </span>
-                </td>
-                
-                <td className="p-2">
-                  <span className={cn(
-                    "inline-block px-1.5 py-0.5 rounded text-xs font-medium",
-                    trade.direction === 'long' 
-                      ? "bg-emerald-500/20 text-emerald-400" 
-                      : "bg-red-500/20 text-red-400"
-                  )}>
-                    {trade.direction === 'long' ? 'Long' : 'Short'}
-                  </span>
-                </td>
-                
-                <td className="p-2 text-right text-white/80 whitespace-nowrap">
-                  {formatCurrency(entryPrice)}
-                </td>
-                
-                <td className="p-2 text-right text-white/80 whitespace-nowrap">
-                  {formatCurrency(trade.exit_price)}
-                </td>
-                
-                <td className="p-2 text-right text-white/80 whitespace-nowrap">
-                  {positionSize || '-'}
-                </td>
-                
-                <td className="p-2 text-right whitespace-nowrap">
-                  <span className={cn(
-                    "font-medium",
-                    pnl >= 0 ? "text-emerald-400" : "text-red-400"
-                  )}>
-                    {formatCurrency(pnl)}
-                  </span>
-                </td>
-                
-                <td className="p-2 text-right whitespace-nowrap">
-                  <span className={cn(
-                    "font-medium",
-                    pnl >= 0 ? "text-emerald-400" : "text-red-400"
-                  )}>
-                    {pnlPercent !== 0 ? formatPercent(pnlPercent) : '-'}
-                  </span>
-                </td>
-                
-                <td className="p-2 text-white/60 max-w-[140px]">
-                  <div className="truncate" title={trade.setup_type || '-'}>{trade.setup_type || '-'}</div>
-                  <div className="text-[10px] text-white/45 truncate" title={trade.setup_grade || 'No Grade'}>
-                    Quality: {trade.setup_grade || 'No Grade'}
-                  </div>
-                </td>
-                
-                <td className="p-2 text-center">
-                  {trade.screenshots && trade.screenshots.length > 0 ? (
-                    <div className="flex gap-1 items-center justify-center">
-                      {trade.screenshots.slice(0, 3).map((screenshotId, index) => {
-                        const imageKey = `${trade.id}-${index}`;
-                        const imageState = imageStates[imageKey];
-                        const screenshotUrl = screenshotUrls[screenshotId];
-                        
-                        return (
-                          <div key={imageKey} className="w-8 h-8 relative">
-                            {imageState !== 'loaded' && (
-                              <div className="absolute inset-0 bg-white/10 rounded flex items-center justify-center">
-                                {imageState === 'error' ? (
-                                  <AlertCircle className="w-3 h-3 text-red-400" />
-                                ) : (
-                                  <div className="w-3 h-3 border-2 border-white/30 border-t-white/60 rounded-full animate-spin" />
-                                )}
-                              </div>
-                            )}
-                            <img
-                              src={screenshotUrl}
-                              alt={`Trade ${trade.id} Screenshot ${index + 1}`}
-                              className={cn(
-                                "w-8 h-8 object-cover rounded cursor-pointer hover:opacity-80 transition-opacity",
-                                imageState === 'error' && "opacity-50"
-                              )}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                if (imageState === 'loaded' && screenshotUrl) {
-                                  handleViewImage(screenshotUrl);
-                                }
-                              }}
-                              onLoad={() => handleImageLoad(trade.id, index)}
-                              onError={() => handleImageError(trade.id, index)}
-                              loading="lazy"
-                              style={{ display: imageState === 'loaded' || imageState === 'error' ? 'block' : 'none' }}
-                            />
-                          </div>
-                        );
-                      })}
-                      {trade.screenshots.length > 3 && (
-                        <span className="text-xs text-white/50 ml-1">
-                          +{trade.screenshots.length - 3}
-                        </span>
-                      )}
-                    </div>
-                  ) : (
-                    <div className="flex items-center justify-center">
-                      <Image className="w-4 h-4 text-white/20" />
-                    </div>
-                  )}
-                </td>
-                
-                <td className="p-2 text-center">
-                  <div className="flex gap-1 justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onEdit(trade);
-                      }}
-                      className="text-white/60 hover:text-white px-1"
-                    >
-                      Edit
-                    </button>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onDelete(trade.id);
-                      }}
-                      className="text-red-400/60 hover:text-red-400 px-1"
-                    >
-                      Delete
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
+      <Header />
+      <div>
+        {trades.map((trade, i) => (
+          <TradeRow
+            key={trade.id}
+            trade={trade}
+            index={i}
+            onEdit={onEdit}
+            onDelete={onDelete}
+            review={reviews?.[trade.id]}
+            reviewLoading={reviewLoading?.[trade.id]}
+            onReviewTrade={onReviewTrade}
+            onClearReview={onClearReview}
+          />
+        ))}
+      </div>
     </div>
   );
 }

@@ -31,11 +31,14 @@ export default function Dashboard() {
   const [selectedDay, setSelectedDay] = useState(null);
 
   const { data: trades = [], isLoading } = useTrades({ sortBy: 'entry_time', sortDir: 'desc' });
+  const settingsData = useSettings();
   const {
-    accountSize,
-    targetProfitDollars,
-    maxDollars,
-  } = useSettings();
+    settings,
+  } = settingsData;
+  
+  const accountSize = settings?.account_size;
+  const targetProfitDollars = settings?.target_profit_dollars;
+  const maxDollars = settings?.max_dollars;
 
   // ── Analytics (pure functions, no extra queries) ──────────────────────────
   const allStats   = useMemo(() => calcCoreStats(trades),          [trades]);
@@ -45,7 +48,7 @@ export default function Dashboard() {
   const maxDD      = useMemo(() => calcMaxDrawdown(curve),         [curve]);
   const sharpe     = useMemo(() => calcSharpeRatio(trades),        [trades]);
 
-  const currentBalance = accountSize + allStats.totalPnL;
+  const currentBalance = (Number(accountSize) || 0) + (Number(allStats.totalPnL) || 0);
   const maxDailyLoss   = -(maxDollars || 250);
 
   if (isLoading) {
@@ -69,16 +72,14 @@ export default function Dashboard() {
         todayTrades={todayStats.totalTrades}
       />
 
-      <DailyGoalBar
-        todayPnL={todayStats.totalPnL}
-        targetProfit={targetProfitDollars}
-        maxDailyLoss={maxDailyLoss}
-      />
-
-      <StreakTracker sequence={sequence} />
-
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-        <div className="lg:col-span-2">
+        <div className="lg:col-span-2 space-y-5">
+          <DailyGoalBar
+            todayPnL={todayStats.totalPnL}
+            targetProfit={targetProfitDollars}
+            maxDailyLoss={maxDailyLoss}
+          />
+          <StreakTracker sequence={sequence} />
           <TradingCalendar trades={trades} onDaySelect={setSelectedDay} />
         </div>
         {selectedDay

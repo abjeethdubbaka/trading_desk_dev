@@ -18,6 +18,24 @@ export default function ResultsDisplay({
   calculatedAt,
   mode
 }) {
+  console.log('💰 ResultsDisplay Input:', {
+    entryPrice,
+    stopLossPrice,
+    targetPrice,
+    shares,
+    positionValue,
+    actualRisk,
+    riskRewardRatio,
+    direction,
+    mode
+  });
+
+  console.log('💰 Risk Calculation:', {
+    shares,
+    riskPerShare: entryPrice && stopLossPrice ? Math.abs(entryPrice - stopLossPrice) : 'N/A',
+    calculatedRisk: shares && entryPrice && stopLossPrice ? shares * Math.abs(entryPrice - stopLossPrice) : 'N/A',
+    actualRisk
+  });
 
 
   // Generate exit targets
@@ -28,8 +46,6 @@ export default function ResultsDisplay({
   ] : [];
 
   const overallProfit = targets.reduce((sum, target) => sum + (target.profit || 0), 0);
-  const maxProfit = overallProfit;
-  const maxProfitExitPrice = targets.length > 0 ? targets[targets.length - 1].price : null;
 
   return (
     <div className="bg-gradient-to-br from-emerald-500/10 to-blue-500/10 rounded-xl p-5 border border-emerald-500/20">
@@ -137,11 +153,11 @@ export default function ResultsDisplay({
             </div>
           ))}
           
-          {/* Total Profit (6R) */}
+          {/* Total Profit */}
           <div className="flex items-center justify-between bg-gradient-to-r from-emerald-500/10 to-blue-500/10 rounded-lg p-3 border border-emerald-500/20">
             <div className="flex items-center gap-3">
               <Badge className="bg-gradient-to-r from-emerald-500/20 to-blue-500/20 text-emerald-300 border-0">
-                Total Profit (6R)
+                Total Profit
               </Badge>
               <span className="text-sm font-semibold text-white/80">
                 All {shares} shares
@@ -149,23 +165,6 @@ export default function ResultsDisplay({
             </div>
             <span className="text-lg font-bold text-emerald-300">
               +${overallProfit != null ? overallProfit.toFixed(2) : '0.00'}
-            </span>
-          </div>
-
-          {/* Max $ Target */}
-          <div className="flex items-center justify-between bg-gradient-to-r from-amber-500/10 to-orange-500/10 rounded-lg p-3 border border-amber-500/20">
-            <div className="flex items-center gap-3">
-              <Badge className="bg-gradient-to-r from-amber-500/20 to-orange-500/20 text-amber-300 border-0">
-                Max $ Target
-              </Badge>
-              <span className="text-sm font-semibold text-white/80">
-                {maxProfit != null && maxProfitExitPrice != null 
-                  ? `Exit @ $${maxProfitExitPrice.toFixed(2)} to reach $${maxProfit.toFixed(2)}` 
-                  : 'Enter values to calculate Max $ target'}
-              </span>
-            </div>
-            <span className="text-lg font-bold text-amber-300">
-              {maxProfit != null ? `$${maxProfit.toFixed(2)}` : '$0'}
             </span>
           </div>
         </div>

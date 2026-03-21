@@ -11,7 +11,7 @@ import { useSettings as useSettingsHook } from './hooks/useSettings';
 const SettingsContext = createContext(null);
 
 export function SettingsProvider({ children }) {
-  const value = useSettingsHook();
+  const value = useSettingsHook({ autoSave: false });
   return (
     <SettingsContext.Provider value={value}>
       {children}
@@ -24,7 +24,12 @@ export function useSettings() {
   if (!context) {
     throw new Error('useSettings must be used within a SettingsProvider');
   }
-  return context;
+  
+  // Add updateSettings as alias for updateFields for backward compatibility
+  return {
+    ...context,
+    updateSettings: context.updateFields
+  };
 }
 
 // Re-export for the old import path

@@ -423,7 +423,17 @@ export function computeEmotionStats(trades = []) {
   const groups = {};
   
   trades.forEach(t => {
-    const emotion = (t.emotions || 'neutral').toLowerCase();
+    // Handle emotions as array or string
+    let emotion = 'neutral';
+    if (t.emotions) {
+      if (Array.isArray(t.emotions)) {
+        emotion = t.emotions[0] || 'neutral';
+      } else {
+        emotion = t.emotions;
+      }
+    }
+    emotion = emotion.toLowerCase();
+    
     if (!groups[emotion]) {
       groups[emotion] = { trades: [], pnl: 0, wins: 0 };
     }
@@ -599,6 +609,21 @@ export function calcPosition({
   targetProfitDollars = 500,
   riskRewardRatio = 3,
 }) {
+  console.log('🔍 calcPosition Input:', {
+    entryPrice,
+    direction,
+    accountSize,
+    positionPct,
+    stopPct,
+    stopLossPrice,
+    riskAmount,
+    shareFloat,
+    floatCategory,
+    maxDollars,
+    targetProfitDollars,
+    riskRewardRatio
+  });
+
   const entry  = Number(entryPrice);
   const acct   = Number(accountSize);
   if (!entry || !acct) throw new Error('Entry price and account size are required');
@@ -612,10 +637,17 @@ export function calcPosition({
     if (riskPerShare <= 0) throw new Error('Stop loss must be below entry for long, above for short');
 
     const risk = riskAmount ?? (acct * positionPct / 100);
-    shares     = Math.max(1, Math.round(risk / riskPerShare));
+    console.log('🔍 calcPosition Custom Stop:', { riskAmount, risk, acct, positionPct, fallback: acct * positionPct / 100 });
+    
+    // Calculate shares based on risk, but cap by account balance
+    const riskShares = Math.max(1, Math.round(risk / riskPerShare));
+    const maxSharesByBalance = Math.floor(acct / entry);
+    shares     = Math.min(riskShares, maxSharesByBalance);
     positionValue = shares * entry;
     actualRisk  = shares * riskPerShare;
     mode        = 'custom-stop';
+    
+    console.log('🔍 calcPosition Custom Stop Capped:', { riskShares, maxSharesByBalance, shares, positionValue, acct });
   }
 
   // ── Mode 2: float-aware ──────────────────────────────────────────────────
@@ -625,14 +657,20 @@ export function calcPosition({
     stop        = direction === 'long' ? entry * (1 - pct) : entry * (1 + pct);
     riskPerShare = Math.abs(entry - stop);
 
+    // Use riskAmount instead of percentage-based calculation
+    const riskShares = Math.floor((riskAmount || 1500) / riskPerShare);
     const base        = Math.floor((acct * positionPct / 100) / entry);
     const adjusted    = Math.floor(base * (cat.position_multiplier ?? 1));
     const maxByFloat  = Math.floor(shareFloat * ((cat.max_float_percent ?? 0.5) / 100));
     const maxByAcct   = maxDollars > 0 ? Math.floor(maxDollars / entry) : Infinity;
-    shares        = Math.max(1, Math.min(adjusted, maxByFloat, maxByAcct));
+    const maxSharesByBalance = Math.floor(acct / entry);
+    
+    shares        = Math.max(1, Math.min(riskShares, adjusted, maxByFloat, maxByAcct, maxSharesByBalance));
     positionValue = shares * entry;
     actualRisk    = shares * riskPerShare;
     mode          = 'float-aware';
+    
+    console.log('🔍 calcPosition Float Mode Capped:', { riskShares, adjusted, maxByFloat, maxByAcct, maxSharesByBalance, shares, positionValue, acct });
   }
 
   // ── Mode 3: entry-only (default) ─────────────────────────────────────────
@@ -641,13 +679,19 @@ export function calcPosition({
     stop         = direction === 'long' ? entry * (1 - pct) : entry * (1 + pct);
     riskPerShare = Math.abs(entry - stop);
 
+    // Use riskAmount instead of percentage-based calculation
+    const riskShares = Math.floor((riskAmount || 1500) / riskPerShare);
     const maxPos   = maxDollars > 0
       ? Math.min(acct * positionPct / 100, maxDollars)
       : acct * positionPct / 100;
-    shares        = Math.max(1, Math.floor(maxPos / entry));
+    const maxSharesByBalance = Math.floor(acct / entry);
+    
+    shares        = Math.max(1, Math.min(riskShares, Math.floor(maxPos / entry), maxSharesByBalance));
     positionValue = shares * entry;
     actualRisk    = shares * riskPerShare;
     mode          = 'entry-only';
+    
+    console.log('🔍 calcPosition Entry-Only Mode Capped:', { riskAmount, riskShares, maxPos, maxSharesByBalance, shares, positionValue, acct });
   }
 
   const target       = direction === 'long'
