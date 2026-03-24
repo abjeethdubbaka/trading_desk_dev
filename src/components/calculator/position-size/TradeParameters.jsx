@@ -37,7 +37,7 @@ export default function TradeParameters({
             inputMode="decimal"
             value={values.entryPrice}
             onChange={(e) => {
-              console.log('Entry price changing to:', e.target.value);
+              
               handleInputChange('entryPrice', e.target.value);
             }}
             placeholder="100.00"

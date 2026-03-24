@@ -8,7 +8,7 @@ const today = () => new Date().toISOString().slice(0,10);
 async function fetchBrief(trades) {
   // DISABLED: Direct API calls from browser are blocked by CORS and expose API keys
   // This should be moved to a backend API endpoint
-  console.log('🤖 Morning Brief AI disabled - requires backend implementation');
+  
   throw new Error('AI functionality disabled - requires backend API');
   
   // Original code (commented out for security):

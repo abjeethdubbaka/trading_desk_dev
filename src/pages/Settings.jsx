@@ -13,52 +13,18 @@ import { Check, AlertTriangle, Cloud, CloudOff } from 'lucide-react';
 import { useSettings }           from '@/lib/SettingsContext';
 import { useAuth }               from '@/lib/AuthContext';
 import { IS_REMOTE }             from '@/lib/db';
+import { createSettingsService } from '@/lib/services/SettingsService.js';
+import { db }                    from '@/lib/db';
 import FloatCategoriesSettings   from '@/components/settings/FloatCategoriesSettings';
 import FloatTargetSettings       from '@/components/settings/FloatTargetSettings';
+import AccountTierSelector       from '@/components/settings/AccountTierSelector';
 import { cn }                    from '@/lib/utils';
 import { toast }                 from 'sonner';
 
-function LivePreview({ settings }) {
-  const entry   = 180;
-  const acct    = parseFloat(settings.account_size)             || 50000;
-  const sizePct = (parseFloat(settings.position_sizing_percent) || 1) / 100;
-  const stopPct = (parseFloat(settings.default_stop_loss_percent) || 4) / 100;
-  const maxDol  = parseFloat(settings.max_dollars) || 0;
-  const target  = parseFloat(settings.target_profit_dollars) || 500;
-  const posVal  = maxDol > 0 ? Math.min(acct * sizePct, maxDol) : acct * sizePct;
-  const shares  = Math.floor(posVal / entry);
-  const risk    = shares * entry * stopPct;
-
-  const rows = [
-    ['Shares',        shares.toString()],
-    ['Position value',`$${Math.round(posVal).toLocaleString()}`],
-    ['Risk $',        `$${risk.toFixed(0)}`],
-    ['2R target',     `$${(risk * 2).toFixed(0)}`],
-    ['Daily goal',    `$${target}`],
-    ['% of account',  `${(posVal / acct * 100).toFixed(1)}%`],
-  ];
-
-  return (
-    <div className="bg-[#0e0e18] border border-purple-500/20 rounded-xl p-4">
-      <p className="text-xs font-semibold text-purple-300/70 uppercase tracking-wider mb-3">
-        Live preview — $180 stock
-      </p>
-      <div className="space-y-1.5">
-        {rows.map(([k, v]) => (
-          <div key={k} className="flex justify-between text-xs">
-            <span className="text-white/40">{k}</span>
-            <span className="font-mono font-semibold text-white/80">{v}</span>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
 function RiskMeter({ settings }) {
-  const pct  = parseFloat(settings.position_sizing_percent) || 1;
-  const stop = parseFloat(settings.default_stop_loss_percent) || 4;
-  const score = Math.min(100, (pct * 15) + (stop * 4));
+  const pct  = parseFloat(settings.position_sizing_percent) || 0.01; // Already in decimal
+  const stop = parseFloat(settings.default_stop_loss_percent) || 0.04; // Already in decimal
+  const score = Math.min(100, (pct * 1500) + (stop * 400)); // Adjusted for decimal values
   const label = score < 30 ? 'Conservative' : score < 60 ? 'Moderate' : score < 80 ? 'Aggressive' : 'Very aggressive';
   const color = score < 30 ? 'text-blue-400' : score < 60 ? 'text-amber-400' : 'text-red-400';
   const tip   = score < 30
@@ -110,24 +76,60 @@ function Field({ label, hint, children }) {
 }
 
 export default function SettingsPage() {
-  const { settings, isLoading, isSaving, updateFields, savePending } = useSettings({ autoSave: false });
+  const { settings, isLoading, isSaving, updateFields, savePending, refetch } = useSettings({ autoSave: false });
   const { user, signOut } = useAuth();
+  
+  // Create settings service instance
+  const settingsService = createSettingsService(db);
 
   const handle = (key) => (e) => {
     const value = e.target.value;
-    updateFields({ [key]: value });
+    
+    // Convert percentage inputs to decimal format
+    if (key === 'position_sizing_percent' || key === 'default_stop_loss_percent') {
+      const percentValue = parseFloat(value) || 0;
+      const decimalValue = percentValue / 100;
+      updateFields({ [key]: decimalValue });
+    } else {
+      updateFields({ [key]: value });
+    }
   };
 
   const handleSave = async () => {
-    console.log('🚀 SAVE BUTTON CLICKED!');
     try {
-      console.log('🚀 Calling savePending...');
       const result = await savePending();
-      console.log('🚀 Save completed:', result);
       toast.success('Settings saved successfully!');
     } catch (error) {
-      console.error('🚀 Save failed:', error);
+      console.error('Save failed:', error);
       toast.error(`Failed to save: ${error.message}`);
+    }
+  };
+
+  const handleMigrateTrades = async () => {
+    if (window.confirm('This will migrate all existing trades to the 25K account tier. Are you sure?')) {
+      try {
+        const { createTradeService } = await import('@/lib/services/TradeService.js');
+        const tradeService = createTradeService(db);
+        await tradeService.migrateTradesToAccountTier();
+        toast.success('Trade migration completed successfully!');
+      } catch (error) {
+        console.error('Migration failed:', error);
+        toast.error('Failed to migrate trades');
+      }
+    }
+  };
+
+  const handleClearAndReinit = async () => {
+    if (window.confirm('This will reset all settings to defaults. Are you sure?')) {
+      try {
+        await settingsService.clearAndReinit();
+        toast.success('Settings cleared and reinitialized!');
+        // Refetch settings
+        refetch();
+      } catch (error) {
+        console.error('Clear and reinit failed:', error);
+        toast.error('Failed to clear settings');
+      }
     }
   };
 
@@ -180,9 +182,9 @@ export default function SettingsPage() {
         </TabsList>
 
         <TabsContent value="account" className="mt-5">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="space-y-4">
-              <h2 className="text-sm font-semibold text-white/70">Account</h2>
+          <div className="space-y-4">
+            <AccountTierSelector />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <Field label="Account size ($)" hint="Starting capital for all calculations">
                 <Input 
                   type="number" 
@@ -202,7 +204,6 @@ export default function SettingsPage() {
                   placeholder="250" className="bg-white/5 border-white/10" disabled={isLoading} />
               </Field>
             </div>
-            <LivePreview settings={settings} />
           </div>
         </TabsContent>
 
@@ -211,12 +212,22 @@ export default function SettingsPage() {
             <div className="space-y-4">
               <h2 className="text-sm font-semibold text-white/70">Risk parameters</h2>
               <Field label="Position sizing (% of account)">
-                <Input type="number" step="0.1" value={settings.position_sizing_percent || ''} onChange={handle('position_sizing_percent')}
-                  placeholder="1" className="bg-white/5 border-white/10" disabled={isLoading} />
+                <Input type="number" step="0.1" 
+                  value={((settings.position_sizing_percent || 0.01) * 100).toFixed(1)} 
+                  onChange={handle('position_sizing_percent')}
+                  placeholder="1" 
+                  className="bg-white/5 border-white/10" 
+                  disabled={isLoading} 
+                />
               </Field>
               <Field label="Default stop loss (%)">
-                <Input type="number" step="0.1" value={settings.default_stop_loss_percent || ''} onChange={handle('default_stop_loss_percent')}
-                  placeholder="4" className="bg-white/5 border-white/10" disabled={isLoading} />
+                <Input type="number" step="0.1" 
+                  value={((settings.default_stop_loss_percent || 0.04) * 100).toFixed(1)} 
+                  onChange={handle('default_stop_loss_percent')}
+                  placeholder="4" 
+                  className="bg-white/5 border-white/10" 
+                  disabled={isLoading} 
+                />
               </Field>
               <Field label="Risk amount ($)" hint="Dollar risk per trade used in calculator">
                 <Input type="number" step="50" value={settings.risk_amount || ''} onChange={handle('risk_amount')}
@@ -225,7 +236,6 @@ export default function SettingsPage() {
             </div>
             <div className="space-y-4">
               <RiskMeter settings={settings} />
-              <LivePreview settings={settings} />
             </div>
           </div>
         </TabsContent>
@@ -241,6 +251,22 @@ export default function SettingsPage() {
             <button onClick={exportCSV} className="flex flex-col items-start gap-1 border border-white/10 bg-white/5 hover:bg-white/8 rounded-xl p-4 transition-colors text-left">
               <span className="text-sm font-semibold text-white">Export trades CSV</span>
               <span className="text-xs text-white/40">All journal trades as spreadsheet</span>
+            </button>
+
+            <button
+              onClick={handleMigrateTrades}
+              className="flex flex-col items-start gap-1 bg-blue-500/8 hover:bg-blue-500/12 border border-blue-500/20 rounded-xl p-4 transition-colors text-left"
+            >
+              <span className="text-sm font-semibold text-blue-300">Migrate Trades to 25K</span>
+              <span className="text-xs text-white/40">Assign existing trades to 25K account tier</span>
+            </button>
+
+            <button
+              onClick={handleClearAndReinit}
+              className="flex flex-col items-start gap-1 bg-orange-500/8 hover:bg-orange-500/12 border border-orange-500/20 rounded-xl p-4 transition-colors text-left"
+            >
+              <span className="text-sm font-semibold text-orange-300">Reset Settings</span>
+              <span className="text-xs text-white/40">Clear all settings and reinitialize with defaults</span>
             </button>
 
             <button

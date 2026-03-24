@@ -8,6 +8,7 @@ import PageNotFound from './lib/PageNotFound';
 import { TradingProvider } from '@/lib/TradingContext';
 import { SettingsProvider } from '@/lib/SettingsContext';
 import { AuthProvider } from '@/lib/AuthContext';
+import { Suspense } from 'react';
 
 const { Pages, Layout, mainPage } = pagesConfig;
 const mainPageKey = mainPage ?? Object.keys(Pages)[0];
@@ -18,6 +19,16 @@ const LayoutWrapper = ({ children, currentPageName }) => Layout ?
   : <>{children}</>;
 
 const App = () => {
+  // Loading fallback for lazy loaded components
+  const LoadingFallback = () => (
+    <div className="flex items-center justify-center min-h-screen bg-gray-900">
+      <div className="text-white text-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white mx-auto mb-4"></div>
+        <p>Loading...</p>
+      </div>
+    </div>
+  );
+
   return (
     <Routes>
       <Route path="/" element={
@@ -31,7 +42,9 @@ const App = () => {
           path={`/${path}`}
           element={
             <LayoutWrapper currentPageName={path}>
-              <Page />
+              <Suspense fallback={<LoadingFallback />}>
+                <Page />
+              </Suspense>
             </LayoutWrapper>
           }
         />

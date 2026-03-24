@@ -48,10 +48,10 @@ export class FloatDataService {
 
   async fetchFloatData(symbol) {
     try {
-      console.log('Fetching Polygon data for:', symbol);
+      
       
       const polygonData = await this.polygonClient.getStockData(symbol);
-      console.log('Polygon Response:', polygonData);
+      
       
       if (polygonData && polygonData.share_class_shares_outstanding) {
         return this.parsePolygonData(symbol, polygonData);
@@ -100,7 +100,7 @@ export class FloatDataService {
   }
 
   estimateFromMarketCap(symbol, data) {
-    console.log('Using market cap estimation for float');
+    
     const marketCap = data.market_cap;
     let estimatedFloat;
     

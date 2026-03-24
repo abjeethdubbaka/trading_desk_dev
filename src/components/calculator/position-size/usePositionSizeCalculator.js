@@ -10,13 +10,6 @@ export function usePositionSizeCalculator() {
   // Use settings from SettingsProvider
   const { settings } = useSettings();
   
-  console.log('🔍 Position Size Calculator - Settings received:', {
-    settings,
-    maxDollars: settings?.max_dollars,
-    hasSettings: !!settings,
-    settingsKeys: settings ? Object.keys(settings) : []
-  });
-  
   const { data: watchlist = [] } = useQuery({
     queryKey: ['watchlist'],
     queryFn: () => base44.entities.WatchlistItem.list()
@@ -64,18 +57,6 @@ export function usePositionSizeCalculator() {
   const positionCost = shares * entryPrice; // Fixed: Should be shares * entryPrice
   const rewardPerShare = riskPerShare * rrRatio;
 
-  // Debug logging for position calculation
-  console.log('🔍 Position Calculation Debug:', {
-    accountBalance,
-    riskPercent,
-    riskAmount,
-    riskPerShare,
-    shares,
-    entryPrice,
-    positionCost,
-    positionCostVsAccountBalance: (positionCost / accountBalance) * 100
-  });
-
   // Calculate profit targets
   const target1R = direction === 'long' 
     ? entryPrice + riskPerShare 
@@ -105,17 +86,7 @@ export function usePositionSizeCalculator() {
       : entryPrice - (maxProfit / shares)
     : entryPrice;
 
-  // Debug logging
-  console.log('🔍 Max $ Calculation Debug:', {
-    settings,
-    maxDollarsFromSettings: settings?.max_dollars,
-    maxDollarsParsed: maxDollars,
-    shares,
-    entryPrice,
-    direction,
-    maxProfitExitPrice
-  });
-
+  
   const handleInputChange = (field, value) => {
     setValues(prev => ({ ...prev, [field]: value }));
   };

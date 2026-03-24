@@ -212,11 +212,6 @@ export default function AddTradeModal({ open, onClose, onSave, initialData }) {
       <DialogContent className="bg-[#12121a] border-white/10 text-white max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{initialData ? 'Edit' : 'Log'} Trade</DialogTitle>
-          <DialogDescription className="text-white/50">
-            {initialData 
-              ? 'Edit your trade details and update the information.' 
-              : 'Record a new trade with all relevant details including entry, exit, and performance metrics.'}
-          </DialogDescription>
         </DialogHeader>
         
         <form onSubmit={handleSubmit} className="space-y-6 mt-4">
@@ -245,6 +240,7 @@ export default function AddTradeModal({ open, onClose, onSave, initialData }) {
             values={{
               entry_price: formData.entry_price,
               exit_price: formData.exit_price,
+              stop_loss: formData.stop_loss,
               position_size: formData.position_size,
               fee: formData.fee
             }}
@@ -255,6 +251,7 @@ export default function AddTradeModal({ open, onClose, onSave, initialData }) {
           <TradeMetrics
             entry_price={formData.entry_price}
             exit_price={formData.exit_price}
+            stop_loss={formData.stop_loss}
             position_size={formData.position_size}
             direction={formData.direction}
             fee={formData.fee}

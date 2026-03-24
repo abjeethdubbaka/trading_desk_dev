@@ -4,21 +4,11 @@ import { Badge } from '@/components/ui/badge';
 import { Info, Calculator, TrendingUp, AlertCircle } from 'lucide-react';
 
 export default function DetailedAnalysis({ calculation, floatCategories, floatCategory, shareFloat, settings }) {
-  console.log('🔍 Debug: DetailedAnalysis component called with:', { 
-    calculation: !!calculation, 
-    floatCategories: !!floatCategories, 
-    floatCategory, 
-    shareFloat: !!shareFloat, 
-    settings: !!settings 
-  });
-  
   if (!calculation || !floatCategories) {
-    console.log('🔍 Debug: DetailedAnalysis returning null - missing calculation or floatCategories');
     return null;
   }
 
   const categoryInfo = floatCategories[floatCategory];
-  console.log('🔍 Debug: Category info:', categoryInfo);
   
   return (
     <Card className="bg-[#1a1a24] border-white/10 mt-4">

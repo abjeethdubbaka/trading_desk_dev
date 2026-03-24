@@ -80,6 +80,10 @@ function createMenu() {
           accelerator: process.platform === 'win32' ? 'Alt+F4' : 'CmdOrCtrl+Q',
           click: () => {
             app.quit();
+            // Force quit for Windows to prevent terminal hanging
+            if (process.platform === 'win32') {
+              setTimeout(() => process.exit(0), 100);
+            }
           }
         }
       ]
@@ -136,8 +140,33 @@ app.whenReady().then(() => {
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
+    // Force quit the process to prevent terminal hanging
     app.quit();
+    // Additional force quit for Windows
+    if (process.platform === 'win32') {
+      process.exit(0);
+    }
   }
+});
+
+// Handle all windows closed event
+app.on('before-quit', (event) => {
+  // Clean up any resources before quitting
+  if (mainWindow) {
+    mainWindow.removeAllListeners();
+  }
+});
+
+// Force quit on SIGINT (Ctrl+C)
+process.on('SIGINT', () => {
+  app.quit();
+  process.exit(0);
+});
+
+// Force quit on SIGTERM
+process.on('SIGTERM', () => {
+  app.quit();
+  process.exit(0);
 });
 
 // IPC handlers

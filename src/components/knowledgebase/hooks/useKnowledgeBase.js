@@ -132,8 +132,8 @@ export function useKnowledgeBase() {
       setEntries(prev => {
         const updated = [newEntry, ...prev];
         if (process.env.NODE_ENV === 'development') {
-          console.log('📚 Knowledge Base: Created entry', newEntry);
-          console.log('📚 Knowledge Base: Total entries', updated.length);
+          
+          
         }
         return updated;
       });
@@ -154,7 +154,7 @@ export function useKnowledgeBase() {
             : entry
         );
         if (process.env.NODE_ENV === 'development') {
-          console.log('📚 Knowledge Base: Updated entry', { id, updates });
+          
         }
         return updated;
       });
@@ -170,8 +170,8 @@ export function useKnowledgeBase() {
       setEntries(prev => {
         const updated = prev.filter(entry => entry.id !== id);
         if (process.env.NODE_ENV === 'development') {
-          console.log('📚 Knowledge Base: Deleted entry', id);
-          console.log('📚 Knowledge Base: Total entries', updated.length);
+          
+          
         }
         return updated;
       });

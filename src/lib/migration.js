@@ -30,13 +30,13 @@ export async function migrateToFirebase(options = {}) {
 
   try {
     // ─── Migrate Trades ────────────────────────────────────────────────────────
-    console.log('🔄 Starting trade migration...');
+    
     
     const localTrades = await localStorageAdapter.trades.list();
     if (!localTrades.length) {
-      console.log('ℹ️ No local trades found to migrate');
+      
     } else {
-      console.log(`📦 Found ${localTrades.length} local trades`);
+      
 
       // Get existing Firebase trades to check for duplicates
       let existingTradeIds = new Set();
@@ -71,20 +71,20 @@ export async function migrateToFirebase(options = {}) {
         }
       }
 
-      console.log(`✅ Trades migration complete: ${results.trades.migrated} migrated, ${results.trades.skipped} skipped`);
+      
     }
 
     // ─── Migrate Settings ─────────────────────────────────────────────────────
-    console.log('🔄 Starting settings migration...');
+    
     
     try {
       const localSettings = await localStorageAdapter.settings.get();
       if (localSettings) {
         await db.settings.save(localSettings);
         results.settings.migrated = true;
-        console.log('✅ Settings migrated successfully');
+        
       } else {
-        console.log('ℹ️ No local settings found');
+        
       }
     } catch (error) {
       results.settings.error = error.message;
@@ -96,7 +96,7 @@ export async function migrateToFirebase(options = {}) {
     if (clearLocal && results.totalErrors === 0) {
       try {
         localStorage.clear();
-        console.log('🧹 Local storage cleared successfully');
+        
       } catch (error) {
         console.warn('⚠️ Failed to clear local storage:', error.message);
       }
@@ -105,19 +105,6 @@ export async function migrateToFirebase(options = {}) {
     }
 
     // ─── Summary ────────────────────────────────────────────────────────────
-    console.log('📊 Migration Summary:', {
-      trades: {
-        total: localTrades.length,
-        migrated: results.trades.migrated,
-        skipped: results.trades.skipped,
-        errors: results.trades.errors.length
-      },
-      settings: {
-        migrated: results.settings.migrated,
-        error: results.settings.error
-      },
-      totalErrors: results.totalErrors
-    });
 
     return results;
 

@@ -5,7 +5,7 @@ const NavigationTracker = () => {
   const location = useLocation();
 
   useEffect(() => {
-    console.log('Navigation to:', location.pathname);
+    
   }, [location]);
 
   return null;

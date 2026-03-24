@@ -13,33 +13,32 @@ export class SettingsService {
     this.cacheTimeout = 30000; // 30 seconds
   }
 
-  // Get settings with defaults
+  // Get current settings
   async get() {
     try {
-      // Try cache first
-      if (this._isCacheValid()) {
-        console.log('🔍 SettingsService Using Cache:', this.cache);
-        return this.cache;
+      // Check cache first
+      const cached = this._getFromCache();
+      if (cached) {
+        return cached;
       }
-
-      // Load from database
-      const settings = await this.db.settings.get();
-      console.log('🔍 SettingsService DB Settings:', settings);
       
-      // If no settings exist, create defaults
+      this._clearCache();
+      
+      // Try database
+      const settings = await this.db.settings.get();
+      
+      // If no settings exist, create defaults only for first time setup
       if (!settings) {
-        console.log('🔍 SettingsService No settings found, creating defaults');
         return await this._createDefaults();
       }
 
-      // Update cache
+      // Return saved settings as-is, don't merge with defaults
       this._updateCache(settings);
       return settings;
     } catch (error) {
       console.error('SettingsService - Get error:', error);
-      // Return defaults on error
+      // Return defaults only on error, not as regular behavior
       const defaults = this._getDefaults();
-      console.log('🔍 SettingsService Returning defaults due to error:', defaults);
       return defaults;
     }
   }
@@ -47,11 +46,8 @@ export class SettingsService {
   // Save settings with merge and validation
   async save(updates) {
     try {
-      console.log('🔍 SettingsService Save Input:', updates);
-      
       // Validate the updates
       const validation = validateSchema(SettingsSchema, updates);
-      console.log('🔍 SettingsService Validation:', validation);
       
       if (!validation.isValid) {
         throw new Error(`Settings validation failed: ${validation.errors.join(', ')}`);
@@ -59,19 +55,12 @@ export class SettingsService {
 
       // Get current settings
       const current = await this.get();
-      console.log('🔍 SettingsService Current Settings:', current);
       
-      // Merge with current settings
+      // Merge with current settings - don't apply any defaults
       const merged = this._mergeSettings(current, updates);
-      console.log('🔍 SettingsService Merged:', merged);
       
-      // Apply defaults for any missing fields
-      const finalSettings = this._mergeWithDefaults(merged);
-      console.log('🔍 SettingsService Final Settings:', finalSettings);
-      
-      // Save to database
-      const result = await this.db.settings.save(finalSettings);
-      console.log('🔍 SettingsService DB Result:', result);
+      // Save to database directly without merging defaults
+      const result = await this.db.settings.save(merged);
       
       // Update cache
       this._updateCache(result);
@@ -94,6 +83,10 @@ export class SettingsService {
   // Reset to defaults
   async reset() {
     try {
+      // Clear cache first
+      this._clearCache();
+      
+      // Get fresh defaults
       const defaults = this._getDefaults();
       const result = await this.db.settings.save(defaults);
       
@@ -106,6 +99,32 @@ export class SettingsService {
       return result;
     } catch (error) {
       console.error('SettingsService - Reset error:', error);
+      throw error;
+    }
+  }
+
+  // Clear all settings and reinitialize with defaults
+  async clearAndReinit() {
+    try {
+      // Clear cache
+      this._clearCache();
+      
+      // Clear database
+      await this.db.settings.clear();
+      
+      // Create fresh defaults
+      const defaults = this._getDefaults();
+      const result = await this.db.settings.save(defaults);
+      
+      // Update cache
+      this._updateCache(result);
+      
+      // Broadcast change
+      this._broadcast('settings-updated', { settings: result });
+      
+      return result;
+    } catch (error) {
+      console.error('SettingsService - Clear and reinit error:', error);
       throw error;
     }
   }
@@ -252,15 +271,30 @@ export class SettingsService {
   // Private helper methods
   _getDefaults() {
     const defaults = { ...SettingsSchema.defaults };
-    console.log('🔍 SettingsService Defaults:', defaults);
     return defaults;
+  }
+
+  // Cache methods
+  _getFromCache() {
+    if (this.cache && this.cacheTimestamp && (Date.now() - this.cacheTimestamp < this.cacheTimeout)) {
+      return this.cache;
+    }
+    return null;
+  }
+
+  _updateCache(settings) {
+    this.cache = settings;
+    this.cacheTimestamp = Date.now();
+  }
+
+  _clearCache() {
+    this.cache = null;
+    this.cacheTimestamp = null;
   }
 
   async _createDefaults() {
     const defaults = this._getDefaults();
-    console.log('🔍 SettingsService Creating Defaults in DB:', defaults);
     const result = await this.db.settings.save(defaults);
-    console.log('🔍 SettingsService Defaults Created Result:', result);
     return result;
   }
 
@@ -269,6 +303,22 @@ export class SettingsService {
     
     // Deep merge settings with defaults
     const merged = this._deepMerge(defaults, settings);
+    
+    return merged;
+  }
+
+  _mergeMissingDefaults(settings) {
+    const defaults = this._getDefaults();
+    
+    // Only add defaults for fields that are completely missing
+    const merged = { ...defaults };
+    
+    // Don't override any existing fields
+    for (const key in settings) {
+      if (settings[key] !== undefined && settings[key] !== null) {
+        merged[key] = settings[key];
+      }
+    }
     
     return merged;
   }
@@ -297,6 +347,12 @@ export class SettingsService {
            (Date.now() - this.cacheTimestamp) < this.cacheTimeout;
   }
 
+  _broadcast(channel, detail) {
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent(channel, { detail }));
+    }
+  }
+
   _updateCache(settings) {
     this.cache = settings;
     this.cacheTimestamp = Date.now();
@@ -305,12 +361,6 @@ export class SettingsService {
   _clearCache() {
     this.cache = null;
     this.cacheTimestamp = null;
-  }
-
-  _broadcast(channel, detail) {
-    if (typeof window !== 'undefined') {
-      window.dispatchEvent(new CustomEvent(channel, { detail }));
-    }
   }
 
   // Cache management

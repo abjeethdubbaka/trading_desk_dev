@@ -15,44 +15,39 @@ import { createCalcHistoryService } from './services/CalcHistoryService.js';
 export async function bootstrap(options = {}) {
   const { force = false, skipMigrations = false } = options;
   
-  console.log(`🚀 Bootstrapping TradeDesk app with ${DB_BACKEND} backend...`);
-  
   try {
     // Test database connection
-    console.log('🔍 Testing database connection...');
     
     // Try to access settings to test connection
     const settingsService = createSettingsService(db);
     await settingsService.get();
-    
-    console.log('✅ Database connection successful');
     
     // Run migrations if not skipped
     if (!skipMigrations) {
       const migrationRunner = new MigrationRunner();
       
       if (force) {
-        console.log('🔄 Force mode - resetting migrations...');
+        
         migrationRunner.reset();
       }
       
       const migrationResult = await migrationRunner.run();
       
       if (migrationResult.skipped) {
-        console.log('⏭️ Migrations skipped - already up to date');
+        
       } else {
-        console.log(`✅ Migrations completed: ${migrationResult.completed.join(', ')}`);
+        
       }
       
       // Show migration status
       const status = migrationRunner.getStatus();
-      console.log(`📊 Migration status: ${status.current} (${status.completed.length}/${status.total})`);
+      
     } else {
-      console.log('⏭️ Migrations skipped by request');
+      
     }
     
     // Initialize services
-    console.log('🔧 Initializing services...');
+    
     
     const tradeService = createTradeService(db);
     const calcHistoryService = createCalcHistoryService(db);
@@ -61,16 +56,16 @@ export async function bootstrap(options = {}) {
     await tradeService.getStats();
     await calcHistoryService.getStats();
     
-    console.log('✅ Services initialized successfully');
+    
     
     // Load initial data if needed
     if (options.loadSampleData && DB_BACKEND === 'localStorage') {
-      console.log('📦 Loading sample data...');
+      
       await loadSampleData();
-      console.log('✅ Sample data loaded');
+      
     }
     
-    console.log('🎉 TradeDesk app bootstrap completed successfully!');
+    
     
     return {
       success: true,
@@ -95,13 +90,13 @@ const MIGRATIONS = {
   '1.0.0': {
     description: 'Initial setup',
     up: async () => {
-      console.log('🚀 Running initial migration v1.0.0');
+      
       // Create default settings if they don't exist
       const settingsService = createSettingsService(db);
       await settingsService.get(); // This will create defaults if needed
     },
     down: async () => {
-      console.log('⬇️ Rolling back migration v1.0.0');
+      
       // Clear all data
       if (db.clearAll) {
         await db.clearAll();
@@ -111,7 +106,7 @@ const MIGRATIONS = {
   '1.1.0': {
     description: 'Add float categories to settings',
     up: async () => {
-      console.log('🚀 Running migration v1.1.0 - Add float categories');
+      
       const settingsService = createSettingsService(db);
       const settings = await settingsService.get();
       
@@ -129,7 +124,7 @@ const MIGRATIONS = {
       }
     },
     down: async () => {
-      console.log('⬇️ Rolling back migration v1.1.0');
+      
       const settingsService = createSettingsService(db);
       const settings = await settingsService.get();
       
@@ -184,7 +179,7 @@ class MigrationRunner {
       throw new Error(`Migration ${version} not found`);
     }
 
-    console.log(`🔄 Running migration ${version}: ${migration.description}`);
+    
     
     try {
       await migration.up();
@@ -193,7 +188,7 @@ class MigrationRunner {
       this.completedMigrations.push(version);
       this._saveCompletedMigrations(this.completedMigrations);
       
-      console.log(`✅ Migration ${version} completed successfully`);
+      
     } catch (error) {
       console.error(`❌ Migration ${version} failed:`, error);
       throw error;
@@ -205,11 +200,11 @@ class MigrationRunner {
     const pending = this._getPendingMigrations();
     
     if (pending.length === 0) {
-      console.log('✅ All migrations are up to date');
+      
       return { completed: [], skipped: true };
     }
 
-    console.log(`🚀 Running ${pending.length} pending migrations...`);
+    
     
     const completed = [];
     
@@ -218,7 +213,7 @@ class MigrationRunner {
       completed.push(version);
     }
 
-    console.log(`✅ All migrations completed. Ran: ${completed.join(', ')}`);
+    
     
     return { completed, skipped: false };
   }
@@ -243,7 +238,7 @@ class MigrationRunner {
   reset() {
     this.completedMigrations = [];
     this._saveCompletedMigrations([]);
-    console.log('🔄 Migration history reset');
+    
   }
 }
 

@@ -167,9 +167,6 @@ export default function Layout({ children, currentPageName }) {
             {!collapsed && (
               <div>
                 <h1 className="font-bold text-lg tracking-tight">TradeDesk</h1>
-                <p className="text-[10px] text-white/40 uppercase tracking-wider">
-                  {isElectron ? 'Desktop App' : 'Web Version'} {appVersion && `v${appVersion}`}
-                </p>
               </div>
             )}
           </div>

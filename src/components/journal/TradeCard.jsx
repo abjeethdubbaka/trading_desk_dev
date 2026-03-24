@@ -1,18 +1,19 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { format } from 'date-fns';
-import { cn } from "@/lib/utils";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { cn } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { 
   ArrowUpRight, 
   ArrowDownRight, 
-  Pencil, 
-  Trash2,
-  CheckCircle2,
-  XCircle,
+  CheckCircle2, 
+  XCircle, 
+  Trash2, 
+  Edit3,
   ImageIcon,
   AlertTriangle
 } from 'lucide-react';
+import { useSettings } from '@/lib/SettingsContext';
 
 const emotionColors = {
   confident: 'bg-emerald-500/20 text-emerald-400',
@@ -24,6 +25,13 @@ const emotionColors = {
 };
 
 export default function TradeCard({ trade, onEdit, onDelete, onFocusInCalculator }) {
+  const { settings } = useSettings();
+  
+  // Get current account tier settings
+  const journalPrefs = settings.journal_preferences || {};
+  const performanceGoals = settings.performance_goals || {};
+  const tradingRules = settings.trading_rules || {};
+  
   const pnl = trade.pnl || 0;
   const isProfit = pnl >= 0;
   const breakoutChecklist = trade.breakout_checklist || null;
@@ -90,7 +98,7 @@ export default function TradeCard({ trade, onEdit, onDelete, onFocusInCalculator
         </div>
       </div>
 
-      <div className="grid grid-cols-4 gap-3 text-sm mb-3">
+      <div className="grid grid-cols-5 gap-3 text-sm mb-3">
         <div className="bg-white/5 rounded-lg p-2">
           <p className="text-white/40 text-xs">Entry</p>
           <p className="font-semibold">${trade.entry_price}</p>
@@ -100,12 +108,45 @@ export default function TradeCard({ trade, onEdit, onDelete, onFocusInCalculator
           <p className="font-semibold">${trade.exit_price || '-'}</p>
         </div>
         <div className="bg-white/5 rounded-lg p-2">
+          <p className="text-white/40 text-xs">Stop</p>
+          <p className="font-semibold">${trade.stop_loss || '-'}</p>
+        </div>
+        <div className="bg-white/5 rounded-lg p-2">
           <p className="text-white/40 text-xs">Size</p>
           <p className="font-semibold">{trade.position_size}</p>
         </div>
         <div className="bg-white/5 rounded-lg p-2">
+          <p className="text-white/40 text-xs">Date</p>
+          <p className="font-semibold text-xs">{format(new Date(trade.entry_time), 'MMM dd')}</p>
+        </div>
+      </div>
+
+      <div className="flex gap-2 text-sm mb-3">
+        <div className="bg-white/5 rounded-lg p-2 flex-1">
+          <p className="text-white/40 text-xs">P&L</p>
+          <p className={cn(
+            "font-semibold",
+            isProfit ? "text-emerald-400" : "text-red-400"
+          )}>
+            {isProfit ? '+' : ''}{pnl.toFixed(2)}
+          </p>
+        </div>
+        <div className="bg-white/5 rounded-lg p-2 flex-1">
+          <p className="text-white/40 text-xs">R:R</p>
+          <p className="font-semibold">{trade.r_multiple ? `${trade.r_multiple}:1` : '-'}</p>
+        </div>
+        <div className="bg-white/5 rounded-lg p-2 flex-1">
           <p className="text-white/40 text-xs">Setup</p>
           <p className="font-semibold truncate">{trade.setup_type || '-'}</p>
+        </div>
+        <div className="bg-white/5 rounded-lg p-2 flex-1">
+          <p className="text-white/40 text-xs">P&L %</p>
+          <p className={cn(
+            "font-semibold",
+            isProfit ? "text-emerald-400" : "text-red-400"
+          )}>
+            {trade.pnl_percent ? `${(isProfit ? '+' : '')}${trade.pnl_percent.toFixed(2)}%` : '-'}
+          </p>
         </div>
       </div>
 

@@ -268,6 +268,18 @@ export class CalcHistoryService {
     }
   }
 
+  // Clear all calculation history
+  async clear() {
+    try {
+      await this.db.calculations.clear();
+      this._broadcast('calc-history-cleared', {});
+      return [];
+    } catch (error) {
+      console.error('CalcHistoryService - Clear error:', error);
+      throw error;
+    }
+  }
+
   // Private helper methods
   _enrichCalculation(calcData) {
     const enriched = { ...calcData };

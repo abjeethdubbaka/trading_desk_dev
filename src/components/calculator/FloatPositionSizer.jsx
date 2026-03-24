@@ -9,6 +9,8 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Card, CardContent }  from '@/components/ui/card';
 import { Button }             from '@/components/ui/button';
+import { Input }              from '@/components/ui/input';
+import { Label }              from '@/components/ui/label';
 import { Plus, RotateCcw }    from 'lucide-react';
 import { toast }              from 'sonner';
 import { useSettings }        from '@/lib/SettingsContext';
@@ -26,11 +28,11 @@ import { FloatDataService } from './float-position-sizer/FloatDataService';
 
 const floatDataService = new FloatDataService();
 
-export default function FloatPositionSizer({ historyData, onCalculationSaved }) {
+export default function FloatPositionSizer({ historyData, onCalculationSaved = () => {} }) {
   const { selectedSymbol, selectedEntryPrice } = useTradingContext();
   const settingsData = useSettings();
   
-  console.log('🧮 Full useSettings return:', settingsData);
+  
   
   // Extract values from settings object
   const { settings, isLoading, refetch: refetchSettings } = settingsData;
@@ -43,19 +45,9 @@ export default function FloatPositionSizer({ historyData, onCalculationSaved }) 
   const maxDollars = settings?.max_dollars;
   const floatCategories = settings?.float_categories;
 
-  console.log('🧮 FloatPositionSizer Settings:', {
-    settings,
-    accountSize,
-    riskAmount,
-    positionSizingPct,
-    defaultStopLossPct,
-    targetProfitDollars,
-    maxDollars
-  });
-
   // Log when settings change
   useEffect(() => {
-    console.log('🧮 Settings Updated in Calculator:', { riskAmount, accountSize });
+    
   }, [riskAmount, accountSize]);
 
   // ── Form state ────────────────────────────────────────────────────────────
@@ -68,6 +60,7 @@ export default function FloatPositionSizer({ historyData, onCalculationSaved }) 
   const [floatData,       setFloatData]        = useState(null);
   const [loadingFloat,    setLoadingFloat]     = useState(false);
   const [calculation,     setCalculation]      = useState(null);
+  const [journalStopLoss, setJournalStopLoss]  = useState('');
 
   // Clear stale result when any input changes
   useEffect(() => { setCalculation(null); }, [entryPrice, customStop, direction, symbol]);
@@ -128,18 +121,6 @@ export default function FloatPositionSizer({ historyData, onCalculationSaved }) 
     if (!entryPrice) { toast.error('Enter an entry price'); return; }
 
     try {
-      console.log('🔍 FloatPositionSizer Debug:', {
-        riskAmount,
-        accountSize,
-        positionSizingPct,
-        customStop,
-        currentSettings: {
-          risk_amount: riskAmount,
-          account_size: accountSize,
-          position_sizing_percent: positionSizingPct
-        }
-      });
-      
       const result = calcPosition({
         entryPrice,
         direction,
@@ -154,11 +135,6 @@ export default function FloatPositionSizer({ historyData, onCalculationSaved }) 
         maxDollars,
         targetProfitDollars,
         riskRewardRatio:    3,
-      });
-
-      console.log('🔍 CalcPosition Result:', {
-        actualRisk: result.actualRisk,
-        riskAmount: result.riskAmount
       });
 
       setCalculation(result);
@@ -195,7 +171,7 @@ export default function FloatPositionSizer({ historyData, onCalculationSaved }) 
 
   // Refresh settings
   const handleRefreshSettings = async () => {
-    console.log('🧮 Refreshing settings...');
+    
     try {
       await refetchSettings();
       toast.success('Settings refreshed!');
@@ -208,6 +184,8 @@ export default function FloatPositionSizer({ historyData, onCalculationSaved }) 
   // ── Add to Journal ────────────────────────────────────────────────────────
   const handleAddToJournal = useCallback(async () => {
     if (!entryPrice) { toast.error('Enter an entry price first'); return; }
+    if (!journalStopLoss) { toast.error('Enter a stop loss for the trade'); return; }
+    
     try {
       const tradeData = await TradeCreator.createTrade({
         symbol:       symbol || 'N/A',
@@ -216,6 +194,7 @@ export default function FloatPositionSizer({ historyData, onCalculationSaved }) 
         calculation,
         floatData,
         floatCategory,
+        stopLoss: journalStopLoss, // Pass the journal stop loss
       });
       await TradeCreator.saveTrade(tradeData);
       toast.success(`Trade added to journal`);
@@ -223,12 +202,12 @@ export default function FloatPositionSizer({ historyData, onCalculationSaved }) 
     } catch (e) {
       toast.error(`Failed: ${e.message}`);
     }
-  }, [symbol, entryPrice, direction, calculation, floatData, floatCategory]);
+  }, [symbol, entryPrice, direction, calculation, floatData, floatCategory, journalStopLoss]);
 
   const handleReset = () => {
     setSymbol(''); setEntryPrice(''); setCustomStop('');
     setShareFloat(null); setFloatCategory(null); setFloatData(null);
-    setCalculation(null);
+    setCalculation(null); setJournalStopLoss('');
   };
 
   // ── Render ────────────────────────────────────────────────────────────────
@@ -263,6 +242,28 @@ export default function FloatPositionSizer({ historyData, onCalculationSaved }) 
 
       {calculation && <ResultsDisplay {...calculation} />}
 
+      {/* Stop Loss Input for Journal */}
+      {calculation && (
+        <Card className="bg-[#1a1a24] border-white/10">
+          <CardContent className="p-4">
+            <div className="space-y-2">
+              <Label className="text-white/60 text-sm">Stop Loss for Journal</Label>
+              <Input
+                type="number"
+                step="0.01"
+                value={journalStopLoss}
+                onChange={(e) => setJournalStopLoss(e.target.value)}
+                placeholder={calculation.stopLossPrice?.toString() || "Enter stop loss price"}
+                className="bg-white/5 border-white/10 text-white placeholder:text-white/40"
+              />
+              <p className="text-xs text-white/40">
+                Enter the actual stop loss price you used for this trade
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       <div className="flex justify-between items-center pt-2 border-t border-white/5">
         <div className="flex gap-2">
           <Button
@@ -284,8 +285,8 @@ export default function FloatPositionSizer({ historyData, onCalculationSaved }) 
 
         <Button
           onClick={handleAddToJournal}
-          disabled={!entryPrice}
-          className="bg-emerald-600 hover:bg-emerald-700 gap-2"
+          disabled={!entryPrice || !calculation || !journalStopLoss}
+          className="bg-emerald-600 hover:bg-emerald-700 gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <Plus className="w-4 h-4" />Add to Journal
         </Button>

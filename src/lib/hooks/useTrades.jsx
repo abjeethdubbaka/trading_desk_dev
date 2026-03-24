@@ -6,6 +6,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useCallback } from 'react';
 import { createTradeService } from '../services/TradeService.js';
 import { db } from '../db/index.js';
+import { useSettings } from '../SettingsContext.jsx';
 
 // Create trade service instance
 const tradeService = createTradeService(db);
@@ -124,10 +125,22 @@ export function useTradesByDateRange(startDate, endDate, options = {}) {
 
 // Combined hook for journal functionality
 export function useJournal(options = {}) {
+  const { settings } = useSettings();
+  const currentTier = settings.account_tier || 'custom';
   const { filters = {}, ...queryOptions } = options;
 
-  const tradesQuery = useTrades({ filters, ...queryOptions });
-  const statsQuery = useTradeStats({ filters });
+  // Add account tier filter for trades list (show only current tier trades)
+  const filtersWithTier = {
+    ...filters,
+    account_tier: currentTier
+  };
+
+  // But for stats and performance, use all trades (no account_tier filter)
+  const filtersForStats = { ...filters };
+  delete filtersForStats.account_tier; // Remove tier filter for stats
+
+  const tradesQuery = useTrades({ filters: filtersWithTier, ...queryOptions });
+  const statsQuery = useTradeStats({ filters: filtersForStats });
   const performanceQuery = useTradePerformance();
 
   return {
@@ -140,16 +153,26 @@ export function useJournal(options = {}) {
       performanceQuery.refetch();
     },
     stats: statsQuery.data,
-    performance: performanceQuery.data
+    performance: performanceQuery.data,
+    currentTier
   };
 }
 
 // Mutation hooks
 export function useTradesMutation(options = {}) {
   const queryClient = useQueryClient();
+  const { settings } = useSettings();
+  const currentTier = settings.account_tier || 'custom';
 
   const createMutation = useMutation({
-    mutationFn: (tradeData) => tradeService.create(tradeData),
+    mutationFn: (tradeData) => {
+      // Add current account tier to trade data
+      const tradeWithTier = {
+        ...tradeData,
+        account_tier: currentTier
+      };
+      return tradeService.create(tradeWithTier);
+    },
     onSuccess: (newTrade) => {
       // Invalidate trades list
       queryClient.invalidateQueries({ queryKey: tradeKeys.lists() });

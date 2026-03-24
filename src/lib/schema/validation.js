@@ -57,7 +57,13 @@ export const ValidationRules = {
   },
   
   [ValidationTypes.DATE]: {
-    validate: (value) => value instanceof Date || (typeof value === 'string' && !isNaN(Date.parse(value))),
+    validate: (value) => {
+      // Allow null/undefined for optional date fields
+      if (value === null || value === undefined || value === '') {
+        return true;
+      }
+      return value instanceof Date || (typeof value === 'string' && !isNaN(Date.parse(value)));
+    },
     message: 'Must be a valid date'
   },
   
@@ -169,6 +175,12 @@ export function validateField(fieldName, value) {
 export function validateSchema(schema, data) {
   const errors = [];
   const warnings = [];
+  
+  // Check if data is defined
+  if (!data || typeof data !== 'object') {
+    errors.push('Invalid data: data must be an object');
+    return { isValid: errors.length === 0, errors, warnings };
+  }
   
   // Check required fields
   for (const field of schema.required) {

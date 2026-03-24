@@ -35,22 +35,22 @@ const MetricBadge = ({ icon: Icon, label, value, trend }) => {
   );
 };
 
-const TradeMetrics = ({ entry_price, exit_price, position_size, direction, fee }) => {
+const TradeMetrics = ({ entry_price, exit_price, stop_loss, position_size, direction, fee }) => {
   // Calculate values internally
-  const { pnl, stopLoss, rMultiple } = calculatePnL({
+  const { pnl, pnlPercent, rMultiple } = calculatePnL({
     entryPrice: entry_price,
     exitPrice: exit_price,
+    stopLoss: stop_loss,
     positionSize: position_size,
     direction: direction,
     fee: fee
   });
 
   const pnlValue = parseFloat(pnl) || 0;
-  const stopLossValue = parseFloat(stopLoss) || 0;
   const rValue = parseFloat(rMultiple) || 0;
 
   return (
-    <div className="grid grid-cols-3 gap-4">
+    <div className="grid grid-cols-2 gap-4">
       <MetricBadge
         icon={pnlValue >= 0 ? TrendingUp : TrendingDown}
         label="P&L"
@@ -59,22 +59,15 @@ const TradeMetrics = ({ entry_price, exit_price, position_size, direction, fee }
       <div className="rounded-lg bg-white/5 border border-white/10 p-3">
         <div className="flex items-center gap-2 mb-1">
           <Shield className="w-4 h-4 text-blue-400" />
-          <span className="text-xs text-white/40">Stop Loss</span>
-        </div>
-        <div className="text-lg font-semibold">
-          ${stopLossValue.toFixed(2)}
-        </div>
-      </div>
-      <div className="rounded-lg bg-white/5 border border-white/10 p-3">
-        <div className="flex items-center gap-2 mb-1">
           <span className="text-xs text-white/40">R-Multiple</span>
         </div>
         <div className={cn(
           "text-lg font-semibold",
           rValue >= 1 && "text-emerald-400",
-          rValue <= -1 && "text-red-400"
+          rValue < 1 && rValue > 0 && "text-amber-400",
+          rValue <= 0 && "text-red-400"
         )}>
-          {rValue.toFixed(2)}R
+          {rValue > 0 ? `${rValue}:1` : '-'}
         </div>
       </div>
     </div>

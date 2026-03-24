@@ -14,14 +14,14 @@ const SetupAnalysis = ({
   const [isSetupPerformanceExpanded, setIsSetupPerformanceExpanded] = useState(false);
   
   // Debug logging
-  console.log('SetupAnalysis - timePerformance:', timePerformance);
-  console.log('SetupAnalysis - timePerformance type:', typeof timePerformance);
-  console.log('SetupAnalysis - timePerformance keys:', Object.keys(timePerformance || {}));
-  console.log('SetupAnalysis - periods length:', timePerformance?.periods?.length);
+  
+  
+  
+  
   const tradesData = JSON.parse(localStorage.getItem('trades') || '[]');
-  console.log('SetupAnalysis - localStorage trades count:', tradesData.length);
-  console.log('SetupAnalysis - trades with entry_time:', tradesData.filter(t => t.entry_time).length);
-  console.log('SetupAnalysis - sample trade:', tradesData[0]);
+  
+  
+  
   
   const sortedSetups = Object.entries(setupAnalysis)
     .sort(([,a], [,b]) => Math.abs(b.totalPnL) - Math.abs(a.totalPnL));

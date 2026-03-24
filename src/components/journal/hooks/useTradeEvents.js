@@ -13,7 +13,7 @@ export const useTradeEvents = () => {
       const { action, trade } = event.detail;
       
       if (process.env.NODE_ENV === 'development') {
-        console.log('🔄 Trade event received:', { action, trade });
+        
       }
       
       // Invalidate trades query to refresh data
@@ -39,7 +39,7 @@ export const useTradeEvents = () => {
     const handleStorageChange = (event) => {
       if (event.key === 'trades') {
         if (process.env.NODE_ENV === 'development') {
-          console.log('🔄 Storage change detected, invalidating queries');
+          
         }
         queryClient.invalidateQueries(['journal-trades']);
         queryClient.invalidateQueries(['journal-analytics']);
@@ -71,7 +71,7 @@ export const useTradeEventDispatcher = () => {
     window.dispatchEvent(event);
     
     if (process.env.NODE_ENV === 'development') {
-      console.log('📡 Trade event dispatched:', { action, trade });
+      
     }
   };
 

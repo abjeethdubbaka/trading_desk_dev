@@ -17,6 +17,30 @@ export class TradeService {
     return validateSchema(TradeSchema, tradeData);
   }
 
+  // Migration: Update existing trades to have 25K account tier
+  async migrateTradesToAccountTier() {
+    try {
+      const allTrades = await this.db.trades.list();
+      const tradesWithoutTier = allTrades.filter(trade => !trade.account_tier);
+      
+      if (tradesWithoutTier.length === 0) {
+        
+        return;
+      }
+
+      
+      
+      for (const trade of tradesWithoutTier) {
+        await this.db.trades.update(trade.id, { account_tier: '25K' });
+      }
+      
+      
+    } catch (error) {
+      console.error('Migration failed:', error);
+      throw error;
+    }
+  }
+
   // CRUD operations
   async create(tradeData) {
     const validation = this.validate(tradeData);

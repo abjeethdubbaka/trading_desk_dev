@@ -21,7 +21,7 @@ class PolygonClient {
       }
       
       const data = await response.json();
-      console.log('Polygon API Response:', data); // Debug log
+      // Debug log removed
       
       // The response has a single "results" object, not an array
       if (data.results) {

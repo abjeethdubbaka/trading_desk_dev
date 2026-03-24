@@ -88,7 +88,7 @@ function userDoc(sub, docId) {
 function fromDoc(snap) {
   if (!snap.exists()) return null;
   const data = { id: snap.id, ...snap.data() };
-  console.log('🔥 Firebase READ:', { collection: snap.ref.path, data });
+  
   return data;
 }
 
@@ -99,7 +99,7 @@ function prepareWrite(data) {
   const result = Object.fromEntries(
     Object.entries(clean).filter(([, v]) => v !== undefined)
   );
-  console.log('🔥 Firebase PREPARE WRITE:', result);
+  
   return result;
 }
 
@@ -125,7 +125,7 @@ export const firebaseAuth = {
 
 const trades = {
   async list(options = {}) {
-    console.log('🔥 Firebase LIST TRADES with options:', options);
+    
     let q = query(userCol('trades'));
 
     // Filters
@@ -142,7 +142,7 @@ const trades = {
 
     const snap = await getDocs(q);
     let results = snap.docs.map(fromDoc);
-    console.log('🔥 Firebase LIST RESULTS:', { count: results.length, trades: results });
+    
 
     // Client-side date range filter (Firestore requires composite index for combined queries)
     if (options.from) {
@@ -168,10 +168,10 @@ const trades = {
       created_date: new Date().toISOString(),
       updated_date: new Date().toISOString(),
     });
-    console.log('🔥 Firebase CREATE TRADE:', payload);
+    
     const ref    = await addDoc(userCol('trades'), payload);
     const record = { id: ref.id, ...payload };
-    console.log('🔥 Firebase CREATE RESULT:', record);
+    
     broadcast('trades-updated', { action: 'create', trade: record });
     return record;
   },

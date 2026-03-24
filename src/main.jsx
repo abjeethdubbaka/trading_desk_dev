@@ -8,7 +8,7 @@ import '@/index.css'
 
 // Bootstrap the app before rendering
 bootstrap().then(result => {
-  console.log('Bootstrap result:', result);
+  
   
   ReactDOM.createRoot(document.getElementById('root')).render(
     <React.StrictMode>

@@ -47,15 +47,18 @@
  *
  * The mainPage value must match a key in the PAGES object exactly.
  */
-import Dashboard from './pages/Dashboard';
-import Journal from './pages/Journal';
 import Calculator from './pages/Calculator';
-import Settings from './pages/Settings';
-import CalcHistory from './pages/CalcHistory';
-import KnowledgeBase from './pages/KnowledgeBase';
-import DosAndDonts from './pages/DosAndDonts';
-import Performance from './pages/Performance';
-import ScreenshotAnalysis from './pages/ScreenshotAnalysis';
+import { lazy } from 'react';
+
+// Lazy load non-critical pages for faster startup
+const Dashboard = lazy(() => import('./pages/Dashboard'));
+const Journal = lazy(() => import('./pages/Journal'));
+const Settings = lazy(() => import('./pages/Settings'));
+const CalcHistory = lazy(() => import('./pages/CalcHistory'));
+const KnowledgeBase = lazy(() => import('./pages/KnowledgeBase'));
+const DosAndDonts = lazy(() => import('./pages/DosAndDonts'));
+const Performance = lazy(() => import('./pages/Performance'));
+const ScreenshotAnalysis = lazy(() => import('./pages/ScreenshotAnalysis'));
 import __Layout from './Layout.jsx';
 
 
@@ -72,7 +75,7 @@ export const PAGES = {
 }
 
 export const pagesConfig = {
-    mainPage: "Dashboard",
+    mainPage: "Calculator",
     Pages: PAGES,
     Layout: __Layout,
 };

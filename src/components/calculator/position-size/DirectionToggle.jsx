@@ -8,7 +8,7 @@ export default function DirectionToggle({ direction, setDirection }) {
     <div className="flex gap-2">
       <Button
         onClick={() => {
-          console.log('Setting direction to long');
+          
           setDirection('long');
         }}
         className={cn(
@@ -23,7 +23,7 @@ export default function DirectionToggle({ direction, setDirection }) {
       </Button>
       <Button
         onClick={() => {
-          console.log('Setting direction to short');
+          
           setDirection('short');
         }}
         className={cn(

@@ -5,13 +5,21 @@ import { Image, Maximize2, AlertCircle } from 'lucide-react';
 import { createMediaService } from '@/lib/services/MediaService.js';
 import { db } from '@/lib/db/index.js';
 import { indexedDBAdapter } from '@/lib/db/adapters/IndexedDBAdapter.js';
+import { useSettings } from '@/lib/SettingsContext';
 
 // Create media service instance
 const mediaService = createMediaService(db, indexedDBAdapter);
 
 export default function DetailedView({ trades, onEdit }) {
+  const { settings } = useSettings();
   const [imageStates, setImageStates] = useState({});
   const [screenshotUrls, setScreenshotUrls] = useState({});
+
+  // Get current account tier settings
+  const journalPrefs = settings.journal_preferences || {};
+  const analysisSettings = settings.analysis_settings || {};
+  const screenshotSettings = settings.screenshot_settings || {};
+  const performanceGoals = settings.performance_goals || {};
 
   // Resolve screenshot URLs from IDs
   useEffect(() => {
@@ -198,7 +206,7 @@ export default function DetailedView({ trades, onEdit }) {
             </div>
           </div>
 
-          <div className="grid grid-cols-3 gap-2 text-xs mb-2">
+          <div className="grid grid-cols-4 gap-2 text-xs mb-2">
             <div>
               <div className="text-white/40">Entry</div>
               <div className="text-white">{formatCurrency(trade.entry_price)}</div>
@@ -208,8 +216,37 @@ export default function DetailedView({ trades, onEdit }) {
               <div className="text-white">{formatCurrency(trade.exit_price)}</div>
             </div>
             <div>
+              <div className="text-white/40">Stop</div>
+              <div className="text-white">{formatCurrency(trade.stop_loss) || '-'}</div>
+            </div>
+            <div>
+              <div className="text-white/40">R:R</div>
+              <div className="text-white">{trade.r_multiple ? `${trade.r_multiple}:1` : '-'}</div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-3 gap-2 text-xs mb-2">
+            <div>
               <div className="text-white/40">Size</div>
               <div className="text-white">{trade.position_size || '0'}</div>
+            </div>
+            <div>
+              <div className="text-white/40">P&L</div>
+              <div className={cn(
+                "text-white",
+                (trade.pnl || 0) >= 0 ? "text-emerald-400" : "text-red-400"
+              )}>
+                {formatCurrency(trade.pnl)}
+              </div>
+            </div>
+            <div>
+              <div className="text-white/40">P&L %</div>
+              <div className={cn(
+                "text-white",
+                (trade.pnl || 0) >= 0 ? "text-emerald-400" : "text-red-400"
+              )}>
+                {trade.pnl_percent ? `${trade.pnl_percent.toFixed(2)}%` : '-'}
+              </div>
             </div>
           </div>
 

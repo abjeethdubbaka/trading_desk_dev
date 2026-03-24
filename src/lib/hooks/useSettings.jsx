@@ -6,15 +6,12 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useRef, useEffect } from 'react';
 import { createSettingsService } from '../services/SettingsService.js';
 import { db } from '../db/index.js';
+import { settingsKeys } from '../utils/queryKeys';
+import { debounce } from 'lodash';
+import { detectTierFromSettings, getTierSettingsFields, saveTierCustomizations } from '../accountTypes.js';
 
 // Create settings service instance
 const settingsService = createSettingsService(db);
-
-// Query keys
-export const settingsKeys = {
-  all: ['settings'],
-  detail: () => [...settingsKeys.all, 'detail']
-};
 
 // Main settings hook with debounced auto-save
 export function useSettings(options = {}) {
@@ -37,8 +34,6 @@ export function useSettings(options = {}) {
   // Mutation for saving settings
   const saveMutation = useMutation({
     mutationFn: (updates) => {
-      console.log('🔍 Settings Save Input:', updates);
-      
       // Convert string numeric values to numbers before validation
       const numericFields = ['account_size', 'target_profit_dollars', 'max_dollars', 'risk_amount', 'position_sizing_percent', 'default_stop_loss_percent'];
       const convertedUpdates = { ...updates };
@@ -54,12 +49,31 @@ export function useSettings(options = {}) {
         }
       });
       
-      console.log('🔍 Settings Save Converted:', convertedUpdates);
       return settingsService.save(convertedUpdates);
     },
     onSuccess: (newSettings) => {
       // Update cache
       queryClient.setQueryData(settingsKeys.detail(), newSettings);
+      
+      // Save custom modifications for the current tier
+      const currentTierId = detectTierFromSettings(newSettings);
+      if (currentTierId !== 'custom') {
+        // Get the base tier settings to identify what was customized
+        const baseSettings = getTierSettingsFields(currentTierId);
+        const customizations = {};
+        
+        // Find fields that differ from base settings
+        Object.keys(newSettings).forEach(key => {
+          if (baseSettings[key] !== undefined && newSettings[key] !== baseSettings[key]) {
+            customizations[key] = newSettings[key];
+          }
+        });
+        
+        // Save custom modifications if there are any
+        if (Object.keys(customizations).length > 0) {
+          saveTierCustomizations(currentTierId, customizations);
+        }
+      }
       
       // Invalidate any dependent queries
       queryClient.invalidateQueries({ queryKey: ['trades'] }); // Trades might depend on settings
@@ -128,19 +142,14 @@ export function useSettings(options = {}) {
 
   // Update multiple fields
   const updateFields = useCallback((updates) => {
-    console.log('🔍 updateFields called with:', updates);
-    console.log('🔍 autoSave is:', autoSave);
-    
     if (autoSave) {
       debouncedSave(updates);
     } else {
       // Track pending updates for manual save
-      console.log('🔍 Before update, pendingUpdatesRef.current:', pendingUpdatesRef.current);
       pendingUpdatesRef.current = {
         ...pendingUpdatesRef.current,
         ...updates
       };
-      console.log('🔍 After update, pendingUpdatesRef.current:', pendingUpdatesRef.current);
       
       // Update cache immediately for UI responsiveness
       queryClient.setQueryData(settingsKeys.detail(), (prev) => ({
@@ -154,17 +163,12 @@ export function useSettings(options = {}) {
 
   // Save pending changes (for manual save mode)
   const savePending = useCallback(() => {
-    console.log('🔍 savePending called, pendingUpdatesRef.current:', pendingUpdatesRef.current);
-    console.log('🔍 pending updates keys:', Object.keys(pendingUpdatesRef.current));
-    
     if (Object.keys(pendingUpdatesRef.current).length > 0) {
       const updates = pendingUpdatesRef.current;
       pendingUpdatesRef.current = {}; // Clear pending updates
-      console.log('🔍 Calling saveImmediately with:', updates);
       return saveImmediately(updates);
     }
     
-    console.log('🔍 No pending updates to save');
     return Promise.resolve(settings);
   }, [saveImmediately, settings]);
 
@@ -418,5 +422,41 @@ export function useSettingsData() {
   return {
     exportSettings,
     importSettings
+  };
+}
+
+// Hook for account tier management
+export function useAccountTier() {
+  const { settings, updateFields, isSaving } = useSettings();
+  
+  // Detect current tier
+  const currentTierId = detectTierFromSettings(settings);
+  const currentTier = ACCOUNT_TIERS[currentTierId];
+  
+  // Apply tier settings
+  const applyTier = useCallback((tierId) => {
+    if (tierId === 'custom') {
+      // For custom, just set account_size to null to allow manual configuration
+      return updateFields({ account_size: null });
+    } else {
+      // Apply tier settings
+      const tierSettings = getTierSettingsFields(tierId);
+      return updateFields(tierSettings);
+    }
+  }, [updateFields]);
+  
+  // Check if settings match a tier
+  const isTierMatched = currentTierId !== 'custom';
+  
+  // Get available tiers
+  const availableTiers = ACCOUNT_TIERS;
+  
+  return {
+    currentTierId,
+    currentTier,
+    availableTiers,
+    applyTier,
+    isTierMatched,
+    isSaving
   };
 }

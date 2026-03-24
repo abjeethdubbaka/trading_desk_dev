@@ -16,8 +16,7 @@ export function useFloatAutoCalculate(
       const hasMinimumData = entryPrice && accountSize && floatCategories && isInitialized;
       
       if (hasMinimumData) {
-        console.log('🔍 AutoCalculate triggered - manual calculation');
-        calculatePosition();
+                calculatePosition();
         setManualCalculation(false);
       }
     }

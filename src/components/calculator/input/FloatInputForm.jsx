@@ -62,7 +62,7 @@ export default function FloatInputForm({
             <div className="space-y-2">
               <Label>Position Type</Label>
               <Select value={direction} onValueChange={(value) => {
-    console.log('Direction changed to:', value);
+    
     setDirection(value);
   }}>
                 <SelectTrigger className="bg-white/5 border-white/10">

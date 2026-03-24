@@ -22,7 +22,6 @@ import {
 import { cn } from '@/lib/utils';
 
 // Existing chart components (unchanged)
-import EquityCurve        from '@/components/performance/EquityCurve';
 import EmotionMatrix      from '@/components/performance/EmotionMatrix';
 import PlanAdherenceCard  from '@/components/performance/PlanAdherenceCard';
 import PeriodComparison   from '@/components/performance/PeriodComparison';
@@ -90,7 +89,6 @@ export default function PerformancePage() {
       </div>
 
       <PeriodComparison trades={trades} initialBalance={accountSize} />
-      <EquityCurve      trades={trades} initialBalance={accountSize} />
 
       <Tabs defaultValue="behavior">
         <TabsList className="bg-white/5 border border-white/10">
@@ -100,18 +98,24 @@ export default function PerformancePage() {
         </TabsList>
 
         <TabsContent value="behavior" className="space-y-4 mt-4">
-          <EmotionMatrix    trades={trades} />
-          <PlanAdherenceCard trades={trades} />
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <EmotionMatrix    trades={trades} />
+            <PlanAdherenceCard trades={trades} />
+          </div>
         </TabsContent>
 
-        <TabsContent value="timing" className="space-y-4 mt-4">
-          <PerformanceByHourOfDay data={byHour}  />
-          <PerformanceByDayOfWeek data={byDay}   />
+        <TabsContent value="timing" className="mt-4">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <PerformanceByHourOfDay data={byHour}  />
+            <PerformanceByDayOfWeek data={byDay}   />
+          </div>
         </TabsContent>
 
-        <TabsContent value="setups" className="space-y-4 mt-4">
-          <PerformanceBySetupType data={bySetup} />
-          <PerformanceByPrice     data={byPrice} />
+        <TabsContent value="setups" className="mt-4">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <PerformanceBySetupType data={bySetup} />
+            <PerformanceByPrice     data={byPrice} />
+          </div>
         </TabsContent>
       </Tabs>
     </div>

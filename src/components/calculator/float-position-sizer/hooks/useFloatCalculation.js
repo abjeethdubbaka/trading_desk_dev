@@ -33,13 +33,11 @@ export function useFloatCalculation(
     try {
       // Validate required fields before calculating
       if (!entryPrice || entryPrice.trim() === '') {
-        console.log('Skipping calculation - entry price is empty:', entryPrice);
-        return;
+                return;
       }
       
       if (!stopLossPrice || stopLossPrice.trim() === '') {
-        console.log('Skipping calculation - stop loss price is empty:', stopLossPrice);
-        return;
+                return;
       }
       
       // Validate float categories are configured
@@ -121,9 +119,7 @@ export function useFloatCalculation(
       
       // Now set the calculation state after all other logic is complete
       setCalculation(finalCalculation);
-      console.log('🔍 useFloatCalculation - setCalculation called with:', finalCalculation);
-      console.log('🔍 useFloatCalculation - calculation object keys:', Object.keys(finalCalculation || {}));
-      
+                  
       // Show success toast after state is set
       toast.success(`Position calculated: ${finalCalculation.shares.toLocaleString()} shares`);
     

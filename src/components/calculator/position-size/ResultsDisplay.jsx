@@ -18,25 +18,6 @@ export default function ResultsDisplay({
   calculatedAt,
   mode
 }) {
-  console.log('💰 ResultsDisplay Input:', {
-    entryPrice,
-    stopLossPrice,
-    targetPrice,
-    shares,
-    positionValue,
-    actualRisk,
-    riskRewardRatio,
-    direction,
-    mode
-  });
-
-  console.log('💰 Risk Calculation:', {
-    shares,
-    riskPerShare: entryPrice && stopLossPrice ? Math.abs(entryPrice - stopLossPrice) : 'N/A',
-    calculatedRisk: shares && entryPrice && stopLossPrice ? shares * Math.abs(entryPrice - stopLossPrice) : 'N/A',
-    actualRisk
-  });
-
 
   // Generate exit targets
   const targets = shares && stopLossPrice ? [

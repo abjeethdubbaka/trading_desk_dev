@@ -42,6 +42,7 @@ export const useTradeForm = (initialData, userId = 'user-123') => {
     direction: 'long',
     entry_price: '',
     exit_price: '',
+    stop_loss: '',
     position_size: '',
     entry_time: getCurrentLocalDateTime(),
     exit_time: '',
@@ -80,6 +81,7 @@ export const useTradeForm = (initialData, userId = 'user-123') => {
       direction: initialData.direction || 'long',
       entry_price: initialData.entry_price?.toString() || '',
       exit_price: initialData.exit_price?.toString() || '',
+      stop_loss: initialData.stop_loss?.toString() || '',
       position_size: initialData.position_size?.toString() || '',
       entry_time: entryTimeLocal || getCurrentLocalDateTime(),
       exit_time: exitTimeLocal || '',
@@ -156,24 +158,30 @@ export const useTradeForm = (initialData, userId = 'user-123') => {
   }, []);
 
   const prepareForSubmission = useCallback(() => {
+    // Debug stop loss specifically
+    console.log('Stop loss in formData:', formData.stop_loss);
+    console.log('Stop loss type:', typeof formData.stop_loss);
+    
     // Calculate final values for submission
-    const { pnl, stopLoss, rMultiple } = calculatePnL({
+    const { pnl, pnlPercent, rMultiple } = calculatePnL({
       entryPrice: formData.entry_price,
       exitPrice: formData.exit_price,
+      stopLoss: formData.stop_loss,
       positionSize: formData.position_size,
       direction: formData.direction,
       fee: formData.fee
     });
 
-    return {
+    const submissionData = {
       ...formData,
       symbol: formData.symbol.toUpperCase().trim(),
       entry_price: parseFloat(formData.entry_price) || 0,
       exit_price: formData.exit_price ? parseFloat(formData.exit_price) : null,
+      stop_loss: formData.stop_loss ? parseFloat(formData.stop_loss) : null,
       quantity: parseInt(formData.position_size) || 0, // Map position_size to quantity
       pnl,
+      pnl_percent: pnlPercent,
       r_multiple: rMultiple,
-      stop_loss: stopLoss > 0 ? stopLoss : null,
       fee: formData.fee ? parseFloat(formData.fee) : null,
       user_id: userId,
       mistakes: formData.mistakes.length > 0 ? formData.mistakes : null,
@@ -196,6 +204,9 @@ export const useTradeForm = (initialData, userId = 'user-123') => {
         : formData.setup_type
       // Note: entry_time and exit_time are handled in the main component
     };
+
+    console.log('Stop loss in submission data:', submissionData.stop_loss);
+    return submissionData;
   }, [formData, userId]);
 
   return {

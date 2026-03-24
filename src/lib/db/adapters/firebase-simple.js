@@ -10,7 +10,7 @@ import {
   getFirestore,
   collection, doc,
   getDoc, getDocs, addDoc, setDoc, updateDoc, deleteDoc,
-  query, orderBy, limit as fsLimit,
+  query, orderBy, limit as fsLimit, where,
   serverTimestamp, Timestamp,
 } from 'firebase/firestore';
 import { sanitizeForStorage, withDefaults, TRADE_DEFAULTS } from '../schema.js';
@@ -53,7 +53,8 @@ const trades = {
       const tradesRef = collection(db, 'trades');
       let q = query(tradesRef);
       
-      // Add ordering
+      // For now, fetch all trades and filter client-side to avoid index requirements
+      // TODO: Create Firebase index for better performance
       q = query(q, orderBy('entry_time', 'desc'));
       
       // Add limit if specified
@@ -62,7 +63,38 @@ const trades = {
       }
 
       const snap = await getDocs(q);
-      const results = snap.docs.map((doc) => fromDoc(doc));
+      let results = snap.docs.map((doc) => fromDoc(doc));
+      
+      // Apply client-side filtering
+      if (options.account_tier) {
+        results = results.filter(trade => trade.account_tier === options.account_tier);
+      }
+      
+      if (options.symbol) {
+        results = results.filter(trade => trade.symbol === options.symbol);
+      }
+      
+      if (options.direction) {
+        results = results.filter(trade => trade.direction === options.direction);
+      }
+      
+      // Apply date range filters
+      if (options.date_from) {
+        const fromDate = new Date(options.date_from);
+        results = results.filter(trade => {
+          const entryDate = new Date(trade.entry_time);
+          return entryDate >= fromDate;
+        });
+      }
+      
+      if (options.date_to) {
+        const toDate = new Date(options.date_to);
+        results = results.filter(trade => {
+          const entryDate = new Date(trade.entry_time);
+          return entryDate <= toDate;
+        });
+      }
+      
       return results;
     } catch (error) {
       console.error('💥 Firebase LIST TRADES - ERROR:', error);
@@ -129,10 +161,10 @@ const trades = {
 const settings = {
   async get() {
     try {
-      console.log('🔥 Firebase Settings Getting Document');
+      
       const snap = await getDoc(doc(db, 'settings', 'main'));
       const result = fromDoc(snap);
-      console.log('🔥 Firebase Settings Get Result:', result);
+      
       return result;
     } catch (error) {
       console.error('🔥 Firebase Settings Get Error:', error);
@@ -141,16 +173,16 @@ const settings = {
   },
 
   async save(data) {
-    console.log('🔥 Firebase Settings Save Input:', data);
+    
     const clean = prepareWrite(data);
-    console.log('🔥 Firebase Settings Clean Data:', clean);
+    
     clean.updated_date = serverTimestamp();
     
     try {
       await setDoc(doc(db, 'settings', 'main'), clean, { merge: true });
-      console.log('🔥 Firebase Settings Save Success');
+      
       const result = { id: 'main', ...clean };
-      console.log('🔥 Firebase Settings Result:', result);
+      
       broadcast('settings-updated', { action: 'save', settings: result });
       return result;
     } catch (error) {

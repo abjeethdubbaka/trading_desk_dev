@@ -36,17 +36,6 @@ export const mediaKeys = {
 };
 
 // Calc history hooks
-export function useCalcHistory(options = {}) {
-  const { filters = {}, ...queryOptions } = options;
-
-  return useQuery({
-    queryKey: calcHistoryKeys.list(filters),
-    queryFn: () => calcHistoryService.list(filters),
-    staleTime: 1000 * 60 * 2, // 2 minutes
-    ...queryOptions
-  });
-}
-
 export function useCalcHistoryItem(id, options = {}) {
   return useQuery({
     queryKey: calcHistoryKeys.detail(id),
@@ -103,6 +92,55 @@ export function useCalcHistorySearch(query, options = {}) {
     staleTime: 1000 * 60 * 2, // 2 minutes
     ...options
   });
+}
+
+export function useCalcHistory(options = {}) {
+  const { filters = {}, ...queryOptions } = options;
+  const queryClient = useQueryClient();
+
+  const query = useQuery({
+    queryKey: calcHistoryKeys.list(filters),
+    queryFn: () => calcHistoryService.list(filters),
+    staleTime: 1000 * 60 * 2, // 2 minutes
+    ...queryOptions
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id) => calcHistoryService.delete(id),
+    onSuccess: (_, deletedId) => {
+      // Invalidate calc history list
+      queryClient.invalidateQueries({ queryKey: calcHistoryKeys.lists() });
+      queryClient.removeQueries({ queryKey: calcHistoryKeys.detail(deletedId) });
+    },
+    onError: (error) => {
+      console.error('Delete calc history error:', error);
+    }
+  });
+
+  const clearMutation = useMutation({
+    mutationFn: () => calcHistoryService.clear(),
+    onSuccess: () => {
+      // Invalidate calc history list
+      queryClient.invalidateQueries({ queryKey: calcHistoryKeys.lists() });
+      queryClient.removeQueries({ queryKey: calcHistoryKeys.details() });
+    },
+    onError: (error) => {
+      console.error('Clear calc history error:', error);
+    }
+  });
+
+  return {
+    data: query.data || [],
+    isLoading: query.isLoading,
+    error: query.error,
+    refetch: query.refetch,
+    deleteItem: deleteMutation.mutateAsync,
+    clearHistory: clearMutation.mutateAsync,
+    isDeleting: deleteMutation.isPending,
+    isClearing: clearMutation.isPending,
+    deleteError: deleteMutation.error,
+    clearError: clearMutation.error
+  };
 }
 
 export function useCalcHistoryMutation(options = {}) {

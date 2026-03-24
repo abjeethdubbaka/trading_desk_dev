@@ -8,6 +8,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useJournal, useTradesMutation } from '@/lib/hooks/useTrades';
 import { useJournalFilters }    from '@/components/journal/hooks/useJournalFilters';
+import { useSettings }           from '@/lib/SettingsContext';
 import AddTradeModal            from '@/components/journal/AddTradeModal';
 import JournalToolbar           from '@/components/journal/components/JournalToolbar';
 import CompactView              from '@/components/journal/components/CompactView';
@@ -30,6 +31,12 @@ export default function Journal() {
   // ── Data (Firebase via useTrades) ────────────────────────────────────────
   const { trades, isLoading, error, refetch } = useJournal();
   const { createTrade, updateTrade, deleteTrade, isSaving } = useTradesMutation();
+  
+  // ── Settings (Account Tier & Journal Preferences) ───────────────────────
+  const { settings } = useSettings();
+  const journalPrefs = settings.journal_preferences || {};
+  const performanceGoals = settings.performance_goals || {};
+  const currentTier = settings.account_tier || 'custom';
 
   // ── Filters (client-side on fetched data) ────────────────────────────────
   const {

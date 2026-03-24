@@ -9,7 +9,8 @@ export class TradeCreator {
       calculation,
       shares,
       floatData,
-      floatCategory
+      floatCategory,
+      stopLoss // Add stopLoss parameter
     } = params;
 
     if (!symbol || !entryPrice) {
@@ -25,8 +26,8 @@ export class TradeCreator {
       entry_time: new Date().toISOString(),
       exit_time: null,
       pnl: 0,
-      r_multiple: calculation ? (calculation.targetProfit / calculation.actualRisk).toFixed(2) : null,
-      stop_loss: calculation?.stopLossPrice || null,
+      r_multiple: this.calculateRMultiple(entryPrice, stopLoss, calculation?.targetPrice),
+      stop_loss: stopLoss ? parseFloat(stopLoss) : (calculation?.stopLossPrice || null),
       fee: 0,
       setup_type: 'Calculator Entry',
       notes: this.buildNotes(params),
@@ -41,6 +42,15 @@ export class TradeCreator {
     };
 
     return newTrade;
+  }
+
+  static calculateRMultiple(entryPrice, stopLoss, targetPrice) {
+    if (!entryPrice || !stopLoss || !targetPrice) return null;
+    
+    const risk = Math.abs(entryPrice - stopLoss);
+    const reward = Math.abs(targetPrice - entryPrice);
+    
+    return risk > 0 ? (reward / risk).toFixed(2) : null;
   }
 
   static buildNotes(params) {
@@ -88,9 +98,9 @@ export class TradeCreator {
 
   static async saveTrade(tradeData) {
     try {
-      console.log('Creating comprehensive trade with data:', tradeData);
+      
       const response = await db.trades.create(tradeData);
-      console.log('Trade creation response:', response);
+      
       return response;
     } catch (error) {
       console.error('Error creating trade:', error);
