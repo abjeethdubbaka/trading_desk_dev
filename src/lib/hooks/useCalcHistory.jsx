@@ -129,6 +129,18 @@ export function useCalcHistory(options = {}) {
     }
   });
 
+  const createMutation = useMutation({
+    mutationFn: (calcData) => calcHistoryService.create(calcData),
+    onSuccess: (newCalc) => {
+      // Invalidate calc history list
+      queryClient.invalidateQueries({ queryKey: calcHistoryKeys.lists() });
+      queryClient.setQueryData(calcHistoryKeys.detail(newCalc.id), newCalc);
+    },
+    onError: (error) => {
+      console.error('Create calc history error:', error);
+    }
+  });
+
   return {
     data: query.data || [],
     isLoading: query.isLoading,
@@ -136,10 +148,13 @@ export function useCalcHistory(options = {}) {
     refetch: query.refetch,
     deleteItem: deleteMutation.mutateAsync,
     clearHistory: clearMutation.mutateAsync,
+    addToHistory: createMutation.mutateAsync, // Add this for the Calculator component
     isDeleting: deleteMutation.isPending,
     isClearing: clearMutation.isPending,
+    isCreating: createMutation.isPending,
     deleteError: deleteMutation.error,
-    clearError: clearMutation.error
+    clearError: clearMutation.error,
+    createError: createMutation.error
   };
 }
 

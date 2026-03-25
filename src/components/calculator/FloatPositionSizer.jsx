@@ -15,6 +15,8 @@ import { Plus, RotateCcw }    from 'lucide-react';
 import { toast }              from 'sonner';
 import { useSettings }        from '@/lib/SettingsContext';
 import { useTradingContext }   from '@/lib/TradingContext';
+import { useQueryClient }     from '@tanstack/react-query';
+import { tradeKeys }          from '@/lib/hooks/useTrades';
 import {
   calcPosition,
   calcExitTargets,
@@ -31,8 +33,7 @@ const floatDataService = new FloatDataService();
 export default function FloatPositionSizer({ historyData, onCalculationSaved = () => {} }) {
   const { selectedSymbol, selectedEntryPrice } = useTradingContext();
   const settingsData = useSettings();
-  
-  
+  const queryClient = useQueryClient();
   
   // Extract values from settings object
   const { settings, isLoading, refetch: refetchSettings } = settingsData;
@@ -60,7 +61,6 @@ export default function FloatPositionSizer({ historyData, onCalculationSaved = (
   const [floatData,       setFloatData]        = useState(null);
   const [loadingFloat,    setLoadingFloat]     = useState(false);
   const [calculation,     setCalculation]      = useState(null);
-  const [journalStopLoss, setJournalStopLoss]  = useState('');
 
   // Clear stale result when any input changes
   useEffect(() => { setCalculation(null); }, [entryPrice, customStop, direction, symbol]);
@@ -120,6 +120,20 @@ export default function FloatPositionSizer({ historyData, onCalculationSaved = (
   const handleCalculate = useCallback(() => {
     if (!entryPrice) { toast.error('Enter an entry price'); return; }
 
+    // Auto-detect short position if stop loss is greater than entry price
+    const entryPriceNum = parseFloat(entryPrice);
+    const stopLossPriceNum = parseFloat(customStop);
+    
+    if (stopLossPriceNum && entryPriceNum) {
+      if (stopLossPriceNum > entryPriceNum && direction === 'long') {
+        setDirection('short');
+        toast.info('Auto-detected short (stop > entry)');
+      } else if (stopLossPriceNum < entryPriceNum && direction === 'short') {
+        setDirection('long');
+        toast.info('Auto-detected long (stop < entry)');
+      }
+    }
+
     try {
       const result = calcPosition({
         entryPrice,
@@ -159,7 +173,6 @@ export default function FloatPositionSizer({ historyData, onCalculationSaved = (
       onCalculationSaved?.(historyItem);
       toast.success('Position calculated!');
     } catch (err) {
-      console.error('🔍 FloatPositionSizer Error:', err);
       toast.error(err.message);
     }
   }, [
@@ -176,7 +189,6 @@ export default function FloatPositionSizer({ historyData, onCalculationSaved = (
       await refetchSettings();
       toast.success('Settings refreshed!');
     } catch (error) {
-      console.error('🧮 Failed to refresh settings:', error);
       toast.error('Failed to refresh settings');
     }
   };
@@ -184,7 +196,6 @@ export default function FloatPositionSizer({ historyData, onCalculationSaved = (
   // ── Add to Journal ────────────────────────────────────────────────────────
   const handleAddToJournal = useCallback(async () => {
     if (!entryPrice) { toast.error('Enter an entry price first'); return; }
-    if (!journalStopLoss) { toast.error('Enter a stop loss for the trade'); return; }
     
     try {
       const tradeData = await TradeCreator.createTrade({
@@ -194,20 +205,24 @@ export default function FloatPositionSizer({ historyData, onCalculationSaved = (
         calculation,
         floatData,
         floatCategory,
-        stopLoss: journalStopLoss, // Pass the journal stop loss
+        stopLoss: calculation?.stopLossPrice, // Use calculated stop loss
       });
+      
       await TradeCreator.saveTrade(tradeData);
+      
+      // Invalidate trades cache to refresh Journal UI
+      queryClient.invalidateQueries({ queryKey: tradeKeys.lists() });
+      
       toast.success(`Trade added to journal`);
-      window.dispatchEvent(new CustomEvent('trades-updated', { detail: { action: 'create' } }));
     } catch (e) {
       toast.error(`Failed: ${e.message}`);
     }
-  }, [symbol, entryPrice, direction, calculation, floatData, floatCategory, journalStopLoss]);
+  }, [symbol, entryPrice, direction, calculation, floatData, floatCategory, queryClient]);
 
   const handleReset = () => {
     setSymbol(''); setEntryPrice(''); setCustomStop('');
     setShareFloat(null); setFloatCategory(null); setFloatData(null);
-    setCalculation(null); setJournalStopLoss('');
+    setCalculation(null);
   };
 
   // ── Render ────────────────────────────────────────────────────────────────
@@ -227,6 +242,7 @@ export default function FloatPositionSizer({ historyData, onCalculationSaved = (
             loading={loadingFloat}
             fetchShareFloat={fetchShareFloat}
             onCalculate={handleCalculate}
+            disabled={false}
           />
         </CardContent>
       </Card>
@@ -241,28 +257,6 @@ export default function FloatPositionSizer({ historyData, onCalculationSaved = (
       )}
 
       {calculation && <ResultsDisplay {...calculation} />}
-
-      {/* Stop Loss Input for Journal */}
-      {calculation && (
-        <Card className="bg-[#1a1a24] border-white/10">
-          <CardContent className="p-4">
-            <div className="space-y-2">
-              <Label className="text-white/60 text-sm">Stop Loss for Journal</Label>
-              <Input
-                type="number"
-                step="0.01"
-                value={journalStopLoss}
-                onChange={(e) => setJournalStopLoss(e.target.value)}
-                placeholder={calculation.stopLossPrice?.toString() || "Enter stop loss price"}
-                className="bg-white/5 border-white/10 text-white placeholder:text-white/40"
-              />
-              <p className="text-xs text-white/40">
-                Enter the actual stop loss price you used for this trade
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-      )}
 
       <div className="flex justify-between items-center pt-2 border-t border-white/5">
         <div className="flex gap-2">
@@ -285,7 +279,7 @@ export default function FloatPositionSizer({ historyData, onCalculationSaved = (
 
         <Button
           onClick={handleAddToJournal}
-          disabled={!entryPrice || !calculation || !journalStopLoss}
+          disabled={!entryPrice || !calculation}
           className="bg-emerald-600 hover:bg-emerald-700 gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <Plus className="w-4 h-4" />Add to Journal

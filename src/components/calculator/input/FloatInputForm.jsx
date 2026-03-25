@@ -23,7 +23,7 @@ export default function FloatInputForm({
     <div className="space-y-4">
       <div className="flex gap-4">
             <div className="flex-1 space-y-2">
-              <Label>Stock Symbol</Label>
+              <Label>Symbol</Label>
               <Input
                 value={symbol}
                 onChange={(e) => setSymbol(e.target.value.toUpperCase())}
@@ -34,10 +34,9 @@ export default function FloatInputForm({
             </div>
             
             <div className="space-y-2">
-              <Label>Entry Price ($)</Label>
+              <Label>Entry</Label>
               <Input
-                type="number"
-                step="0.01"
+                type="text"
                 value={entryPrice}
                 onChange={(e) => setEntryPrice(e.target.value)}
                 placeholder="215.00"
@@ -47,10 +46,9 @@ export default function FloatInputForm({
             </div>
             
             <div className="space-y-2">
-              <Label>Stop Loss ($)</Label>
+              <Label>Stop</Label>
               <Input
-                type="number"
-                step="0.01"
+                type="text"
                 value={customStopLossPrice}
                 onChange={(e) => setCustomStopLossPrice(e.target.value)}
                 placeholder="29.28"
@@ -60,7 +58,7 @@ export default function FloatInputForm({
             </div>
             
             <div className="space-y-2">
-              <Label>Position Type</Label>
+              <Label>Type</Label>
               <Select value={direction} onValueChange={(value) => {
     
     setDirection(value);
@@ -71,11 +69,11 @@ export default function FloatInputForm({
                 <SelectContent>
                   <SelectItem value="long">
                     <TrendingUp className="w-4 h-4 mr-2" />
-                    Long Position
+                    Long
                   </SelectItem>
                   <SelectItem value="short">
                     <TrendingDown className="w-4 h-4 mr-2" />
-                    Short Position
+                    Short
                   </SelectItem>
                 </SelectContent>
               </Select>

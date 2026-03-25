@@ -105,7 +105,7 @@ export const ValidationRules = {
   },
   
   [ValidationTypes.SYMBOL]: {
-    validate: (value) => typeof value === 'string' && /^[A-Z]{1,5}$/.test(value),
+    validate: (value) => !value || value === 'N/A' || (typeof value === 'string' && /^[A-Z]{1,5}$/.test(value)),
     message: 'Must be a valid stock symbol (1-5 uppercase letters)'
   },
   

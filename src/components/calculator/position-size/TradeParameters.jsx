@@ -13,7 +13,7 @@ export default function TradeParameters({
 }) {
   return (
     <>
-      {/* Symbol and Entry Price */}
+      {/* Symbol and Entry */}
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
           <Label>Symbol</Label>
@@ -31,7 +31,7 @@ export default function TradeParameters({
           </Select>
         </div>
         <div className="space-y-2">
-          <Label>Entry Price ($)</Label>
+          <Label>Entry</Label>
           <Input
             type="text"
             inputMode="decimal"
@@ -46,10 +46,10 @@ export default function TradeParameters({
         </div>
       </div>
 
-      {/* Stop Loss Inputs */}
+      {/* Stop Inputs */}
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
-          <Label>Stop Loss % (Auto-calc)</Label>
+          <Label>Stop % (Auto)</Label>
           <Input
             type="text"
             inputMode="decimal"
@@ -60,7 +60,7 @@ export default function TradeParameters({
           />
         </div>
         <div className="space-y-2">
-          <Label>Stop Loss Price (Override)</Label>
+          <Label>Stop Price</Label>
           <Input
             type="text"
             inputMode="decimal"

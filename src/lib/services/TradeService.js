@@ -182,12 +182,12 @@ export class TradeService {
     
     // Calculate additional metrics
     const profits = trades
-      .filter(t => t.total_pnl > 0)
-      .map(t => t.total_pnl);
+      .filter(t => (t.pnl ?? 0) > 0)  // Changed from total_pnl to pnl
+      .map(t => t.pnl ?? 0);           // Changed from total_pnl to pnl
     
     const losses = trades
-      .filter(t => t.total_pnl < 0)
-      .map(t => Math.abs(t.total_pnl));
+      .filter(t => (t.pnl ?? 0) < 0)   // Changed from total_pnl to pnl
+      .map(t => Math.abs(t.pnl ?? 0)); // Changed from total_pnl to pnl
 
     const totalProfits = profits.reduce((sum, p) => sum + p, 0);
     const totalLosses = losses.reduce((sum, l) => sum + l, 0);
@@ -293,7 +293,8 @@ export class TradeService {
       const commission = trade.commission || 0;
       const netPnL = grossPnL - commission;
       
-      enriched.total_pnl = netPnL;
+      enriched.pnl = netPnL;  // Changed from total_pnl to pnl
+      enriched.total_pnl = netPnL;  // Keep for backward compatibility
       enriched.gross_pnl = grossPnL;
       enriched.pnl_percent = ((netPnL / (trade.entry_price * trade.quantity)) * 100);
     }

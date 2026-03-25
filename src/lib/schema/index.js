@@ -274,19 +274,32 @@ export const SettingsSchema = {
 // Calc history entity schema
 export const CalcHistorySchema = {
   required: [
-    'calculation_type',
-    'input_data',
-    'result_data',
-    'created_at'
+    'timestamp'
   ],
   optional: [
     'symbol',
+    'entryPrice',
+    'shares',
+    'stopLossPrice',
+    'targetPrice',
+    'positionValue',
+    'actualRisk',
+    'potentialProfit',
+    'riskLevel',
+    'riskRewardRatio',
+    'direction',
+    'mode',
+    'useIntelligentFlow',
+    'floatCategory',
     'notes',
-    'tags'
+    'tags',
+    'created_date',
+    'created_at'
   ],
   defaults: {
     calculation_type: 'position_size',
-    tags: []
+    tags: [],
+    timestamp: new Date().toISOString()
   }
 };
 

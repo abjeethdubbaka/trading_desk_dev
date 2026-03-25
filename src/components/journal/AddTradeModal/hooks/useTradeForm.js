@@ -162,18 +162,32 @@ export const useTradeForm = (initialData, userId = 'user-123') => {
     console.log('Stop loss in formData:', formData.stop_loss);
     console.log('Stop loss type:', typeof formData.stop_loss);
     
+    // Auto-detect direction if stop loss is greater than entry price
+    const entryPrice = parseFloat(formData.entry_price) || 0;
+    const stopLoss = parseFloat(formData.stop_loss) || 0;
+    let detectedDirection = formData.direction;
+    
+    if (stopLoss && entryPrice) {
+      if (stopLoss > entryPrice && formData.direction === 'long') {
+        detectedDirection = 'short';
+      } else if (stopLoss < entryPrice && formData.direction === 'short') {
+        detectedDirection = 'long';
+      }
+    }
+    
     // Calculate final values for submission
     const { pnl, pnlPercent, rMultiple } = calculatePnL({
       entryPrice: formData.entry_price,
       exitPrice: formData.exit_price,
       stopLoss: formData.stop_loss,
       positionSize: formData.position_size,
-      direction: formData.direction,
+      direction: detectedDirection, // Use detected direction
       fee: formData.fee
     });
 
     const submissionData = {
       ...formData,
+      direction: detectedDirection, // Use detected direction
       symbol: formData.symbol.toUpperCase().trim(),
       entry_price: parseFloat(formData.entry_price) || 0,
       exit_price: formData.exit_price ? parseFloat(formData.exit_price) : null,

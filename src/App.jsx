@@ -60,7 +60,10 @@ function RootApp() {
       <AuthProvider>
         <SettingsProvider>
           <TradingProvider>
-            <Router>
+            <Router future={{
+              v7_startTransition: true,
+              v7_relativeSplatPath: true
+            }}>
               <NavigationTracker />
               <App />
             </Router>

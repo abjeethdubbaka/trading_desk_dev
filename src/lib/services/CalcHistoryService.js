@@ -8,6 +8,28 @@ import { CalcHistorySchema } from '../schema/index.js';
 export class CalcHistoryService {
   constructor(dbAdapter) {
     this.db = dbAdapter;
+    // Use localStorage directly for calc history
+    this.storageKey = 'calcHistory';
+  }
+
+  // Helper to read from localStorage
+  _readFromStorage() {
+    try {
+      const data = localStorage.getItem(this.storageKey);
+      return data ? JSON.parse(data) : [];
+    } catch (error) {
+      return [];
+    }
+  }
+
+  // Helper to write to localStorage
+  _writeToStorage(data) {
+    try {
+      localStorage.setItem(this.storageKey, JSON.stringify(data));
+      return true;
+    } catch (error) {
+      return false;
+    }
   }
 
   // Create calculation record
@@ -23,15 +45,23 @@ export class CalcHistoryService {
       // Enrich with metadata
       const enrichedCalc = this._enrichCalculation(calcData);
       
-      // Save to database
-      const result = await this.db.calcHistory.create(enrichedCalc);
+      // Generate ID and timestamp
+      const record = {
+        ...enrichedCalc,
+        id: enrichedCalc.id || `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+        timestamp: enrichedCalc.timestamp || new Date().toISOString()
+      };
+      
+      // Save to localStorage directly
+      const existing = this._readFromStorage();
+      const updated = [record, ...existing].slice(0, 100); // Keep only 100 most recent
+      this._writeToStorage(updated);
       
       // Broadcast change
-      this._broadcast('calc-history-updated', { action: 'create', calculation: result });
+      this._broadcast('calc-history-updated', { action: 'create', calculation: record });
       
-      return result;
+      return record;
     } catch (error) {
-      console.error('CalcHistoryService - Create error:', error);
       throw error;
     }
   }
@@ -39,75 +69,73 @@ export class CalcHistoryService {
   // Get calculation by ID
   async get(id) {
     try {
-      return await this.db.calcHistory.get(id);
+      const all = this._readFromStorage();
+      return all.find(item => item.id === id) || null;
     } catch (error) {
-      console.error(`CalcHistoryService - Get error for ${id}:`, error);
       throw error;
     }
   }
 
-  // List calculations with filtering
+  // List all calculations
   async list(options = {}) {
     try {
-      let calculations = await this.db.calcHistory.list(options);
+      let calculations = this._readFromStorage();
       
-      // Apply additional filtering
-      if (options.calculation_type) {
-        calculations = calculations.filter(calc => calc.calculation_type === options.calculation_type);
-      }
-      
+      // Apply filters if provided
       if (options.symbol) {
-        calculations = calculations.filter(calc => calc.symbol === options.symbol);
-      }
-      
-      if (options.date_from) {
-        const fromDate = new Date(options.date_from);
-        calculations = calculations.filter(calc => new Date(calc.created_at) >= fromDate);
-      }
-      
-      if (options.date_to) {
-        const toDate = new Date(options.date_to);
-        calculations = calculations.filter(calc => new Date(calc.created_at) <= toDate);
-      }
-      
-      if (options.tags && options.tags.length > 0) {
         calculations = calculations.filter(calc => 
-          calc.tags && calc.tags.some(tag => options.tags.includes(tag))
+          calc.symbol?.toLowerCase() === options.symbol.toLowerCase()
         );
+      }
+      
+      if (options.from) {
+        const fromDate = new Date(options.from);
+        calculations = calculations.filter(calc => {
+          const calcDate = new Date(calc.timestamp || calc.created_at || 0);
+          return calcDate >= fromDate;
+        });
+      }
+      
+      if (options.to) {
+        const toDate = new Date(options.to);
+        calculations = calculations.filter(calc => {
+          const calcDate = new Date(calc.timestamp || calc.created_at || 0);
+          return calcDate <= toDate;
+        });
+      }
+      
+      // Sort by timestamp descending (newest first)
+      calculations.sort((a, b) => {
+        const dateA = new Date(a.timestamp || a.created_at || 0);
+        const dateB = new Date(b.timestamp || b.created_at || 0);
+        return dateB - dateA;
+      });
+      
+      // Apply limit if provided
+      if (options.limit) {
+        calculations = calculations.slice(0, options.limit);
       }
       
       return calculations;
     } catch (error) {
-      console.error('CalcHistoryService - List error:', error);
       throw error;
     }
   }
 
-  // Get calculations by type
-  async getByType(calculationType, options = {}) {
-    return await this.list({ ...options, calculation_type });
-  }
-
-  // Get calculations by symbol
-  async getBySymbol(symbol, options = {}) {
-    return await this.list({ ...options, symbol });
-  }
-
-  // Get calculations by date range
-  async getByDateRange(startDate, endDate, options = {}) {
-    return await this.list({ 
-      ...options, 
-      date_from: startDate, 
-      date_to: endDate 
-    });
-  }
-
-  // Get recent calculations
-  async getRecent(limit = 50) {
-    return await this.list({ 
-      limit,
-      orderBy: 'created_at:desc'
-    });
+  // Delete calculation
+  async delete(id) {
+    try {
+      const all = this._readFromStorage();
+      const filtered = all.filter(item => item.id !== id);
+      this._writeToStorage(filtered);
+      
+      // Broadcast change
+      this._broadcast('calc-history-updated', { action: 'delete', calculationId: id });
+      
+      return { id };
+    } catch (error) {
+      throw error;
+    }
   }
 
   // Search calculations
@@ -118,12 +146,10 @@ export class CalcHistoryService {
       
       return calculations.filter(calc => 
         calc.symbol?.toLowerCase().includes(lowerQuery) ||
-        calc.calculation_type?.toLowerCase().includes(lowerQuery) ||
         calc.notes?.toLowerCase().includes(lowerQuery) ||
         calc.tags?.some(tag => tag.toLowerCase().includes(lowerQuery))
       );
     } catch (error) {
-      console.error('CalcHistoryService - Search error:', error);
       throw error;
     }
   }
@@ -162,7 +188,7 @@ export class CalcHistoryService {
       
       // Group by date
       calculations.forEach(calc => {
-        const date = new Date(calc.created_at).toISOString().split('T')[0];
+        const date = new Date(calc.timestamp || calc.created_at).toISOString().split('T')[0];
         stats.byDate[date] = (stats.byDate[date] || 0) + 1;
       });
       
@@ -170,36 +196,23 @@ export class CalcHistoryService {
       const sevenDaysAgo = new Date();
       sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
       
-      stats.recentCount = calculations.filter(calc => 
-        new Date(calc.created_at) >= sevenDaysAgo
-      ).length;
+      stats.recentCount = calculations.filter(calc => {
+        const calcDate = new Date(calc.timestamp || calc.created_at);
+        return calcDate >= sevenDaysAgo;
+      }).length;
       
       // Oldest and newest
-      const sortedByDate = calculations.sort((a, b) => 
-        new Date(a.created_at) - new Date(b.created_at)
-      );
+      const sortedByDate = calculations.sort((a, b) => {
+        const aDate = new Date(a.timestamp || a.created_at);
+        const bDate = new Date(b.timestamp || b.created_at);
+        return aDate - bDate;
+      });
       
       stats.oldestCalc = sortedByDate[0];
       stats.newestCalc = sortedByDate[sortedByDate.length - 1];
       
       return stats;
     } catch (error) {
-      console.error('CalcHistoryService - Stats error:', error);
-      throw error;
-    }
-  }
-
-  // Delete calculation (if needed for cleanup)
-  async delete(id) {
-    try {
-      const result = await this.db.calcHistory.delete(id);
-      
-      // Broadcast change
-      this._broadcast('calc-history-updated', { action: 'delete', calculationId: id });
-      
-      return result;
-    } catch (error) {
-      console.error(`CalcHistoryService - Delete error for ${id}:`, error);
       throw error;
     }
   }
@@ -222,7 +235,6 @@ export class CalcHistoryService {
       
       return deletedCount;
     } catch (error) {
-      console.error('CalcHistoryService - Cleanup error:', error);
       throw error;
     }
   }
@@ -238,7 +250,6 @@ export class CalcHistoryService {
         calculations
       }, null, 2);
     } catch (error) {
-      console.error('CalcHistoryService - Export error:', error);
       throw error;
     }
   }
@@ -256,26 +267,24 @@ export class CalcHistoryService {
           const result = await this.create(calc);
           results.push(result);
         } catch (error) {
-          console.error('Failed to import calculation:', error);
           // Continue with other calculations
+          results.push({ error: 'Failed to import calculation' });
         }
       }
       
       return results;
     } catch (error) {
-      console.error('CalcHistoryService - Import error:', error);
       throw error;
     }
   }
 
-  // Clear all calculation history
+  // Clear all calculations
   async clear() {
     try {
-      await this.db.calculations.clear();
+      this._writeToStorage([]);
       this._broadcast('calc-history-cleared', {});
       return [];
     } catch (error) {
-      console.error('CalcHistoryService - Clear error:', error);
       throw error;
     }
   }
@@ -284,9 +293,14 @@ export class CalcHistoryService {
   _enrichCalculation(calcData) {
     const enriched = { ...calcData };
     
-    // Add timestamps if missing
-    if (!enriched.created_at) {
-      enriched.created_at = new Date().toISOString();
+    // Add timestamps if missing (support both timestamp and created_at)
+    if (!enriched.timestamp && !enriched.created_at) {
+      enriched.timestamp = new Date().toISOString();
+      enriched.created_at = enriched.timestamp;
+    } else if (enriched.timestamp && !enriched.created_at) {
+      enriched.created_at = enriched.timestamp;
+    } else if (enriched.created_at && !enriched.timestamp) {
+      enriched.timestamp = enriched.created_at;
     }
     
     // Add default tags if missing
@@ -304,9 +318,9 @@ export class CalcHistoryService {
     return enriched;
   }
 
-  _broadcast(channel, detail) {
+  _broadcast(event, detail) {
     if (typeof window !== 'undefined') {
-      window.dispatchEvent(new CustomEvent(channel, { detail }));
+      window.dispatchEvent(new CustomEvent(event, { detail }));
     }
   }
 }

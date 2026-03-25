@@ -58,13 +58,13 @@ export default function ResultsDisplay({
           <p className="text-xs text-white/40">shares</p>
         </div>
         <div className="text-center">
-          <p className="text-xs text-white/40 mb-1">Entry Price</p>
+          <p className="text-xs text-white/40 mb-1">Entry</p>
           <p className="text-2xl font-bold text-emerald-400">
             ${entryPrice != null ? entryPrice.toFixed(2) : '-'}
           </p>
         </div>
         <div className="text-center">
-          <p className="text-xs text-white/40 mb-1">Stop Loss</p>
+          <p className="text-xs text-white/40 mb-1">Stop</p>
           <p className="text-2xl font-bold text-red-400">
             ${stopLossPrice != null ? stopLossPrice.toFixed(2) : '-'}
           </p>

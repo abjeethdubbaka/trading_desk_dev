@@ -67,7 +67,7 @@ export class TradeCreator {
     let notes = `Created from calculator at ${new Date().toLocaleString()}\n`;
     notes += `Entry Price: $${parseFloat(entryPrice).toFixed(2)}\n`;
     notes += `Position Type: ${direction || 'long'}\n`;
-    notes += `Shares to Buy: ${calculation?.shares?.toLocaleString() || shares}\n`;
+    notes += `Shares: ${calculation?.shares?.toLocaleString() || shares}\n`;
     notes += `Stop Loss: ${calculation?.stopLossPrice ? `$${calculation.stopLossPrice.toFixed(2)}` : 'Not set'}\n`;
     notes += `Target Price: ${calculation?.targetPrice ? `$${calculation.targetPrice.toFixed(2)}` : 'Not set'}\n`;
     notes += `Position Value: ${calculation?.positionValue ? `$${calculation.positionValue.toFixed(2)}` : 'Not calculated'}\n`;
@@ -98,12 +98,9 @@ export class TradeCreator {
 
   static async saveTrade(tradeData) {
     try {
-      
       const response = await db.trades.create(tradeData);
-      
       return response;
     } catch (error) {
-      console.error('Error creating trade:', error);
       throw error;
     }
   }

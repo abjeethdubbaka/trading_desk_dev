@@ -187,7 +187,7 @@ export function useTradesMutation(options = {}) {
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, changes }) => tradeService.update(id, changes),
+    mutationFn: ({ id, data }) => tradeService.update(id, data),
     onSuccess: (updatedTrade) => {
       // Invalidate trades list
       queryClient.invalidateQueries({ queryKey: tradeKeys.lists() });

@@ -58,19 +58,27 @@ export default function Journal() {
     return () => window.removeEventListener('open-add-trade-modal', handler);
   }, []);
 
+  // ── Listen for trades-updated events (e.g. from Calculator) ─────────────────
+  useEffect(() => {
+    const handler = () => {
+      refetch();
+    };
+    window.addEventListener('trades-updated', handler);
+    return () => window.removeEventListener('trades-updated', handler);
+  }, [refetch]);
+
   // ── Save handler ─────────────────────────────────────────────────────────
   const handleSave = useCallback(async (data) => {
     const validation = validateTrade(data);
     
     if (!validation.isValid) {
-      console.error('❌ Journal Handle Save - Validation Failed:', validation.errors);
       toast.error('Please fix validation errors');
       return;
     }
 
     try {
       if (editingTrade) {
-        await updateTrade(editingTrade.id, data);
+        await updateTrade({ id: editingTrade.id, data });
         toast.success(`${data.symbol} updated`);
       } else {
         await createTrade(data);

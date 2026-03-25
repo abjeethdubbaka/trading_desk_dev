@@ -43,6 +43,15 @@ export function usePositionSizeCalculator() {
   const rrRatio = parseFloat(values.riskRewardRatio) || 0;
   const stopLossPercent = parseFloat(values.stopLossPercent) || 0;
 
+  // Auto-detect direction if stop loss is greater than entry price
+  if (stopLoss && entryPrice) {
+    if (stopLoss > entryPrice && direction === 'long') {
+      setDirection('short');
+    } else if (stopLoss < entryPrice && direction === 'short') {
+      setDirection('long');
+    }
+  }
+
   // Auto-calculate stop loss from percentage
   const autoStopPrice = direction === 'long' 
     ? entryPrice * (1 - stopLossPercent / 100)

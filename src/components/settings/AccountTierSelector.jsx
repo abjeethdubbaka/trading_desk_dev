@@ -1,6 +1,5 @@
 import React, { useState, useCallback } from 'react';
 import { ACCOUNT_TIERS, ACCOUNT_TIER_IDS, getTierSettingsWithCustomizations, detectTierFromSettings, getTierCustomizations, saveTierCustomizations } from '@/lib/accountTypes';
-import { useSettings } from '@/lib/SettingsContext';
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -13,47 +12,23 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 export default function AccountTierSelector() {
-  const { settings, updateFields, saveImmediately, isSaving } = useSettings();
   const [isOpen, setIsOpen] = useState(false);
+  const [currentTierId, setCurrentTierId] = useState('25K'); // Default fallback
   
-  // Detect current tier
-  const currentTierId = detectTierFromSettings(settings);
   const currentTier = ACCOUNT_TIERS[currentTierId];
   
   const handleTierSelect = useCallback(async (tierId) => {
     try {
-      if (tierId === 'custom') {
-        // For custom, just set account_size to null to allow manual configuration
-        await saveImmediately({ account_size: null });
-      } else {
-        // Get tier settings with any custom modifications
-        const tierSettings = getTierSettingsWithCustomizations(tierId);
-        
-        // Preserve existing settings that aren't part of tier configuration
-        // This prevents losing user's custom data like journal_preferences, etc.
-        const settingsToApply = { ...tierSettings };
-        
-        // Keep existing complex objects that aren't tier-specific
-        const preserveFields = [
-          'journal_preferences', 'analysis_settings', 'screenshot_settings', 
-          'performance_goals', 'weekly_targets', 'monthly_targets', 
-          'trading_rules', 'notifications', 'backup_settings', 
-          'export_preferences', 'ui_preferences', 'trading_hours'
-        ];
-        
-        preserveFields.forEach(field => {
-          if (settings[field] && settings[field] !== undefined) {
-            settingsToApply[field] = settings[field];
-          }
-        });
-        
-        await saveImmediately(settingsToApply);
-      }
+      // Simple tier selection - just update local state
+      setCurrentTierId(tierId);
       setIsOpen(false);
+      
+      // TODO: Save to backend when available
+      console.log('Tier selected:', tierId);
     } catch (error) {
       console.error('AccountTierSelector - Error applying tier:', error);
     }
-  }, [saveImmediately, settings]);
+  }, []);
 
   return (
     <div className="space-y-2">
@@ -67,7 +42,6 @@ export default function AccountTierSelector() {
           <Button
             variant="outline"
             className="w-full justify-between bg-white/5 border-white/10 hover:bg-white/10 text-white"
-            disabled={isSaving}
           >
             <div className="flex items-center gap-2">
               <span className="text-lg">{currentTier?.icon}</span>

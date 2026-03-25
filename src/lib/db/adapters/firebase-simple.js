@@ -25,8 +25,20 @@ const db   = getFirestore(app);
 /** Convert Firestore doc snapshot → plain object with id. */
 function fromDoc(snap) {
   if (!snap.exists()) return null;
-  const data = { id: snap.id, ...snap.data() };
-  return data;
+  const data = snap.data();
+  
+  // Convert Firestore timestamps to ISO strings
+  const converted = {};
+  for (const [key, value] of Object.entries(data)) {
+    if (value && typeof value.toISOString === 'function') {
+      // Firestore Timestamp
+      converted[key] = value.toISOString();
+    } else {
+      converted[key] = value;
+    }
+  }
+  
+  return { id: snap.id, ...converted };
 }
 
 /** Strip undefined & convert Date → ISO string for consistency. */
@@ -201,9 +213,27 @@ const calcHistory = {
   },
   async create(data) {
     const clean = prepareWrite(data);
-    clean.created_date = serverTimestamp();
+    // Use timestamp to match what the component expects
+    clean.timestamp = serverTimestamp();
+    clean.created_date = serverTimestamp(); // Keep for compatibility
     const docRef = await addDoc(collection(db, 'calcHistory'), clean);
     return { id: docRef.id, ...clean };
+  },
+  async get(id) {
+    const snap = await getDoc(doc(db, 'calcHistory', id));
+    return fromDoc(snap);
+  },
+  async delete(id) {
+    await deleteDoc(doc(db, 'calcHistory', id));
+    broadcast('calc-history-updated', { action: 'delete', calculationId: id });
+    return true;
+  },
+  async clear() {
+    const snap = await getDocs(collection(db, 'calcHistory'));
+    const deletePromises = snap.docs.map(doc => deleteDoc(doc.ref));
+    await Promise.all(deletePromises);
+    broadcast('calc-history-cleared', {});
+    return [];
   }
 };
 

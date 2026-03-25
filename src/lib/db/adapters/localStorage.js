@@ -17,6 +17,7 @@ const KEYS = {
   SETTINGS:    'userSettings',
   CALC_HISTORY:'calcHistory',
   WATCHLIST:   'watchlist',
+  MEDIA:       'media',
   NOTIFICATIONS:'notifications',
   DOS_DONTS:   'dosAndDonts',
   KNOWLEDGE:   'knowledgeBase',
@@ -181,6 +182,20 @@ const calcHistory = {
     return read(KEYS.CALC_HISTORY) ?? [];
   },
 
+  async create(data) {
+    const existing = read(KEYS.CALC_HISTORY) ?? [];
+    const record = { ...data, id: data.id ?? generateId(), timestamp: data.timestamp ?? now() };
+    const next = [record, ...existing].slice(0, 100); // cap at 100
+    write(KEYS.CALC_HISTORY, next);
+    broadcast('calc-history-updated', { action: 'create', calculation: record });
+    return record;
+  },
+
+  async get(id) {
+    const all = read(KEYS.CALC_HISTORY) ?? [];
+    return all.find(item => String(item.id) === String(id)) ?? null;
+  },
+
   async add(item) {
     const existing = read(KEYS.CALC_HISTORY) ?? [];
     const record = { ...item, id: item.id ?? generateId(), timestamp: item.timestamp ?? now() };
@@ -192,10 +207,12 @@ const calcHistory = {
   async delete(id) {
     const existing = read(KEYS.CALC_HISTORY) ?? [];
     write(KEYS.CALC_HISTORY, existing.filter(i => String(i.id) !== String(id)));
+    broadcast('calc-history-updated', { action: 'delete', calculationId: id });
   },
 
   async clear() {
     write(KEYS.CALC_HISTORY, []);
+    broadcast('calc-history-cleared', {});
   },
 };
 
@@ -225,6 +242,71 @@ const watchlist = {
   },
 };
 
+// ─── Media ───────────────────────────────────────────────────────────────────
+
+const media = {
+  async list(options = {}) {
+    const all = read(KEYS.MEDIA) ?? [];
+    let result = Array.isArray(all) ? all : [];
+
+    // Apply filtering
+    if (options.media_type) {
+      result = result.filter(item => item.media_type === options.media_type);
+    }
+    
+    if (options.trade_id) {
+      result = result.filter(item => item.trade_id === options.trade_id);
+    }
+    
+    if (options.file_type) {
+      result = result.filter(item => item.file_type.startsWith(options.file_type));
+    }
+
+    // Sort by created_at desc
+    result.sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
+
+    return result;
+  },
+
+  async create(data) {
+    const all = read(KEYS.MEDIA) ?? [];
+    const record = {
+      ...data,
+      id: data.id ?? generateId(),
+      created_at: data.created_at || now(),
+      updated_at: now(),
+    };
+    all.push(record);
+    write(KEYS.MEDIA, all);
+    broadcast('media-updated', { action: 'create', media: record });
+    return record;
+  },
+
+  async get(id) {
+    const all = read(KEYS.MEDIA) ?? [];
+    return all.find(item => String(item.id) === String(id)) ?? null;
+  },
+
+  async update(id, data) {
+    const all = read(KEYS.MEDIA) ?? [];
+    const idx = all.findIndex(item => String(item.id) === String(id));
+    if (idx === -1) throw new Error(`Media ${id} not found`);
+    const updated = { ...all[idx], ...data, updated_at: now() };
+    all[idx] = updated;
+    write(KEYS.MEDIA, all);
+    broadcast('media-updated', { action: 'update', media: updated });
+    return updated;
+  },
+
+  async delete(id) {
+    const all = read(KEYS.MEDIA) ?? [];
+    const next = all.filter(item => String(item.id) !== String(id));
+    write(KEYS.MEDIA, next);
+    broadcast('media-updated', { action: 'delete', id });
+    return { id };
+  },
+};
+
 // ─── Generic key-value store (dos-and-donts, knowledge base, etc.) ───────────
 
 function makeKVStore(key) {
@@ -243,6 +325,7 @@ export const localStorageAdapter = {
   settings,
   calcHistory,
   watchlist,
+  media,
   dosAndDonts:  makeKVStore(KEYS.DOS_DONTS),
   knowledgeBase:makeKVStore(KEYS.KNOWLEDGE),
   learning:     makeKVStore(KEYS.LEARNING),

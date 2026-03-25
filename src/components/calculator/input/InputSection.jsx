@@ -99,7 +99,7 @@ export default function InputSection({
           <div className="space-y-2">
             <Label className="flex items-center gap-1">
               <Target className="w-3 h-3" />
-              Stock Symbol
+              Symbol
             </Label>
             <div className="flex gap-2">
               <Input
@@ -119,11 +119,11 @@ export default function InputSection({
             </div>
           </div>
           
-          {/* Entry Price */}
+          {/* Entry */}
           <div className="space-y-2">
             <Label className="flex items-center gap-1">
               <DollarSign className="w-3 h-3" />
-              Entry Price ($)
+              Entry
             </Label>
             <Input
               type="number"
@@ -135,11 +135,11 @@ export default function InputSection({
             />
           </div>
           
-          {/* Stop Loss */}
+          {/* Stop */}
           <div className="space-y-2">
             <Label className="flex items-center gap-1">
               <Target className="w-3 h-3" />
-              Stop Loss ($)
+              Stop
             </Label>
             <Input
               type="number"
@@ -235,7 +235,7 @@ export default function InputSection({
               </div>
               
               <div className="space-y-2">
-                <Label>Custom Stop Loss (%)</Label>
+                <Label>Custom Stop (%)</Label>
                 <div className="flex items-center gap-3">
                   <Slider
                     value={[customStopPercent]}

@@ -26,8 +26,9 @@ export function useJournalFilters(trades = []) {
       }
 
       // ── Direction / outcome filter ───────────────────────────────────────
-      if (filter === 'winners' && (trade.pnl ?? 0) <= 0)  return false;
-      if (filter === 'losers'  && (trade.pnl ?? 0) >= 0)  return false;
+      const tradePnL = trade.pnl ?? trade.total_pnl ?? 0;  // Support both field names
+      if (filter === 'winners' && tradePnL <= 0)  return false;
+      if (filter === 'losers'  && tradePnL >= 0)  return false;
       if (filter === 'long'    && trade.direction !== 'long')  return false;
       if (filter === 'short'   && trade.direction !== 'short') return false;
 
