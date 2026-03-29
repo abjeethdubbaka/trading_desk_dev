@@ -57,7 +57,7 @@ class PolygonClient {
       };
       
     } catch (error) {
-      console.error(`Error fetching stock data for ${symbol}:`, error);
+      
       return {
         symbol: symbol.toUpperCase(),
         name: symbol.toUpperCase(),
@@ -91,10 +91,12 @@ class PolygonClient {
       
       return null;
     } catch (error) {
-      console.error('Error fetching shares outstanding:', error);
+      
       return null;
     }
   }
 }
 
 export { PolygonClient };
+
+

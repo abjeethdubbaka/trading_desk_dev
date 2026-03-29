@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Clock, RefreshCw } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { cn } from '@/lib/utils/general';
 import { useHeatmapData } from './hooks/useHeatmapData';
 import HeatmapHeader from './components/HeatmapHeader';
 import HeatmapRow from './components/HeatmapRow';
@@ -107,3 +107,5 @@ const TradingHeatMap = ({
 };
 
 export default React.memo(TradingHeatMap);
+
+

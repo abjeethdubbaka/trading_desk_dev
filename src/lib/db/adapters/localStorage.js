@@ -31,7 +31,7 @@ function read(key) {
     const raw = localStorage.getItem(key);
     return raw ? JSON.parse(raw) : null;
   } catch (e) {
-    console.error(`[DB] Failed to read "${key}":`, e);
+    
     return null;
   }
 }
@@ -41,7 +41,7 @@ function write(key, value) {
     localStorage.setItem(key, JSON.stringify(value));
     return true;
   } catch (e) {
-    console.error(`[DB] Failed to write "${key}":`, e);
+    
     return false;
   }
 }
@@ -330,3 +330,5 @@ export const localStorageAdapter = {
   knowledgeBase:makeKVStore(KEYS.KNOWLEDGE),
   learning:     makeKVStore(KEYS.LEARNING),
 };
+
+

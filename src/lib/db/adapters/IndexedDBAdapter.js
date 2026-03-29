@@ -82,7 +82,7 @@ class IndexedDBAdapter {
         request.onerror = () => reject(request.error);
       });
     } catch (error) {
-      console.error(`IndexedDBAdapter - Create error in ${storeName}:`, error);
+      
       throw error;
     }
   }
@@ -98,7 +98,7 @@ class IndexedDBAdapter {
         request.onerror = () => reject(request.error);
       });
     } catch (error) {
-      console.error(`IndexedDBAdapter - Get error in ${storeName}/${id}:`, error);
+      
       throw error;
     }
   }
@@ -146,7 +146,7 @@ class IndexedDBAdapter {
         request.onerror = () => reject(request.error);
       });
     } catch (error) {
-      console.error(`IndexedDBAdapter - List error in ${storeName}:`, error);
+      
       throw error;
     }
   }
@@ -178,7 +178,7 @@ class IndexedDBAdapter {
         request.onerror = () => reject(request.error);
       });
     } catch (error) {
-      console.error(`IndexedDBAdapter - Update error in ${storeName}/${id}:`, error);
+      
       throw error;
     }
   }
@@ -198,7 +198,7 @@ class IndexedDBAdapter {
         request.onerror = () => reject(request.error);
       });
     } catch (error) {
-      console.error(`IndexedDBAdapter - Delete error in ${storeName}/${id}:`, error);
+      
       throw error;
     }
   }
@@ -245,7 +245,7 @@ class IndexedDBAdapter {
       
       return fileRecord;
     } catch (error) {
-      console.error(`IndexedDBAdapter - Get file error for ${id}:`, error);
+      
       throw error;
     }
   }
@@ -295,7 +295,7 @@ class IndexedDBAdapter {
         request.onerror = () => reject(request.error);
       });
     } catch (error) {
-      console.error(`IndexedDBAdapter - Clear error in ${storeName}:`, error);
+      
       throw error;
     }
   }
@@ -310,7 +310,7 @@ class IndexedDBAdapter {
           usageDetails: estimate.usageDetails
         };
       } catch (error) {
-        console.error('IndexedDBAdapter - Storage estimate error:', error);
+        
       }
     }
     
@@ -319,3 +319,5 @@ class IndexedDBAdapter {
 }
 
 export const indexedDBAdapter = new IndexedDBAdapter();
+
+

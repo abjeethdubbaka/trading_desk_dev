@@ -22,7 +22,7 @@ export default function DosAndDonts() {
       const data = stored ? JSON.parse(stored) : getDefaultItems();
       setItems(data);
     } catch (error) {
-      console.error('Failed to load dos and donts:', error);
+      
       setItems(getDefaultItems());
     }
   }, []);
@@ -132,3 +132,5 @@ export default function DosAndDonts() {
     </div>
   );
 }
+
+

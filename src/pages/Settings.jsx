@@ -10,15 +10,15 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input }  from '@/components/ui/input';
 import { Label }  from '@/components/ui/label';
 import { Check, AlertTriangle, Cloud, CloudOff } from 'lucide-react';
-import { useSettings }           from '@/lib/SettingsContext';
-import { useAuth }               from '@/lib/AuthContext';
+import { useSettings }           from '@/lib/context/SettingsContext';
+import { useAuth }               from '@/lib/context/AuthContext';
 import { IS_REMOTE }             from '@/lib/db';
 import { createSettingsService } from '@/lib/services/SettingsService.js';
 import { db }                    from '@/lib/db';
 import FloatCategoriesSettings   from '@/components/settings/FloatCategoriesSettings';
 import FloatTargetSettings       from '@/components/settings/FloatTargetSettings';
 import AccountTierSelector       from '@/components/settings/AccountTierSelector';
-import { cn }                    from '@/lib/utils';
+import { cn }                    from '@/lib/utils/general';
 import { toast }                 from 'sonner';
 
 function RiskMeter({ settings }) {
@@ -100,7 +100,6 @@ export default function SettingsPage() {
       const result = await savePending();
       toast.success('Settings saved successfully!');
     } catch (error) {
-      console.error('Save failed:', error);
       toast.error(`Failed to save: ${error.message}`);
     }
   };
@@ -113,7 +112,6 @@ export default function SettingsPage() {
         await tradeService.migrateTradesToAccountTier();
         toast.success('Trade migration completed successfully!');
       } catch (error) {
-        console.error('Migration failed:', error);
         toast.error('Failed to migrate trades');
       }
     }
@@ -127,7 +125,6 @@ export default function SettingsPage() {
         // Refetch settings
         refetch();
       } catch (error) {
-        console.error('Clear and reinit failed:', error);
         toast.error('Failed to clear settings');
       }
     }
@@ -291,3 +288,5 @@ export default function SettingsPage() {
     </div>
   );
 }
+
+

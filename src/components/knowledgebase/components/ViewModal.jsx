@@ -190,3 +190,5 @@ export function ViewModal({ entry, onClose, onEdit, onDelete, onEnroll, onModule
     </div>
   );
 }
+
+

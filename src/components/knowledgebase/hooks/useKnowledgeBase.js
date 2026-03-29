@@ -30,7 +30,7 @@ export function useKnowledgeBase() {
       setEntries(migrateDataStructure(data));
       setIsInitialized(true);
     } catch (error) {
-      console.error('Failed to load knowledge base:', error);
+      
       // On error, initialize with default content
       const defaultLearningContent = getDefaultLearningContent();
       setEntries(migrateDataStructure(defaultLearningContent));
@@ -44,7 +44,7 @@ export function useKnowledgeBase() {
       try {
         localStorage.setItem(CONSTANTS.LOCAL_STORAGE_KEY, JSON.stringify(entries));
       } catch (error) {
-        console.error('Failed to save knowledge base:', error);
+        
       }
     }
   }, [entries, isInitialized]);
@@ -139,7 +139,7 @@ export function useKnowledgeBase() {
       });
       return newEntry;
     } catch (error) {
-      console.error('Failed to create knowledge base entry:', error);
+      
       throw error;
     }
   }, []);
@@ -159,7 +159,7 @@ export function useKnowledgeBase() {
         return updated;
       });
     } catch (error) {
-      console.error('Failed to update knowledge base entry:', error);
+      
       throw error;
     }
   }, []);
@@ -176,7 +176,7 @@ export function useKnowledgeBase() {
         return updated;
       });
     } catch (error) {
-      console.error('Failed to delete knowledge base entry:', error);
+      
       throw error;
     }
   }, []);
@@ -213,3 +213,5 @@ export function useKnowledgeBase() {
     handleViewEntry
   };
 }
+
+

@@ -101,7 +101,7 @@ export default function PerformanceStatsCard({
 
   const config = metricConfig[metric];
   if (!config) {
-    console.warn(`Unknown metric: ${metric}`);
+    
     return null;
   }
 
@@ -167,3 +167,5 @@ function getSubtitle(data, metric) {
       return '';
   }
 }
+
+

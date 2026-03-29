@@ -113,7 +113,7 @@ export function useCalcHistory(options = {}) {
       queryClient.removeQueries({ queryKey: calcHistoryKeys.detail(deletedId) });
     },
     onError: (error) => {
-      console.error('Delete calc history error:', error);
+      
     }
   });
 
@@ -125,7 +125,7 @@ export function useCalcHistory(options = {}) {
       queryClient.removeQueries({ queryKey: calcHistoryKeys.details() });
     },
     onError: (error) => {
-      console.error('Clear calc history error:', error);
+      
     }
   });
 
@@ -137,7 +137,7 @@ export function useCalcHistory(options = {}) {
       queryClient.setQueryData(calcHistoryKeys.detail(newCalc.id), newCalc);
     },
     onError: (error) => {
-      console.error('Create calc history error:', error);
+      
     }
   });
 
@@ -171,7 +171,7 @@ export function useCalcHistoryMutation(options = {}) {
       options.onSuccess?.(newCalc);
     },
     onError: (error) => {
-      console.error('Create calc history error:', error);
+      
       options.onError?.(error);
     }
   });
@@ -186,7 +186,7 @@ export function useCalcHistoryMutation(options = {}) {
       options.onSuccess?.(deletedId);
     },
     onError: (error) => {
-      console.error('Delete calc history error:', error);
+      
       options.onError?.(error);
     }
   });
@@ -286,7 +286,7 @@ export function useMediaMutation(options = {}) {
       options.onSuccess?.(newMedia);
     },
     onError: (error) => {
-      console.error('Upload media error:', error);
+      
       options.onError?.(error);
     }
   });
@@ -301,7 +301,7 @@ export function useMediaMutation(options = {}) {
       options.onSuccess?.(newMedia);
     },
     onError: (error) => {
-      console.error('Upload screenshot error:', error);
+      
       options.onError?.(error);
     }
   });
@@ -316,7 +316,7 @@ export function useMediaMutation(options = {}) {
       options.onSuccess?.(updatedMedia);
     },
     onError: (error) => {
-      console.error('Update media error:', error);
+      
       options.onError?.(error);
     }
   });
@@ -331,7 +331,7 @@ export function useMediaMutation(options = {}) {
       options.onSuccess?.(deletedId);
     },
     onError: (error) => {
-      console.error('Delete media error:', error);
+      
       options.onError?.(error);
     }
   });
@@ -372,7 +372,7 @@ export function useStorageManagement() {
       queryClient.invalidateQueries({ queryKey: ['storage', 'usage'] });
     },
     onError: (error) => {
-      console.error('Storage cleanup error:', error);
+      
     }
   });
 
@@ -384,7 +384,7 @@ export function useStorageManagement() {
       queryClient.invalidateQueries({ queryKey: ['storage', 'usage'] });
     },
     onError: (error) => {
-      console.error('Storage optimization error:', error);
+      
     }
   });
 
@@ -490,3 +490,5 @@ export function useMediaFilters() {
     hasFilters: Object.keys(filters).length > 0
   };
 }
+
+

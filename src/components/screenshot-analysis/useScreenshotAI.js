@@ -173,7 +173,7 @@ export function useScreenshotAI() {
         setImageState(shot.id, 'done');
         return { id: shot.id, result };
       } catch (err) {
-        console.error(`Analysis failed for ${shot.name}:`, err);
+        
         setImageState(shot.id, 'error');
         setImageError(shot.id, err.message);
         return { id: shot.id, result: null, error: err.message };
@@ -234,3 +234,5 @@ export function useScreenshotAI() {
     imageStates,
   };
 }
+
+

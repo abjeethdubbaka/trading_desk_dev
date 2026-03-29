@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine, ResponsiveContainer } from 'recharts';
 import { buildEquityCurve, calcMaxDrawdown } from '@/lib/calculations/trades';
-import { cn } from '@/lib/utils';
+import { cn } from '@/lib/utils/general';
 
 const PERIODS = ['1W', '1M', '3M', 'All'];
 
@@ -68,8 +68,8 @@ export default function EquityCurve({ trades = [], initialBalance = 50000 }) {
           ))}
         </div>
       </div>
-      <div className="h-52">
-        <ResponsiveContainer width="100%" height="100%">
+      <div className="h-52 min-h-[200px] min-w-[200px]">
+        <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={undefined}>
           <AreaChart data={curve} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
             <defs><linearGradient id="eqG" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#34d399" stopOpacity={0.25} /><stop offset="95%" stopColor="#34d399" stopOpacity={0} /></linearGradient></defs>
             <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
@@ -89,3 +89,5 @@ export default function EquityCurve({ trades = [], initialBalance = 50000 }) {
     </div>
   );
 }
+
+

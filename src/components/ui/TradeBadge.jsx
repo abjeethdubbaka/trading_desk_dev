@@ -1,6 +1,6 @@
 import React from 'react';
 import { TrendingUp, TrendingDown, Minus } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { cn } from '@/lib/utils/general';
 
 /**
  * PnlBadge — compact profit/loss display with color and optional icon.
@@ -140,3 +140,5 @@ export function SetupBadge({ setup, className }) {
     </span>
   );
 }
+
+

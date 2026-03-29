@@ -158,10 +158,6 @@ export const useTradeForm = (initialData, userId = 'user-123') => {
   }, []);
 
   const prepareForSubmission = useCallback(() => {
-    // Debug stop loss specifically
-    console.log('Stop loss in formData:', formData.stop_loss);
-    console.log('Stop loss type:', typeof formData.stop_loss);
-    
     // Auto-detect direction if stop loss is greater than entry price
     const entryPrice = parseFloat(formData.entry_price) || 0;
     const stopLoss = parseFloat(formData.stop_loss) || 0;
@@ -219,7 +215,6 @@ export const useTradeForm = (initialData, userId = 'user-123') => {
       // Note: entry_time and exit_time are handled in the main component
     };
 
-    console.log('Stop loss in submission data:', submissionData.stop_loss);
     return submissionData;
   }, [formData, userId]);
 
@@ -230,3 +225,5 @@ export const useTradeForm = (initialData, userId = 'user-123') => {
     prepareForSubmission
   };
 };
+
+

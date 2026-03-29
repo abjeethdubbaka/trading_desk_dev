@@ -39,3 +39,5 @@ const HeatmapRow = ({ day, dayIndex, hours, heatmapData, minPnl, maxPnl, onCellC
 };
 
 export default React.memo(HeatmapRow);
+
+

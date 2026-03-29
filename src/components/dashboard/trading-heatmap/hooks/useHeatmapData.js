@@ -86,3 +86,5 @@ export const useHeatmapData = (trades, userId, timePeriod = 'all') => {
     totalTradesCount: sourceTrades.length
   };
 };
+
+

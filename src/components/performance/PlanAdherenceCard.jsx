@@ -1,7 +1,7 @@
 import React from 'react';
 import { CheckCircle2, XCircle } from 'lucide-react';
 import { computePlanAdherence } from '@/lib/calculations/trades';
-import { cn } from '@/lib/utils';
+import { cn } from '@/lib/utils/general';
 
 function Row({ label, icon: Icon, iconColor, stats }) {
   return (
@@ -37,3 +37,5 @@ export default function PlanAdherenceCard({ trades = [] }) {
     </div>
   );
 }
+
+

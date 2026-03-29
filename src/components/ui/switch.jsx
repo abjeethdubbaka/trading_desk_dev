@@ -22,3 +22,5 @@ const Switch = React.forwardRef(({ className, checked, onCheckedChange, ...props
 Switch.displayName = SwitchPrimitives.Root.displayName
 
 export { Switch }
+
+

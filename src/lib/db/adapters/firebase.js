@@ -331,3 +331,5 @@ export const firebaseAdapter = {
   knowledgeBase: makeSingleDocStore('knowledgeBase',  'entries'),
   learning:      makeSingleDocStore('learning',       'progress'),
 };
+
+

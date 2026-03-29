@@ -329,3 +329,5 @@ export class CalcHistoryService {
 export function createCalcHistoryService(dbAdapter) {
   return new CalcHistoryService(dbAdapter);
 }
+
+

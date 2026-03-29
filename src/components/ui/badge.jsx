@@ -1,5 +1,5 @@
 import React from 'react';
-import { cn } from '@/lib/utils';
+import { cn } from '@/lib/utils/general';
 
 const Badge = React.forwardRef(({ className, variant = 'default', children, ...props }, ref) => {
   return (
@@ -23,3 +23,5 @@ const Badge = React.forwardRef(({ className, variant = 'default', children, ...p
 Badge.displayName = 'Badge';
 
 export { Badge };
+
+

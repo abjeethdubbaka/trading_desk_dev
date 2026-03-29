@@ -42,3 +42,5 @@ export const COLOR_CLASSES = {
 };
 
 export const GRID_COLUMNS = 9; // 1 day label + 8 hours
+
+

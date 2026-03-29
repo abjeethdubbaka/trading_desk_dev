@@ -79,3 +79,5 @@ export function RuleCard({ item, onEdit, onDelete }) {
     </div>
   );
 }
+
+

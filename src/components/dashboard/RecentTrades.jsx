@@ -88,3 +88,5 @@ export default function RecentTrades({ trades, userId = 'user-123', limit = 5 })
     </div>
   );
 }
+
+

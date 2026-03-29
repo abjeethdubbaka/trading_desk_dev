@@ -17,7 +17,7 @@ export function usePerformanceData() {
           return stored ? JSON.parse(stored) : [];
         }
       } catch (e) {
-        console.error('Failed to load trades from localStorage:', e);
+        
         return [];
       }
     }
@@ -39,3 +39,5 @@ export function usePerformanceData() {
     performanceBySetupType
   };
 }
+
+

@@ -201,7 +201,7 @@ export default function AddTradeModal({ open, onClose, onSave, initialData }) {
       await onSave(submissionData);
       onClose();
     } catch (error) {
-      console.error('Error saving trade:', error);
+      
     } finally {
       setLoading(false);
     }
@@ -385,3 +385,5 @@ export default function AddTradeModal({ open, onClose, onSave, initialData }) {
     </Dialog>
   );
 }
+
+

@@ -78,3 +78,5 @@ const FloatInfoBox = ({ symbol, shareFloat, floatCategory, calculation }) => {
 };
 
 export default FloatInfoBox;
+
+

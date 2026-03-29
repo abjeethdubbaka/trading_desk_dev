@@ -45,7 +45,7 @@ export class ImagePreloader {
 
     const promises = validSources.map(src => 
       this.preloadImage(src).catch(err => {
-        console.warn('Image preload failed:', err);
+        
         return null;
       })
     );
@@ -82,3 +82,5 @@ export const useJournalImagePreloader = (trades) => {
 
   return { preloadImages };
 };
+
+

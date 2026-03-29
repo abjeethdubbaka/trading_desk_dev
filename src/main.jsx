@@ -1,31 +1,16 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
-import { QueryClientProvider } from '@tanstack/react-query'
-import { queryClientInstance } from '@/lib/query-client.js'
-import { bootstrap } from '@/lib/bootstrap.js'
-import App from '@/App.jsx'
-import '@/index.css'
+import App from './App.jsx'
+import './index.css'
+import { initPerformanceMonitoring } from "./lib/utils/performance.jsx";
 
-// Bootstrap the app before rendering
-bootstrap().then(result => {
-  
-  
-  ReactDOM.createRoot(document.getElementById('root')).render(
-    <React.StrictMode>
-      <QueryClientProvider client={queryClientInstance}>
-        <App />
-      </QueryClientProvider>
-    </React.StrictMode>
-  )
-}).catch(error => {
-  console.error('Bootstrap failed:', error);
-  
-  // Still render the app even if bootstrap fails
-  ReactDOM.createRoot(document.getElementById('root')).render(
-    <React.StrictMode>
-      <QueryClientProvider client={queryClientInstance}>
-        <App />
-      </QueryClientProvider>
-    </React.StrictMode>
-  )
-})
+// Initialize performance monitoring
+initPerformanceMonitoring();
+
+ReactDOM.createRoot(document.getElementById('root')).render(
+  <React.StrictMode>
+    <App />
+  </React.StrictMode>,
+)
+
+

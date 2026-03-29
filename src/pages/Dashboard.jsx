@@ -7,8 +7,8 @@
 
 import React, { useState, useMemo } from 'react';
 import { useTrades } from '@/lib/hooks/useTrades';
-import { useSettings }      from '@/lib/SettingsContext';
-import { useTradeEvents }   from '@/components/journal/hooks/useTradeEvents';
+import { useSettings }      from '@/lib/context/SettingsContext';
+import { useTradeEvents }   from '@/components/journal';
 import {
   calcCoreStats,
   calcTodayStats,
@@ -92,3 +92,5 @@ export default function Dashboard() {
     </div>
   );
 }
+
+

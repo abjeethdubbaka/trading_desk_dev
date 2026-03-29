@@ -60,3 +60,5 @@ export function PerformanceBySetupType({ data, trades = [] }) {
 }
 
 export default PerformanceBySetupType;
+
+

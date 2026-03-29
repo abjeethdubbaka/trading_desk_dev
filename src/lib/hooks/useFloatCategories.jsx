@@ -1,5 +1,5 @@
 import { useSettings } from './useSettings';
-import { FLOAT_CATEGORIES } from '@/components/calculator/float-position-sizer/constants';
+import { FLOAT_CATEGORIES } from '@/components/calculator/float-calculator/constants';
 
 export const useFloatCategories = () => {
   const { settings } = useSettings();
@@ -13,3 +13,5 @@ export const useFloatCategories = () => {
     settings
   };
 };
+
+

@@ -71,3 +71,5 @@ const PriceFields = ({ values, onChange }) => {
 };
 
 export default React.memo(PriceFields);
+
+

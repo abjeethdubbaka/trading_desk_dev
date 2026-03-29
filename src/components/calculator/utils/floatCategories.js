@@ -1,61 +1,41 @@
-// Simplified Float Categories - loaded from settings only
-export function getFloatCategory(floatSize, settings = {}) {
-  // Get categories from settings or use defaults
-  const categories = settings.floatCategories || getDefaultCategories();
-  
-  if (!floatSize || floatSize <= 0) return 'medium';
-  
-  for (const [category, range] of Object.entries(categories)) {
-    if (floatSize >= range.min && floatSize < range.max) {
-      return category;
-    }
-  }
-  return 'medium';
+/**
+ * @file src/components/calculator/utils/floatCategories.js
+ *
+ * Float categories utilities - now using centralized helpers.
+ */
+
+import { 
+  getFloatCategory as getFloatCategoryCentralized,
+  getCategoryInfo as getCategoryInfoCentralized,
+  getFloatCategoryFromSettings,
+  DEFAULT_FLOAT_CATEGORIES
+} from './floatHelpers.js';
+
+// Re-export centralized functions for backward compatibility
+export { getFloatCategoryCentralized as getFloatCategory };
+export { getCategoryInfoCentralized as getCategoryInfo };
+export { getFloatCategoryFromSettings };
+export { DEFAULT_FLOAT_CATEGORIES };
+
+// Additional category-specific utilities
+export function getMaxFloatPercent(floatSize, settings = {}) {
+  const category = getCategoryInfo(floatSize, settings);
+  return category?.maxFloatPercent || 5; // Default 5%
 }
 
-export function getCategoryInfo(floatSize, settings = {}) {
-  const category = getFloatCategory(floatSize, settings);
-  const categories = settings.floatCategories || getDefaultCategories();
-  return categories[category];
+export function getRiskMultiplier(floatSize, settings = {}) {
+  const category = getCategoryInfo(floatSize, settings);
+  return category?.riskMultiplier || 1; // Default 1x
 }
 
-// Default categories - can be overridden by settings
-function getDefaultCategories() {
-  return {
-    micro: { 
-      min: 0, 
-      max: 20000000, 
-      label: 'Micro', 
-      color: 'text-red-400', 
-      bgColor: 'bg-red-500/20'
-    },
-    small: { 
-      min: 20000000, 
-      max: 50000000, 
-      label: 'Small', 
-      color: 'text-orange-400', 
-      bgColor: 'bg-orange-500/20'
-    },
-    medium: { 
-      min: 50000000, 
-      max: 200000000, 
-      label: 'Medium', 
-      color: 'text-yellow-400', 
-      bgColor: 'bg-yellow-500/20'
-    },
-    large: { 
-      min: 200000000, 
-      max: 1000000000, 
-      label: 'Large', 
-      color: 'text-blue-400', 
-      bgColor: 'bg-blue-500/20'
-    },
-    mega: { 
-      min: 1000000000, 
-      max: Infinity, 
-      label: 'Mega', 
-      color: 'text-emerald-400', 
-      bgColor: 'bg-emerald-500/20'
-    }
-  };
+export function getStopLossPercent(floatSize, settings = {}) {
+  const category = getCategoryInfo(floatSize, settings);
+  return category?.stopLossPercent || 2; // Default 2%
 }
+
+export function getMaxAccountPercent(floatSize, settings = {}) {
+  const category = getCategoryInfo(floatSize, settings);
+  return category?.maxAccountPercent || 10; // Default 10%
+}
+
+

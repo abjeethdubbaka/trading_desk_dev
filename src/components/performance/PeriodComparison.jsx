@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { TrendingUp, TrendingDown } from 'lucide-react';
 import { calcCoreStats, buildEquityCurve, calcMaxDrawdown } from '@/lib/calculations/trades';
-import { cn } from '@/lib/utils';
+import { cn } from '@/lib/utils/general';
 
 function Delta({ diff, fmt, higherIsBetter = true }) {
   if (diff == null || Math.abs(diff) < 0.01) return <span className="text-white/30 text-[10px]">—</span>;
@@ -60,3 +60,5 @@ export default function PeriodComparison({ trades = [], initialBalance = 50000 }
     </div>
   );
 }
+
+

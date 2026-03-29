@@ -86,3 +86,5 @@ export const CalculationResult = {
   riskColor: String,
   calculatedAt: String
 };
+
+

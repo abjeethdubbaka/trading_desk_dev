@@ -75,3 +75,5 @@ const TradeMetrics = ({ entry_price, exit_price, stop_loss, position_size, direc
 };
 
 export default React.memo(TradeMetrics);
+
+

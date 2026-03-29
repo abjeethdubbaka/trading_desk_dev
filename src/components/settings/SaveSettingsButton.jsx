@@ -1,7 +1,7 @@
 import React from 'react';
 import { Button } from "@/components/ui/button";
 import { Save, Loader2 } from 'lucide-react';
-import { useSettings } from '@/lib/SettingsContext';
+import { useSettings } from '@/lib/context/SettingsContext';
 
 export default function SaveSettingsButton() {
   const { saving, saveSettings } = useSettings();
@@ -18,3 +18,5 @@ export default function SaveSettingsButton() {
     </Button>
   );
 }
+
+

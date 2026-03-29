@@ -221,3 +221,5 @@ export default function ImproveSection({ trades }) {
     </div>
   );
 }
+
+

@@ -6,12 +6,12 @@
  */
 
 import React, { useState } from 'react';
-import { useAuth } from '@/lib/AuthContext';
+import { useAuth } from '@/lib/context/AuthContext';
 import { TrendingUp, Mail, Lock, Chrome, Eye, EyeOff, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input }  from '@/components/ui/input';
 import { Label }  from '@/components/ui/label';
-import { cn }     from '@/lib/utils';
+import { cn }     from '@/lib/utils/general';
 
 export default function Login() {
   const { signIn, signUp, signInGoogle, error, clearError } = useAuth();
@@ -169,3 +169,5 @@ export default function Login() {
     </div>
   );
 }
+
+

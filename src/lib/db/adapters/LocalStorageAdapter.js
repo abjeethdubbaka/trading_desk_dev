@@ -17,7 +17,7 @@ class LocalStorageAdapter {
     try {
       return JSON.stringify(data);
     } catch (error) {
-      console.error('LocalStorageAdapter - Serialization error:', error);
+      
       return null;
     }
   }
@@ -26,7 +26,7 @@ class LocalStorageAdapter {
     try {
       return JSON.parse(data);
     } catch (error) {
-      console.error('LocalStorageAdapter - Deserialization error:', error);
+      
       return null;
     }
   }
@@ -60,7 +60,7 @@ class LocalStorageAdapter {
       
       return result;
     } catch (error) {
-      console.error(`LocalStorageAdapter - List error for ${collection}:`, error);
+      
       return [];
     }
   }
@@ -70,7 +70,7 @@ class LocalStorageAdapter {
       const items = await this.list(collection);
       return items.find(item => item.id === id) || null;
     } catch (error) {
-      console.error(`LocalStorageAdapter - Get error for ${collection}/${id}:`, error);
+      
       return null;
     }
   }
@@ -98,7 +98,7 @@ class LocalStorageAdapter {
       
       throw new Error('Failed to serialize data');
     } catch (error) {
-      console.error(`LocalStorageAdapter - Create error for ${collection}:`, error);
+      
       throw error;
     }
   }
@@ -129,7 +129,7 @@ class LocalStorageAdapter {
       
       throw new Error('Failed to serialize data');
     } catch (error) {
-      console.error(`LocalStorageAdapter - Update error for ${collection}/${id}:`, error);
+      
       throw error;
     }
   }
@@ -157,7 +157,7 @@ class LocalStorageAdapter {
       
       throw new Error('Failed to serialize data');
     } catch (error) {
-      console.error(`LocalStorageAdapter - Delete error for ${collection}/${id}:`, error);
+      
       throw error;
     }
   }
@@ -173,7 +173,7 @@ class LocalStorageAdapter {
       
       return results;
     } catch (error) {
-      console.error(`LocalStorageAdapter - Bulk create error for ${collection}:`, error);
+      
       throw error;
     }
   }
@@ -196,7 +196,7 @@ class LocalStorageAdapter {
       localStorage.removeItem(key);
       this._broadcast(`${collection}-updated`, { action: 'clear' });
     } catch (error) {
-      console.error(`LocalStorageAdapter - Clear error for ${collection}:`, error);
+      
       throw error;
     }
   }
@@ -209,7 +209,7 @@ class LocalStorageAdapter {
       }
       this._broadcast('storage-cleared', {});
     } catch (error) {
-      console.error('LocalStorageAdapter - Clear all error:', error);
+      
       throw error;
     }
   }
@@ -226,10 +226,12 @@ class LocalStorageAdapter {
           null
       };
     } catch (error) {
-      console.error(`LocalStorageAdapter - Stats error for ${collection}:`, error);
+      
       return { count: 0, size: 0, lastUpdated: null };
     }
   }
 }
 
 export const localStorageAdapter = new LocalStorageAdapter();
+
+

@@ -77,3 +77,5 @@ export const filterTradesByPeriod = (trades, period) => {
   
   return trades;
 };
+
+

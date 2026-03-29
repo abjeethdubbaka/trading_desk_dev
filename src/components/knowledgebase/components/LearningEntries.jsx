@@ -107,3 +107,5 @@ export function LearningEntries({ entries, onViewEntry, onEnrollCourse, getCours
     </div>
   );
 }
+
+

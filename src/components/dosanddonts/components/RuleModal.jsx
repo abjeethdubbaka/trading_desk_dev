@@ -224,3 +224,5 @@ export function RuleModal({ item, categories, onSave, onCancel }) {
     </div>
   );
 }
+
+

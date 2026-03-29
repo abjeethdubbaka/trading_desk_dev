@@ -6,15 +6,15 @@
  * Cleaned of all console.log debug noise.
  */
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { Card, CardContent }  from '@/components/ui/card';
 import { Button }             from '@/components/ui/button';
 import { Input }              from '@/components/ui/input';
 import { Label }              from '@/components/ui/label';
 import { Plus, RotateCcw }    from 'lucide-react';
 import { toast }              from 'sonner';
-import { useSettings }        from '@/lib/SettingsContext';
-import { useTradingContext }   from '@/lib/TradingContext';
+import { useSettings }        from '@/lib/context/SettingsContext';
+import { useTradingContext }   from '@/lib/context/TradingContext';
 import { useQueryClient }     from '@tanstack/react-query';
 import { tradeKeys }          from '@/lib/hooks/useTrades';
 import {
@@ -24,13 +24,14 @@ import {
 
 import FloatInputForm  from './input/FloatInputForm';
 import FloatInfoBox    from './input/FloatInfoBox';
-import ResultsDisplay from "./position-size/ResultsDisplay";
-import { TradeCreator } from './float-position-sizer/TradeCreator';
-import { FloatDataService } from './float-position-sizer/FloatDataService';
+import ResultsDisplay from "./position-sizing/ResultsDisplay";
+import { TradeCreator } from './float-calculator/TradeCreator';
+import { FloatDataService } from './float-calculator/FloatDataService';
 
 const floatDataService = new FloatDataService();
 
 export default function FloatPositionSizer({ historyData, onCalculationSaved = () => {} }) {
+  const rafRef = useRef(null); // Add missing ref declaration
   const { selectedSymbol, selectedEntryPrice } = useTradingContext();
   const settingsData = useSettings();
   const queryClient = useQueryClient();
@@ -46,10 +47,22 @@ export default function FloatPositionSizer({ historyData, onCalculationSaved = (
   const maxDollars = settings?.max_dollars;
   const floatCategories = settings?.float_categories;
 
-  // Log when settings change
+  // Clear calculation when settings change
   useEffect(() => {
-    
+    if (riskAmount !== undefined || accountSize !== undefined) {
+      // Clear calculation when settings change
+      setCalculation(null);
+    }
   }, [riskAmount, accountSize]);
+
+  // Add cleanup for animation frames
+  useEffect(() => {
+    return () => {
+      if (rafRef.current) {
+        cancelAnimationFrame(rafRef.current);
+      }
+    };
+  }, []);
 
   // ── Form state ────────────────────────────────────────────────────────────
   const [symbol,          setSymbol]          = useState('');
@@ -61,6 +74,64 @@ export default function FloatPositionSizer({ historyData, onCalculationSaved = (
   const [floatData,       setFloatData]        = useState(null);
   const [loadingFloat,    setLoadingFloat]     = useState(false);
   const [calculation,     setCalculation]      = useState(null);
+
+  // Memoized calculation parameters (moved after state declarations)
+  const calculationParams = useMemo(() => ({
+    entryPrice,
+    direction,
+    accountSize,
+    positionPct: positionSizingPct,
+    stopPct: defaultStopLossPct,
+    stopLossPrice: customStop || undefined,
+    riskAmount,
+    shareFloat: shareFloat ?? undefined,
+    floatCategory: floatCategory ?? undefined,
+    floatCategories,
+    maxDollars,
+    targetProfitDollars,
+    riskRewardRatio: 3,
+  }), [
+    entryPrice, direction, accountSize, positionSizingPct, defaultStopLossPct,
+    customStop, riskAmount, shareFloat, floatCategory, floatCategories,
+    maxDollars, targetProfitDollars
+  ]);
+
+  // Memoized calculation result (moved after state declarations)
+  const calculationResult = useMemo(() => {
+    if (!entryPrice || !accountSize) return null;
+    return calcPosition(calculationParams);
+  }, [calculationParams]);
+
+  // Memoized event handlers
+  const handleSymbolChange = useCallback((value) => {
+    setSymbol(value);
+    setShareFloat(null);
+    setFloatData(null);
+    setCalculation(null);
+  }, []);
+
+  const handleEntryPriceChange = useCallback((value) => {
+    setEntryPrice(value);
+    setCalculation(null);
+  }, []);
+
+  const handleCustomStopChange = useCallback((value) => {
+    setCustomStop(value);
+    setCalculation(null);
+  }, []);
+
+  const handleDirectionChange = useCallback((value) => {
+    setDirection(value);
+    setCalculation(null);
+  }, []);
+
+  // Add cleanup for performance
+  useEffect(() => {
+    return () => {
+      // Clear float data service cache when component unmounts
+      floatDataService.clearCache();
+    };
+  }, []);
 
   // Clear stale result when any input changes
   useEffect(() => { setCalculation(null); }, [entryPrice, customStop, direction, symbol]);
@@ -135,21 +206,13 @@ export default function FloatPositionSizer({ historyData, onCalculationSaved = (
     }
 
     try {
-      const result = calcPosition({
-        entryPrice,
-        direction,
-        accountSize,
-        positionPct:        positionSizingPct,
-        stopPct:            defaultStopLossPct,
-        stopLossPrice:      customStop || undefined,
-        riskAmount:         riskAmount, // Always pass risk amount
-        shareFloat:         shareFloat ?? undefined,
-        floatCategory:      floatCategory ?? undefined,
-        floatCategories,
-        maxDollars,
-        targetProfitDollars,
-        riskRewardRatio:    3,
-      });
+      // Use memoized calculation result
+      const result = calculationResult;
+      
+      if (!result) {
+        toast.error('Unable to calculate position');
+        return;
+      }
 
       setCalculation(result);
 
@@ -288,3 +351,5 @@ export default function FloatPositionSizer({ historyData, onCalculationSaved = (
     </div>
   );
 }
+
+

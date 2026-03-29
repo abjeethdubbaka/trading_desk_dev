@@ -752,3 +752,5 @@ function groupByDay(trades) {
   }
   return groups;
 }
+
+

@@ -22,3 +22,5 @@ const HeatmapLegend = () => {
 };
 
 export default React.memo(HeatmapLegend);
+
+

@@ -1,13 +1,13 @@
 import { Toaster } from "@/components/ui/toaster"
 import { QueryClientProvider } from '@tanstack/react-query'
-import { queryClientInstance } from '@/lib/query-client'
-import NavigationTracker from '@/lib/NavigationTracker'
+import { queryClientInstance } from '@/lib/config/query-client'
+import NavigationTracker from '@/lib/context/NavigationTracker'
 import { pagesConfig } from './pages.config'
 import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
-import PageNotFound from './lib/PageNotFound';
-import { TradingProvider } from '@/lib/TradingContext';
-import { SettingsProvider } from '@/lib/SettingsContext';
-import { AuthProvider } from '@/lib/AuthContext';
+import PageNotFound from './lib/components/PageNotFound';
+import { TradingProvider } from './lib/context/TradingContext';
+import { SettingsProvider } from './lib/context/SettingsContext';
+import { AuthProvider } from './lib/context/AuthContext';
 import { Suspense } from 'react';
 
 const { Pages, Layout, mainPage } = pagesConfig;
@@ -76,3 +76,5 @@ function RootApp() {
 }
 
 export default RootApp
+
+

@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
-import { cn } from '@/lib/utils';
+import { cn } from '@/lib/utils/general';
 
 /**
  * AnimatedStat — renders a number with a count-up animation whenever the value changes.
@@ -144,3 +144,5 @@ export function TrendArrow({ delta, className }) {
     </span>
   );
 }
+
+

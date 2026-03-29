@@ -49,7 +49,7 @@ export class MediaService {
         fileRecord
       };
     } catch (error) {
-      console.error('MediaService - Upload error:', error);
+      
       throw error;
     }
   }
@@ -94,7 +94,7 @@ export class MediaService {
         screenshotRecord
       };
     } catch (error) {
-      console.error('MediaService - Screenshot upload error:', error);
+      
       throw error;
     }
   }
@@ -116,7 +116,7 @@ export class MediaService {
         file: fileRecord
       };
     } catch (error) {
-      console.error(`MediaService - Get error for ${id}:`, error);
+      
       throw error;
     }
   }
@@ -141,7 +141,7 @@ export class MediaService {
       
       return media;
     } catch (error) {
-      console.error('MediaService - List error:', error);
+      
       throw error;
     }
   }
@@ -181,7 +181,7 @@ export class MediaService {
       
       return result;
     } catch (error) {
-      console.error(`MediaService - Update error for ${id}:`, error);
+      
       throw error;
     }
   }
@@ -209,7 +209,7 @@ export class MediaService {
       
       return result;
     } catch (error) {
-      console.error(`MediaService - Delete error for ${id}:`, error);
+      
       throw error;
     }
   }
@@ -226,7 +226,7 @@ export class MediaService {
         item.tags?.some(tag => tag.toLowerCase().includes(lowerQuery))
       );
     } catch (error) {
-      console.error('MediaService - Search error:', error);
+      
       throw error;
     }
   }
@@ -284,7 +284,7 @@ export class MediaService {
       
       return stats;
     } catch (error) {
-      console.error('MediaService - Stats error:', error);
+      
       throw error;
     }
   }
@@ -303,7 +303,7 @@ export class MediaService {
         averageFileSize: stats.total > 0 ? stats.totalSize / stats.total : 0
       };
     } catch (error) {
-      console.error('MediaService - Storage usage error:', error);
+      
       throw error;
     }
   }
@@ -326,7 +326,7 @@ export class MediaService {
       
       return deletedCount;
     } catch (error) {
-      console.error('MediaService - Cleanup error:', error);
+      
       throw error;
     }
   }
@@ -359,13 +359,13 @@ export class MediaService {
             }
           }
         } catch (error) {
-          console.error(`Failed to optimize media ${item.id}:`, error);
+          
         }
       }
       
       return optimizedCount;
     } catch (error) {
-      console.error('MediaService - Optimize error:', error);
+      
       throw error;
     }
   }
@@ -393,3 +393,5 @@ export class MediaService {
 export function createMediaService(dbAdapter, indexedDBAdapter) {
   return new MediaService(dbAdapter, indexedDBAdapter);
 }
+
+

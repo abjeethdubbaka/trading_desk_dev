@@ -19,3 +19,5 @@ export const firebaseConfig = {
 
 // Development flag - set to false in production
 export const IS_DEVELOPMENT = true;
+
+

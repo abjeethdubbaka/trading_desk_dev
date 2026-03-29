@@ -12,7 +12,7 @@ import { Card, CardContent }   from '@/components/ui/card';
 import { Button }              from '@/components/ui/button';
 import { Badge }               from '@/components/ui/badge';
 import { History, Trash2, TrendingUp, TrendingDown, Calculator, ArrowLeft, RefreshCw } from 'lucide-react';
-import { cn }                  from '@/lib/utils';
+import { cn }                  from '@/lib/utils/general';
 
 const fmt = (n) =>
   new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0 }).format(n ?? 0);
@@ -175,3 +175,5 @@ export default function CalcHistory() {
     </div>
   );
 }
+
+

@@ -14,3 +14,5 @@ export function EmptyState({ searchQuery, selectedCategory }) {
     </div>
   );
 }
+
+

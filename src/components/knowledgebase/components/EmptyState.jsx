@@ -26,3 +26,5 @@ export function EmptyState({ searchQuery, selectedType, selectedTags, activeTab,
     </div>
   );
 }
+
+

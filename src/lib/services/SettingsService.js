@@ -36,7 +36,7 @@ export class SettingsService {
       this._updateCache(settings);
       return settings;
     } catch (error) {
-      console.error('SettingsService - Get error:', error);
+      
       // Return defaults only on error, not as regular behavior
       const defaults = this._getDefaults();
       return defaults;
@@ -70,7 +70,7 @@ export class SettingsService {
       
       return result;
     } catch (error) {
-      console.error('SettingsService - Save error:', error);
+      
       throw error;
     }
   }
@@ -98,7 +98,7 @@ export class SettingsService {
       
       return result;
     } catch (error) {
-      console.error('SettingsService - Reset error:', error);
+      
       throw error;
     }
   }
@@ -124,7 +124,7 @@ export class SettingsService {
       
       return result;
     } catch (error) {
-      console.error('SettingsService - Clear and reinit error:', error);
+      
       throw error;
     }
   }
@@ -154,7 +154,7 @@ export class SettingsService {
       // Save imported settings
       return await this.save(imported);
     } catch (error) {
-      console.error('SettingsService - Import error:', error);
+      
       throw error;
     }
   }
@@ -378,13 +378,13 @@ export class SettingsService {
       const validation = this.validate(migrated);
       
       if (!validation.isValid) {
-        console.warn('Settings migration validation warnings:', validation.warnings);
+        
       }
       
       // Save migrated settings
       return await this.save(migrated);
     } catch (error) {
-      console.error('Settings migration error:', error);
+      
       throw error;
     }
   }
@@ -413,3 +413,5 @@ export class SettingsService {
 export function createSettingsService(dbAdapter) {
   return new SettingsService(dbAdapter);
 }
+
+

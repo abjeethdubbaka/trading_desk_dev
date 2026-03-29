@@ -66,3 +66,5 @@ export function KnowledgeEntries({ entries, onViewEntry }) {
     </div>
   );
 }
+
+

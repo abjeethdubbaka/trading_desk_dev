@@ -7,7 +7,7 @@
 
 import React, { useMemo }    from 'react';
 import { useTrades } from '@/lib/hooks/useTrades';
-import { useSettings }        from '@/lib/SettingsContext';
+import { useSettings }        from '@/lib/context/SettingsContext';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   calcCoreStats,
@@ -19,7 +19,7 @@ import {
   perfBySetupType,
   perfByPriceRange,
 } from '@/lib/calculations/trades';
-import { cn } from '@/lib/utils';
+import { cn } from '@/lib/utils/general';
 
 // Existing chart components (unchanged)
 import EmotionMatrix      from '@/components/performance/EmotionMatrix';
@@ -121,3 +121,5 @@ export default function PerformancePage() {
     </div>
   );
 }
+
+

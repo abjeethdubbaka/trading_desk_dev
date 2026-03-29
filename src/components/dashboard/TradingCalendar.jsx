@@ -164,3 +164,5 @@ export default function TradingCalendar({ trades }) {
     </div>
   );
 }
+
+

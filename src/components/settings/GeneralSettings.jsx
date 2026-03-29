@@ -7,7 +7,7 @@ import {
   Percent,
   TrendingUp
 } from 'lucide-react';
-import { useSettings } from '@/lib/SettingsContext';
+import { useSettings } from '@/lib/context/SettingsContext';
 import AccountTierSelector from './AccountTierSelector';
 
 export default function GeneralSettings() {
@@ -129,3 +129,5 @@ export default function GeneralSettings() {
     </div>
   );
 }
+
+

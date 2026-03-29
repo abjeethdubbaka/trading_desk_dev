@@ -22,7 +22,7 @@
  *   await             db.settings.save({ account_size: 75000 });
  */
 
-import { firebaseSimpleAdapter } from './adapters/firebase-simple.js';
+import { firebaseSimpleAdapter } from './adapters/firebase-simple/index.js';
 import { localStorageAdapter } from './adapters/localStorage.js';
 
 // ← CHANGE THIS ONE LINE TO SWITCH BACKENDS ───────────────────────────────────
@@ -37,4 +37,6 @@ export const IS_LOCAL   = adapter.name === 'localStorage';
 export const IS_REMOTE  = adapter.name === 'firebase';
 
 // Re-export auth so components don't need to import firebase directly
-export { firebaseAuth } from './adapters/firebase-simple.js';
+export { firebaseAuth } from './adapters/firebase-simple/index.js';
+
+

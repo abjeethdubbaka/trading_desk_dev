@@ -1,6 +1,6 @@
 import React from 'react';
 import { computeEmotionStats } from '@/lib/calculations/trades';
-import { cn } from '@/lib/utils';
+import { cn } from '@/lib/utils/general';
 
 const COLORS = {
   confident: { dot: 'bg-emerald-400', text: 'text-emerald-400' },
@@ -62,3 +62,5 @@ export default function EmotionMatrix({ trades = [] }) {
     </div>
   );
 }
+
+

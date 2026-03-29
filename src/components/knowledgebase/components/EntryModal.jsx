@@ -47,7 +47,7 @@ export function EntryModal({ entry, onSave, onCancel }) {
           }]
         }));
       } catch (error) {
-        console.error('Failed to process image:', error);
+        
       }
     }
   };
@@ -389,3 +389,5 @@ export function EntryModal({ entry, onSave, onCancel }) {
     </div>
   );
 }
+
+

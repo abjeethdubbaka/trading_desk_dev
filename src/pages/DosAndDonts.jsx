@@ -4,3 +4,5 @@ import DosAndDontsComponent from '../components/dosanddonts/DosAndDonts';
 export default function DosAndDonts() {
   return <DosAndDontsComponent />;
 }
+
+

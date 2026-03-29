@@ -7,19 +7,19 @@
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useJournal, useTradesMutation } from '@/lib/hooks/useTrades';
-import { useJournalFilters }    from '@/components/journal/hooks/useJournalFilters';
-import { useSettings }           from '@/lib/SettingsContext';
+import { useJournalFilters }    from '@/components/journal';
+import { useSettings }           from '@/lib/context/SettingsContext';
 import AddTradeModal            from '@/components/journal/AddTradeModal';
-import JournalToolbar           from '@/components/journal/components/JournalToolbar';
-import CompactView              from '@/components/journal/components/CompactView';
-import DetailedView             from '@/components/journal/components/DetailedView';
-import EmptyState               from '@/components/journal/components/EmptyState';
-import AnalysisPanel            from '@/components/journal/components/Analysis';
-import JournalStatsBar          from '@/components/journal/components/JournalStatsBar';
-import { useTradeReview }       from '@/lib/useTradeReview';
+import JournalToolbar           from '@/components/journal/toolbar/JournalToolbar';
+import CompactView              from '@/components/journal/views/CompactView';
+import DetailedView             from '@/components/journal/views/DetailedView';
+import EmptyState               from '@/components/journal/views/EmptyState';
+import AnalysisPanel            from '@/components/journal/analysis/AnalysisPanel';
+import JournalStatsBar          from '@/components/journal/views/JournalStatsBar';
+import { useTradeReview }       from '@/lib/hooks/useTradeReview';
 import { VIEW_MODES }           from '@/components/journal/utils/constants';
 import { validateTrade, sanitizeTrade } from '@/lib/validation/trades';
-import { cn }                   from '@/lib/utils';
+import { cn }                   from '@/lib/utils/general';
 import { toast }                from 'sonner';
 
 export default function Journal() {
@@ -87,8 +87,6 @@ export default function Journal() {
       setShowModal(false);
       setEditingTrade(null);
     } catch (err) {
-      console.error('💥 Journal Handle Save - ERROR:', err);
-      console.error('💥 Journal Handle Save - ERROR MESSAGE:', err.message);
       toast.error(`Failed to save: ${err.message}`);
     }
   }, [editingTrade, createTrade, updateTrade]);
@@ -193,3 +191,5 @@ export default function Journal() {
     </div>
   );
 }
+
+

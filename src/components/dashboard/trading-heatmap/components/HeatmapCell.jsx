@@ -1,5 +1,5 @@
 import React from 'react';
-import { cn } from '@/lib/utils';
+import { cn } from '@/lib/utils/general';
 import { getColorIntensity, formatTooltipContent } from '../utils/colorUtils';
 
 const HeatmapCell = ({ data, minPnl, maxPnl, hasTrades, onClick }) => {
@@ -37,3 +37,5 @@ const HeatmapCell = ({ data, minPnl, maxPnl, hasTrades, onClick }) => {
 };
 
 export default React.memo(HeatmapCell);
+
+

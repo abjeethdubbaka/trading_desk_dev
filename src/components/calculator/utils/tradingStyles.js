@@ -35,3 +35,5 @@ export function getRiskPercent(style, useAdvanced = false, customRiskPercent = 1
   if (useAdvanced) return customRiskPercent;
   return TRADING_STYLES[style]?.riskPercent || 1.0;
 }
+
+

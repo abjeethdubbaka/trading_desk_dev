@@ -1,5 +1,5 @@
 import React from 'react';
-import { cn } from '@/lib/utils';
+import { cn } from '@/lib/utils/general';
 
 const Button = React.forwardRef(({ className, variant = 'default', size = 'default', asChild = false, children, ...props }, ref) => {
   const Comp = asChild ? React.Fragment : 'button';
@@ -31,3 +31,5 @@ const Button = React.forwardRef(({ className, variant = 'default', size = 'defau
 Button.displayName = 'Button';
 
 export { Button };
+
+

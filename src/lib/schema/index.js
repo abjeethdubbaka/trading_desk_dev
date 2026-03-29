@@ -342,3 +342,5 @@ export const EntityTypes = {
   CALC_HISTORY: 'calc_history',
   MEDIA: 'media'
 };
+
+

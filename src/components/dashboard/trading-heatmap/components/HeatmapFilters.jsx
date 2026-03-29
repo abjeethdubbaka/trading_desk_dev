@@ -36,3 +36,5 @@ const HeatmapFilters = ({ timePeriod, onPeriodChange, filteredCount, totalCount 
 };
 
 export default React.memo(HeatmapFilters);
+
+

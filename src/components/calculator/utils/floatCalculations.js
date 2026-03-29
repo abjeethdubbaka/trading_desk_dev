@@ -7,6 +7,7 @@ import {
   getMaxAccountPercent 
 } from './floatCategories';
 import { getVolumeMultiplier, getSlippageEstimate } from './volumeMultipliers';
+import { formatCurrency, formatNumber } from './formatting.js';
 
 export function calculatePosition(floatData, entryPrice, accountSize, tradingStyle, options = {}) {
   const {
@@ -150,18 +151,4 @@ export function getRiskColor(riskLevel) {
   }
 }
 
-export function formatCurrency(amount) {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2
-  }).format(amount);
-}
 
-export function formatNumber(number, decimals = 0) {
-  return new Intl.NumberFormat('en-US', {
-    minimumFractionDigits: decimals,
-    maximumFractionDigits: decimals
-  }).format(number);
-}

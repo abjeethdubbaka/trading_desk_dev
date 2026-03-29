@@ -57,7 +57,7 @@ const ScreenshotUpload = ({ screenshotIds, uploading, onUpload, onRemove }) => {
           const url = media?.file_url || URL.createObjectURL(media?.file);
           return [id, url];
         } catch (error) {
-          console.error('Failed to load screenshot:', id, error);
+          
           return [id, null];
         }
       })
@@ -236,3 +236,5 @@ const ScreenshotUpload = ({ screenshotIds, uploading, onUpload, onRemove }) => {
 };
 
 export default React.memo(ScreenshotUpload);
+
+

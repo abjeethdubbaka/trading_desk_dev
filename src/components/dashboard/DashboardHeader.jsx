@@ -4,7 +4,7 @@ import {
   Target, BarChart2, DollarSign,
   ArrowUpRight, ArrowDownRight,
 } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { cn } from '@/lib/utils/general';
 import AnimatedStat, { TrendArrow, MiniSparkline } from '@/components/ui/AnimatedStat';
 
 /* ─── Individual KPI card ──────────────────────────────────────────────── */
@@ -165,3 +165,5 @@ export default function DashboardHeader({
     </div>
   );
 }
+
+

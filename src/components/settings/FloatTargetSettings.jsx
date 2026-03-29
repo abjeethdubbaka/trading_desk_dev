@@ -1,7 +1,7 @@
 import React from 'react';
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useSettings } from '@/lib/SettingsContext';
+import { useSettings } from '@/lib/context/SettingsContext';
 
 export default function FloatTargetSettings() {
   const { settings, loading, saving, updateSettings } = useSettings();
@@ -121,3 +121,5 @@ export default function FloatTargetSettings() {
     </div>
   );
 }
+
+

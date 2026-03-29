@@ -43,3 +43,5 @@ export const calculatePnL = ({
     rMultiple: rMultiple > 0 ? rMultiple.toFixed(2) : null
   };
 };
+
+

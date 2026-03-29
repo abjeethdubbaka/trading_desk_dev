@@ -13,7 +13,7 @@ export function useLearningProgress() {
       setLearningProgress(progress);
       setEnrolledCourses(Object.keys(progress));
     } catch (error) {
-      console.error('Failed to load learning progress:', error);
+      
       setLearningProgress({});
       setEnrolledCourses([]);
     }
@@ -98,3 +98,5 @@ export function useLearningProgress() {
     getLearningStats
   };
 }
+
+

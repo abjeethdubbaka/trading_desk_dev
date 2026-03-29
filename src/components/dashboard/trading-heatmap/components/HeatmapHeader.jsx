@@ -17,3 +17,5 @@ const HeatmapHeader = ({ hours }) => {
 };
 
 export default React.memo(HeatmapHeader);
+
+

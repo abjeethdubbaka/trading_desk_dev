@@ -49,3 +49,5 @@ const HeatmapStats = ({ statistics }) => {
 };
 
 export default React.memo(HeatmapStats);
+
+

@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import { ACCOUNT_TIERS, ACCOUNT_TIER_IDS, getTierSettingsWithCustomizations, detectTierFromSettings, getTierCustomizations, saveTierCustomizations } from '@/lib/accountTypes';
+import { ACCOUNT_TIERS, ACCOUNT_TIER_IDS, getTierSettingsWithCustomizations, detectTierFromSettings, getTierCustomizations, saveTierCustomizations } from '@/lib/config/accountTypes';
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -24,9 +24,8 @@ export default function AccountTierSelector() {
       setIsOpen(false);
       
       // TODO: Save to backend when available
-      console.log('Tier selected:', tierId);
     } catch (error) {
-      console.error('AccountTierSelector - Error applying tier:', error);
+      // Handle error silently
     }
   }, []);
 
@@ -127,3 +126,5 @@ export default function AccountTierSelector() {
     </div>
   );
 }
+
+

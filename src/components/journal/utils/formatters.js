@@ -38,3 +38,5 @@ export const formatNumber = (value, decimals = 0) => {
     maximumFractionDigits: decimals
   });
 };
+
+

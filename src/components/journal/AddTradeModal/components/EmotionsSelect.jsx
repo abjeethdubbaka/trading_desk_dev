@@ -75,3 +75,5 @@ const EmotionsSelect = ({ value, onChange }) => {
 };
 
 export default React.memo(EmotionsSelect);
+
+
