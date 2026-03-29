@@ -1,0 +1,16 @@
+.nav-item-active {
+  background: linear-gradient(90deg, rgba(16, 185, 129, 0.12) 0%, rgba(16, 185, 129, 0.04) 100%);
+  border-right: none;
+}
+
+.nav-item-active::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  top: 20%;
+  height: 60%;
+  width: 2px;
+  background: #10b981;
+  border-radius: 2px 0 0 2px;
+  box-shadow: 0 0 8px rgba(16, 185, 129, 0.6);
+}

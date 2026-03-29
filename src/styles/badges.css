@@ -1,0 +1,17 @@
+.badge-profit {
+  background: var(--profit-dim);
+  border: 1px solid var(--profit-border);
+  color: var(--profit);
+}
+
+.badge-loss {
+  background: var(--loss-dim);
+  border: 1px solid var(--loss-border);
+  color: var(--loss);
+}
+
+.badge-neutral {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.5);
+}
