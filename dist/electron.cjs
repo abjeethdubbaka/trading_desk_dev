@@ -45,6 +45,18 @@ function createWindow() {
 
   // Handle external links
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+    // Check if it's an internal app navigation
+    const appUrl = 'http://localhost:5176';
+    if (url.startsWith(appUrl)) {
+      // Extract the path and navigate internally
+      const path = url.replace(appUrl, '');
+      mainWindow.webContents.executeJavaScript(`
+        window.location.hash = '${path}';
+      `);
+      return { action: 'deny' };
+    }
+    
+    // Handle external links
     shell.openExternal(url);
     return { action: 'deny' };
   });
@@ -68,6 +80,10 @@ function createMenu() {
           accelerator: process.platform === 'win32' ? 'Alt+F4' : 'CmdOrCtrl+Q',
           click: () => {
             app.quit();
+            // Force quit for Windows to prevent terminal hanging
+            if (process.platform === 'win32') {
+              setTimeout(() => process.exit(0), 100);
+            }
           }
         }
       ]
@@ -124,8 +140,33 @@ app.whenReady().then(() => {
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
+    // Force quit the process to prevent terminal hanging
     app.quit();
+    // Additional force quit for Windows
+    if (process.platform === 'win32') {
+      process.exit(0);
+    }
   }
+});
+
+// Handle all windows closed event
+app.on('before-quit', (event) => {
+  // Clean up any resources before quitting
+  if (mainWindow) {
+    mainWindow.removeAllListeners();
+  }
+});
+
+// Force quit on SIGINT (Ctrl+C)
+process.on('SIGINT', () => {
+  app.quit();
+  process.exit(0);
+});
+
+// Force quit on SIGTERM
+process.on('SIGTERM', () => {
+  app.quit();
+  process.exit(0);
 });
 
 // IPC handlers
@@ -137,6 +178,10 @@ ipcMain.handle('show-message-box', async (event, options) => {
   const { dialog } = require('electron');
   const result = await dialog.showMessageBox(mainWindow, options);
   return result;
+});
+
+ipcMain.handle('close-app', async () => {
+  app.quit();
 });
 
 // Security: prevent new window creation

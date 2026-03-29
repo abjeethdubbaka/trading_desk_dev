@@ -7,7 +7,7 @@
 
 import { initializeApp, getApps } from 'firebase/app';
 import { getFirestore } from 'firebase/firestore';
-import { firebaseConfig } from '@/config/firebase.js';
+import { firebaseConfig } from '@/config/firebaseEnv.js';
 import { createTradesAdapter } from './trades.js';
 import { createSettingsAdapter } from './settings.js';
 import { createCalcHistoryAdapter, createWatchlistAdapter, createMediaAdapter, createMinimalAdapters } from './collections.js';

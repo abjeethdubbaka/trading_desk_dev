@@ -25,6 +25,13 @@ export function useTradesMutation(options = {}) {
         ...tradeData,
         account_tier: currentTier
       };
+      console.info('[TradesMutation] createTrade called', {
+        symbol: tradeWithTier.symbol,
+        entry_price: tradeWithTier.entry_price,
+        quantity: tradeWithTier.quantity,
+        direction: tradeWithTier.direction,
+        account_tier: tradeWithTier.account_tier,
+      });
       return tradeService.create(tradeWithTier);
     },
     onSuccess: (newTrade) => {
@@ -35,7 +42,12 @@ export function useTradesMutation(options = {}) {
       options.onSuccess?.(newTrade);
     },
     onError: (error) => {
-      
+      console.error('[TradesMutation] createTrade failed', {
+        name: error?.name,
+        code: error?.code,
+        message: error?.message,
+        errors: error?.errors,
+      });
       options.onError?.(error);
     }
   });
@@ -50,7 +62,6 @@ export function useTradesMutation(options = {}) {
       options.onSuccess?.(updatedTrade);
     },
     onError: (error) => {
-      
       options.onError?.(error);
     }
   });
@@ -65,7 +76,6 @@ export function useTradesMutation(options = {}) {
       options.onSuccess?.(deletedId);
     },
     onError: (error) => {
-      
       options.onError?.(error);
     }
   });
@@ -84,7 +94,6 @@ export function useTradesMutation(options = {}) {
       options.onSuccess?.(newTrades);
     },
     onError: (error) => {
-      
       options.onError?.(error);
     }
   });
@@ -106,5 +115,3 @@ export function useTradesMutation(options = {}) {
     bulkCreateError: bulkCreateMutation.error
   };
 }
-
-

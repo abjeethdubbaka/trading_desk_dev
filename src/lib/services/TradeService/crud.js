@@ -14,6 +14,12 @@ export function createTradeCRUD(service) {
       const validation = service.validate(tradeData);
       
       if (!validation.isValid) {
+        console.error('[TradeService] create validation failed', {
+          errors: validation.errors,
+          symbol: tradeData?.symbol,
+          quantity: tradeData?.quantity,
+          direction: tradeData?.direction,
+        });
         throw new ValidationError(validation.errors, tradeData);
       }
 
@@ -25,6 +31,11 @@ export function createTradeCRUD(service) {
 
       // Calculate derived fields
       const enrichedTrade = enrichTrade(tradeWithDefaults);
+      console.info('[TradeService] create validation passed', {
+        symbol: enrichedTrade.symbol,
+        quantity: enrichedTrade.quantity,
+        direction: enrichedTrade.direction,
+      });
 
       return await service.db.trades.create(enrichedTrade);
     },

@@ -1,5 +1,10 @@
 import { useState, useCallback } from 'react';
 
+const ANTHROPIC_API_KEY = import.meta.env.VITE_ANTHROPIC_API_KEY || '';
+const ANTHROPIC_BASE_URL = import.meta.env.VITE_ANTHROPIC_BASE_URL || 'https://api.anthropic.com/v1/messages';
+const ANTHROPIC_MODEL = import.meta.env.VITE_ANTHROPIC_MODEL || 'claude-sonnet-4-20250514';
+const ANTHROPIC_VERSION = import.meta.env.VITE_ANTHROPIC_VERSION || '2023-06-01';
+
 // ─── Prompt ────────────────────────────────────────────────────────────────
 const SYSTEM_PROMPT = `You are an expert trading chart analyst specializing in technical analysis, price action, and trading psychology. Your job is to analyze chart screenshots and extract structured insights.
 
@@ -93,11 +98,19 @@ const USER_PROMPT = `Analyze this trading chart screenshot and return ONLY this 
 
 // ─── API Call ───────────────────────────────────────────────────────────────
 async function analyzeImageWithClaude(base64Data, mediaType = 'image/png') {
-  const response = await fetch('https://api.anthropic.com/v1/messages', {
+  if (!ANTHROPIC_API_KEY) {
+    throw new Error('Anthropic API key is not configured (VITE_ANTHROPIC_API_KEY)');
+  }
+
+  const response = await fetch(ANTHROPIC_BASE_URL, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': ANTHROPIC_API_KEY,
+      'anthropic-version': ANTHROPIC_VERSION,
+    },
     body: JSON.stringify({
-      model: 'claude-sonnet-4-20250514',
+      model: ANTHROPIC_MODEL,
       max_tokens: 1500,
       system: SYSTEM_PROMPT,
       messages: [

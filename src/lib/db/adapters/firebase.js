@@ -51,11 +51,12 @@ import {
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   signInWithPopup,
+  signInAnonymously,
   GoogleAuthProvider,
   signOut as firebaseSignOut,
 } from 'firebase/auth';
 import { sanitizeForStorage, withDefaults, TRADE_DEFAULTS } from '../schema.js';
-import { firebaseConfig } from '@/config/firebase.js';
+import { firebaseConfig } from '@/config/firebaseEnv.js';
 
 // ─── Firebase init ────────────────────────────────────────────────────────────
 
@@ -118,6 +119,7 @@ export const firebaseAuth = {
   signInEmail:    (email, password)   => signInWithEmailAndPassword(auth, email, password),
   signUpEmail:    (email, password)   => createUserWithEmailAndPassword(auth, email, password),
   signInGoogle:   ()                  => signInWithPopup(auth, new GoogleAuthProvider()),
+  ensureAuth:     async ()            => auth.currentUser || (await signInAnonymously(auth)).user,
   signOut:        ()                  => firebaseSignOut(auth),
 };
 
@@ -143,14 +145,17 @@ const trades = {
     const snap = await getDocs(q);
     let results = snap.docs.map(fromDoc);
     
+    if (options.account_tier) {
+      results = results.filter((t) => t.account_tier === options.account_tier);
+    }
 
     // Client-side date range filter (Firestore requires composite index for combined queries)
-    if (options.from) {
-      const from = new Date(options.from);
+    if (options.from || options.date_from) {
+      const from = new Date(options.from || options.date_from);
       results = results.filter(t => new Date(t.entry_time ?? t.created_date) >= from);
     }
-    if (options.to) {
-      const to = new Date(options.to);
+    if (options.to || options.date_to) {
+      const to = new Date(options.to || options.date_to);
       results = results.filter(t => new Date(t.entry_time ?? t.created_date) <= to);
     }
 
@@ -299,6 +304,75 @@ const watchlist = {
 
 // ─── Generic single-doc stores (dos/donts, knowledge base, learning) ─────────
 
+const media = {
+  async list(options = {}) {
+    const q = query(userCol('media'), orderBy('created_at', 'desc'));
+    const snap = await getDocs(q);
+    let items = snap.docs.map(fromDoc);
+
+    if (options.media_type) {
+      items = items.filter((item) => item.media_type === options.media_type);
+    }
+    if (options.trade_id) {
+      items = items.filter((item) => item.trade_id === options.trade_id);
+    }
+    if (options.file_type) {
+      items = items.filter((item) => String(item.file_type || '').startsWith(options.file_type));
+    }
+
+    return items;
+  },
+
+  async create(data) {
+    const payload = prepareWrite({
+      ...data,
+      created_at: data.created_at || new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    });
+    const ref = await addDoc(userCol('media'), payload);
+    return { id: ref.id, ...payload };
+  },
+
+  async get(id) {
+    const snap = await getDoc(userDoc('media', id));
+    return fromDoc(snap);
+  },
+
+  async update(id, data) {
+    const ref = userDoc('media', id);
+    await updateDoc(ref, prepareWrite({ ...data, updated_at: new Date().toISOString() }));
+    const snap = await getDoc(ref);
+    return fromDoc(snap);
+  },
+
+  async delete(id) {
+    await deleteDoc(userDoc('media', id));
+    return { id };
+  },
+};
+
+const strategyPresets = {
+  async list() {
+    try {
+      const q = query(userCol('strategyPresets'), orderBy('created_at', 'desc'));
+      const snap = await getDocs(q);
+      return snap.docs.map(fromDoc);
+    } catch {
+      return [];
+    }
+  },
+
+  async create(data) {
+    const payload = prepareWrite({
+      ...data,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    });
+    const ref = await addDoc(userCol('strategyPresets'), payload);
+    return { id: ref.id, ...payload };
+  },
+};
+
 function makeSingleDocStore(sub, field = 'items') {
   return {
     async list() {
@@ -327,6 +401,8 @@ export const firebaseAdapter = {
   settings,
   calcHistory,
   watchlist,
+  media,
+  strategyPresets,
   dosAndDonts:   makeSingleDocStore('dosAndDonts',   'items'),
   knowledgeBase: makeSingleDocStore('knowledgeBase',  'entries'),
   learning:      makeSingleDocStore('learning',       'progress'),

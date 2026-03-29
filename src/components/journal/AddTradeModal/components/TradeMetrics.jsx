@@ -47,7 +47,8 @@ const TradeMetrics = ({ entry_price, exit_price, stop_loss, position_size, direc
   });
 
   const pnlValue = parseFloat(pnl) || 0;
-  const rValue = parseFloat(rMultiple) || 0;
+  const hasRMultiple = rMultiple != null && rMultiple !== '';
+  const rValue = hasRMultiple ? parseFloat(rMultiple) : 0;
 
   return (
     <div className="grid grid-cols-2 gap-4">
@@ -63,11 +64,12 @@ const TradeMetrics = ({ entry_price, exit_price, stop_loss, position_size, direc
         </div>
         <div className={cn(
           "text-lg font-semibold",
-          rValue >= 1 && "text-emerald-400",
-          rValue < 1 && rValue > 0 && "text-amber-400",
-          rValue <= 0 && "text-red-400"
+          hasRMultiple && rValue >= 1 && "text-emerald-400",
+          hasRMultiple && rValue > 0 && rValue < 1 && "text-amber-400",
+          hasRMultiple && rValue <= 0 && "text-red-400",
+          !hasRMultiple && "text-white/40"
         )}>
-          {rValue > 0 ? `${rValue}:1` : '-'}
+          {hasRMultiple ? `${rValue.toFixed(2)}R` : '-'}
         </div>
       </div>
     </div>

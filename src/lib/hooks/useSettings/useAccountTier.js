@@ -6,7 +6,7 @@
 
 import { useCallback } from 'react';
 import { useSettings } from './useSettings.js';
-import { detectTierFromSettings, getTierSettingsFields } from '../../config/accountTypes.js';
+import { detectTierFromSettings, getTierSettingsWithCustomizations } from '../../config/accountTypes.js';
 import { ACCOUNT_TIERS } from '../../config/accountTypes.js';
 
 export function useAccountTier() {
@@ -19,11 +19,9 @@ export function useAccountTier() {
   // Apply tier settings
   const applyTier = useCallback((tierId) => {
     if (tierId === 'custom') {
-      // For custom, just set account_size to null to allow manual configuration
-      return updateFields({ account_size: null });
+      return updateFields({ account_tier: 'custom' });
     } else {
-      // Apply tier settings
-      const tierSettings = getTierSettingsFields(tierId);
+      const tierSettings = getTierSettingsWithCustomizations(tierId);
       return updateFields(tierSettings);
     }
   }, [updateFields]);

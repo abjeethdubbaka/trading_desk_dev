@@ -1,10 +1,14 @@
 import React, { useState } from 'react';
 import { Info, ChevronDown, ChevronUp, CheckCircle2 } from 'lucide-react';
+import { FLOAT_CATEGORIES } from '../float-calculator/constants';
 
-const FloatInfoBox = ({ symbol, shareFloat, floatCategory, calculation }) => {
+const FloatInfoBox = ({ symbol, shareFloat, floatCategory, floatCategories, calculation }) => {
   const [isExpanded, setIsExpanded] = useState(false);
+  const activeFloatCategories = floatCategories || FLOAT_CATEGORIES;
+  const categoryInfo = activeFloatCategories?.[floatCategory];
+  const riskPercent = calculation?.actualRiskPercent ?? calculation?.actualRiskPct;
 
-  if (!symbol || !shareFloat || !floatCategory) return null;
+  if (!symbol || !shareFloat || !floatCategory || !categoryInfo) return null;
 
   const getCategoryDescription = (category) => {
     const descriptions = {
@@ -40,13 +44,13 @@ const FloatInfoBox = ({ symbol, shareFloat, floatCategory, calculation }) => {
           <div className={`overflow-hidden transition-all duration-300 ${isExpanded ? 'max-h-60 opacity-100 mt-2' : 'max-h-0 opacity-0'}`}>
             <div className="text-sm text-white/70 space-y-1">
               <p>
-                <span className="font-medium text-white/90">Share Float:</span> {shareFloat.toLocaleString()} shares ({FLOAT_CATEGORIES[floatCategory].label} Float)
+                <span className="font-medium text-white/90">Share Float:</span> {shareFloat.toLocaleString()} shares ({categoryInfo.label} Float)
               </p>
               <p>
-                <span className="font-medium text-white/90">Position Multiplier:</span> {FLOAT_CATEGORIES[floatCategory].positionMultiplier}x
+                <span className="font-medium text-white/90">Position Multiplier:</span> {categoryInfo.positionMultiplier}x
               </p>
               <p>
-                <span className="font-medium text-white/90">Max Float Usage:</span> {FLOAT_CATEGORIES[floatCategory].maxFloatPercent}% of total float
+                <span className="font-medium text-white/90">Max Float Usage:</span> {categoryInfo.maxFloatPercent}% of total float
               </p>
               <p className="text-xs text-white/60 mt-2">
                 {getCategoryDescription(floatCategory)}
@@ -58,7 +62,7 @@ const FloatInfoBox = ({ symbol, shareFloat, floatCategory, calculation }) => {
                   <div className="flex items-start gap-2">
                     <CheckCircle2 className="w-4 h-4 text-emerald-400 mt-0.5 flex-shrink-0" />
                     <p className="text-xs text-emerald-300">
-                      This position risks {calculation.actualRiskPercent.toFixed(2)}% of your account.
+                      This position risks {Number(riskPercent || 0).toFixed(2)}% of your account.
                     </p>
                   </div>
                 </div>

@@ -40,7 +40,9 @@ export const calculatePnL = ({
   return {
     pnl: netPnl,
     pnlPercent,
-    rMultiple: rMultiple > 0 ? rMultiple.toFixed(2) : null
+    // Keep both positive and negative R values.
+    // Null means "not computable" (e.g., no stop/risk defined), not "loss".
+    rMultiple: totalRisk > 0 ? rMultiple.toFixed(2) : null
   };
 };
 

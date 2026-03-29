@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -18,10 +18,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Loader2 } from 'lucide-react';
+import { Loader2, ShieldAlert } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { db } from '@/lib/db';
 import { cn } from "@/lib/utils";
+import { useTrades } from '@/lib/hooks/useTrades';
+import { useSettings } from '@/lib/context/SettingsContext';
+import { buildDisciplineSnapshot } from '@/lib/calculations/discipline';
+import { toast } from 'sonner';
 
 // Custom hooks
 import { useTradeForm } from './hooks/useTradeForm';
@@ -72,6 +76,23 @@ export default function AddTradeModal({ open, onClose, onSave, initialData }) {
   const [loading, setLoading] = useState(false);
   const [userId] = useState('user-123');
   const [screenshotsInitialized, setScreenshotsInitialized] = useState(false);
+  const { settings } = useSettings();
+  const currentTier = settings?.account_tier || 'custom';
+
+  const { data: tierTrades = [] } = useTrades({
+    filters: { account_tier: currentTier },
+    enabled: open,
+  });
+
+  const disciplineSnapshot = useMemo(
+    () => buildDisciplineSnapshot(tierTrades, settings),
+    [tierTrades, settings]
+  );
+
+  const preTradeAlert = useMemo(() => {
+    const priority = ['warning', 'focus'];
+    return disciplineSnapshot?.alerts?.find((a) => priority.includes(a.type)) || null;
+  }, [disciplineSnapshot]);
   
   // Fetch strategy presets
   const { data: presets = [] } = useQuery({
@@ -176,6 +197,12 @@ export default function AddTradeModal({ open, onClose, onSave, initialData }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    const symbol = String(formData.symbol || '').trim();
+    if (symbol && !/^[A-Z]{1,5}$/.test(symbol)) {
+      toast.error('Trade validation failed: symbol: Must be a valid stock symbol (1-5 uppercase letters)');
+      return;
+    }
     
     // Validate exit time
     if (formData.exit_time && !isValidExitTime(formData.entry_time, formData.exit_time)) {
@@ -199,19 +226,29 @@ export default function AddTradeModal({ open, onClose, onSave, initialData }) {
       submissionData.exit_time = exitTimeUTC;
       
       await onSave(submissionData);
-      onClose();
     } catch (error) {
-      
+      // Parent handler (Journal) already surfaces save errors via toast.
     } finally {
       setLoading(false);
     }
   };
+
+  const symbolError = (() => {
+    const symbol = String(formData.symbol || '').trim();
+    if (!symbol) return null;
+    return /^[A-Z]{1,5}$/.test(symbol)
+      ? null
+      : 'Trade validation failed: symbol: Must be a valid stock symbol (1-5 uppercase letters)';
+  })();
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="bg-[#12121a] border-white/10 text-white max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{initialData ? 'Edit' : 'Log'} Trade</DialogTitle>
+          <DialogDescription className="text-white/50">
+            Enter your trade details, then submit to save it in your journal.
+          </DialogDescription>
         </DialogHeader>
         
         <form onSubmit={handleSubmit} className="space-y-6 mt-4">
@@ -224,10 +261,16 @@ export default function AddTradeModal({ open, onClose, onSave, initialData }) {
                 value={formData.symbol}
                 onChange={(e) => updateField('symbol', e.target.value.toUpperCase())}
                 placeholder="AAPL"
-                className="bg-white/5 border-white/10 uppercase font-mono"
+                className={cn(
+                  "bg-white/5 border-white/10 uppercase font-mono",
+                  symbolError && "border-red-500/60 focus-visible:ring-red-500/50"
+                )}
                 required
                 maxLength={10}
               />
+              {symbolError && (
+                <p className="text-[11px] text-red-300">{symbolError}</p>
+              )}
             </div>
             <DirectionToggle
               value={formData.direction}
@@ -359,6 +402,21 @@ export default function AddTradeModal({ open, onClose, onSave, initialData }) {
             onBreakoutChecklistChange={handleBreakoutChecklistChange}
             onBreakoutMetaChange={handleBreakoutMetaChange}
           />
+
+          {preTradeAlert && (
+            <div className="rounded-lg border border-amber-500/25 bg-amber-500/8 px-3 py-2.5">
+              <div className="flex items-start gap-2">
+                <ShieldAlert className="w-4 h-4 text-amber-400 mt-0.5 flex-shrink-0" />
+                <div>
+                  <p className="text-xs font-semibold text-amber-300">Soft guardrail: {preTradeAlert.title}</p>
+                  <p className="text-xs text-amber-200/90 mt-0.5">{preTradeAlert.message}</p>
+                  <p className="text-[10px] text-amber-100/70 mt-1.5">
+                    Guidance only — you can still log this trade.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Form Actions */}
           <div className="flex justify-end gap-3 pt-4 border-t border-white/10">

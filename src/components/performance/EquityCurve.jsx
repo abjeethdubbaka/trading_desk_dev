@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine, ResponsiveContainer } from 'recharts';
 import { buildEquityCurve, calcMaxDrawdown } from '@/lib/calculations/trades';
 import { cn } from '@/lib/utils/general';
@@ -20,6 +20,40 @@ const Tip = ({ active, payload }) => {
 
 export default function EquityCurve({ trades = [], initialBalance = 50000 }) {
   const [period, setPeriod] = useState('All');
+  const containerRef = useRef(null);
+  const [isChartReady, setIsChartReady] = useState(false);
+  const [chartSize, setChartSize] = useState({ width: 0, height: 0 });
+
+  useEffect(() => {
+    const element = containerRef.current;
+    if (!element) return;
+
+    const checkSize = () => {
+      const width = element.offsetWidth || 0;
+      const height = element.offsetHeight || 0;
+      setChartSize({ width, height });
+      setIsChartReady(width > 0 && height > 0);
+    };
+
+    checkSize();
+
+    const resizeObserver = typeof ResizeObserver !== 'undefined'
+      ? new ResizeObserver(checkSize)
+      : null;
+
+    if (resizeObserver) {
+      resizeObserver.observe(element);
+    }
+
+    window.addEventListener('resize', checkSize);
+
+    return () => {
+      if (resizeObserver) {
+        resizeObserver.disconnect();
+      }
+      window.removeEventListener('resize', checkSize);
+    };
+  }, []);
   
   // Simple period filter since filterByPeriod doesn't exist
   const filtered = useMemo(() => {
@@ -68,18 +102,22 @@ export default function EquityCurve({ trades = [], initialBalance = 50000 }) {
           ))}
         </div>
       </div>
-      <div className="h-52 min-h-[200px] min-w-[200px]">
-        <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={undefined}>
-          <AreaChart data={curve} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
-            <defs><linearGradient id="eqG" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#34d399" stopOpacity={0.25} /><stop offset="95%" stopColor="#34d399" stopOpacity={0} /></linearGradient></defs>
-            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
-            <XAxis dataKey="date" stroke="transparent" tick={{ fill: 'rgba(255,255,255,0.3)', fontSize: 10 }} tickLine={false} />
-            <YAxis stroke="transparent" tick={{ fill: 'rgba(255,255,255,0.3)', fontSize: 10 }} tickLine={false} tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`} />
-            <Tooltip content={<Tip />} />
-            <ReferenceLine y={initialBalance} stroke="rgba(255,255,255,0.15)" strokeDasharray="4 3" />
-            <Area type="monotone" dataKey="balance" stroke="#34d399" strokeWidth={2} fill="url(#eqG)" dot={false} activeDot={{ r: 4, fill: '#34d399' }} />
-          </AreaChart>
-        </ResponsiveContainer>
+      <div ref={containerRef} className="h-52 min-h-[200px] min-w-[200px]">
+        {isChartReady && chartSize.width > 0 && chartSize.height > 0 ? (
+          <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={160}>
+            <AreaChart data={curve} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
+              <defs><linearGradient id="eqG" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#34d399" stopOpacity={0.25} /><stop offset="95%" stopColor="#34d399" stopOpacity={0} /></linearGradient></defs>
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
+              <XAxis dataKey="date" stroke="transparent" tick={{ fill: 'rgba(255,255,255,0.3)', fontSize: 10 }} tickLine={false} />
+              <YAxis stroke="transparent" tick={{ fill: 'rgba(255,255,255,0.3)', fontSize: 10 }} tickLine={false} tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`} />
+              <Tooltip content={<Tip />} />
+              <ReferenceLine y={initialBalance} stroke="rgba(255,255,255,0.15)" strokeDasharray="4 3" />
+              <Area type="monotone" dataKey="balance" stroke="#34d399" strokeWidth={2} fill="url(#eqG)" dot={false} activeDot={{ r: 4, fill: '#34d399' }} />
+            </AreaChart>
+          </ResponsiveContainer>
+        ) : (
+          <div className="h-full w-full" />
+        )}
       </div>
       <div className="flex justify-between text-xs text-white/30 font-mono">
         <span>Start: ${start.toLocaleString()}</span>

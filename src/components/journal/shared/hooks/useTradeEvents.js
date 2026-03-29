@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
+import { tradeKeys } from '@/lib/hooks/useTrades/queryKeys';
 
 /**
  * Custom hook for handling cross-tab trade synchronization
@@ -9,27 +10,49 @@ export const useTradeEvents = () => {
   const queryClient = useQueryClient();
 
   useEffect(() => {
+    const applyTradeEventToListCaches = (detail = {}) => {
+      const { action, trade, id, tradeId } = detail;
+      const removedId = tradeId ?? id ?? trade?.id;
+
+      queryClient.setQueriesData({ queryKey: tradeKeys.lists() }, (oldData) => {
+        if (!Array.isArray(oldData)) return oldData;
+
+        if (action === 'delete' && removedId) {
+          return oldData.filter((t) => t?.id !== removedId);
+        }
+
+        if (action === 'create' && trade?.id) {
+          if (oldData.some((t) => t?.id === trade.id)) return oldData;
+          return [trade, ...oldData];
+        }
+
+        if (action === 'update' && trade?.id) {
+          return oldData.map((t) => (t?.id === trade.id ? { ...t, ...trade } : t));
+        }
+
+        if (action === 'clear' || action === 'reset') {
+          return [];
+        }
+
+        return oldData;
+      });
+    };
+
+    const invalidateTradeQueries = () => {
+      queryClient.invalidateQueries({ queryKey: tradeKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: tradeKeys.stats() });
+      queryClient.invalidateQueries({ queryKey: tradeKeys.performance() });
+    };
+
     const handleTradesUpdated = (event) => {
-      const { action, trade } = event.detail;
-      
-      if (process.env.NODE_ENV === 'development') {
-        
+      const detail = event?.detail || {};
+      applyTradeEventToListCaches(detail);
+      invalidateTradeQueries();
+
+      const removedId = detail?.tradeId ?? detail?.id ?? detail?.trade?.id;
+      if (detail?.action === 'delete' && removedId) {
+        queryClient.removeQueries({ queryKey: tradeKeys.detail(removedId) });
       }
-      
-      // Invalidate trades query to refresh data
-      queryClient.invalidateQueries(['journal-trades']);
-      
-      // Invalidate related analytics queries
-      queryClient.invalidateQueries(['journal-analytics']);
-      
-      // Invalidate heatmap data if it exists
-      queryClient.invalidateQueries(['heatmap-data']);
-      
-      // Invalidate calendar data
-      queryClient.invalidateQueries(['calendar-trades']);
-      
-      // Invalidate dashboard data
-      queryClient.invalidateQueries(['dashboard-trades']);
     };
 
     // Listen for trade events
@@ -38,14 +61,7 @@ export const useTradeEvents = () => {
     // Also listen for storage events (for cross-tab localStorage changes)
     const handleStorageChange = (event) => {
       if (event.key === 'trades') {
-        if (process.env.NODE_ENV === 'development') {
-          
-        }
-        queryClient.invalidateQueries(['journal-trades']);
-        queryClient.invalidateQueries(['journal-analytics']);
-        queryClient.invalidateQueries(['heatmap-data']);
-        queryClient.invalidateQueries(['calendar-trades']);
-        queryClient.invalidateQueries(['dashboard-trades']);
+        invalidateTradeQueries();
       }
     };
 

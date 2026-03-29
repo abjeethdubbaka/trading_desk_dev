@@ -9,6 +9,7 @@ import { TradingProvider } from './lib/context/TradingContext';
 import { SettingsProvider } from './lib/context/SettingsContext';
 import { AuthProvider } from './lib/context/AuthContext';
 import { Suspense } from 'react';
+import LimitNotificationsWatcher from '@/components/notifications/LimitNotificationsWatcher';
 
 const { Pages, Layout, mainPage } = pagesConfig;
 const mainPageKey = mainPage ?? Object.keys(Pages)[0];
@@ -65,6 +66,7 @@ function RootApp() {
               v7_relativeSplatPath: true
             }}>
               <NavigationTracker />
+              <LimitNotificationsWatcher />
               <App />
             </Router>
             <Toaster />

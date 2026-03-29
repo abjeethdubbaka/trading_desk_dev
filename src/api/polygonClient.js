@@ -1,12 +1,20 @@
 class PolygonClient {
   constructor() {
-    this.apiKey = '3dmKd1kkICv2vpFpIfmqxJuGqkANSOiL';
-    this.baseUrl = 'https://api.polygon.io/v3';
+    this.apiKey = import.meta.env.VITE_POLYGON_API_KEY || '';
+    this.baseUrl = import.meta.env.VITE_POLYGON_BASE_URL || 'https://api.polygon.io/v3';
+  }
+
+  hasApiKey() {
+    return Boolean(this.apiKey);
   }
 
   // Get stock data including shares outstanding
   async getStockData(symbol) {
     try {
+      if (!this.hasApiKey()) {
+        throw new Error('Polygon API key is not configured (VITE_POLYGON_API_KEY)');
+      }
+
       const response = await fetch(
         `${this.baseUrl}/reference/tickers/${symbol.toUpperCase()}?apiKey=${this.apiKey}`,
         {
@@ -72,6 +80,10 @@ class PolygonClient {
   // Alternative: Get shares outstanding from fundamentals endpoint (Premium)
   async getSharesOutstanding(symbol) {
     try {
+      if (!this.hasApiKey()) {
+        return null;
+      }
+
       const response = await fetch(
         `${this.baseUrl}/reference/financials?ticker=${symbol.toUpperCase()}&apiKey=${this.apiKey}`,
         {

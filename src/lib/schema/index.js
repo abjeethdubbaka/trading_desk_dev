@@ -7,7 +7,6 @@ export const TradeSchema = {
   required: [
     'symbol',
     'entry_price', 
-    'exit_price',
     'quantity',
     'entry_time'
   ],

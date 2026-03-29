@@ -1,5 +1,3 @@
-import { db } from '@/lib/db';
-
 export class TradeCreator {
   static async createTrade(params) {
     const {
@@ -23,6 +21,7 @@ export class TradeCreator {
       entry_price: parseFloat(entryPrice),
       exit_price: calculation?.targetPrice || null,
       position_size: calculation?.shares || shares || 100,
+      quantity: calculation?.shares || shares || 100,
       entry_time: new Date().toISOString(),
       exit_time: null,
       pnl: 0,
@@ -31,7 +30,8 @@ export class TradeCreator {
       fee: 0,
       setup_type: 'Calculator Entry',
       notes: this.buildNotes(params),
-      emotions: 'neutral',
+      // Keep shape aligned with Journal submission format
+      emotions: ['neutral'],
       followed_plan: true,
       mistakes: [],
       lessons: '',
@@ -76,7 +76,8 @@ export class TradeCreator {
     notes += `Account Usage: ${calculation?.percentOfAccount ? `${calculation.percentOfAccount.toFixed(2)}%` : 'Not calculated'}\n`;
     
     if (floatData?.share_float) {
-      notes += `Share Float: ${floatData.share_float.toLocaleString()} (${floatCategory ? FLOAT_CATEGORIES[floatCategory].label : 'Unknown'} Float)\n`;
+      const categoryLabel = floatCategory ? String(floatCategory).toUpperCase() : 'UNKNOWN';
+      notes += `Share Float: ${floatData.share_float.toLocaleString()} (${categoryLabel} Float)\n`;
     }
     
     if (floatData?.company_name) {
@@ -97,12 +98,7 @@ export class TradeCreator {
   }
 
   static async saveTrade(tradeData) {
-    try {
-      const response = await db.trades.create(tradeData);
-      return response;
-    } catch (error) {
-      throw error;
-    }
+    throw new Error('TradeCreator.saveTrade is deprecated. Use useTradesMutation().createTrade instead.');
   }
 }
 

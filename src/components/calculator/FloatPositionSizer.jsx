@@ -15,8 +15,8 @@ import { Plus, RotateCcw }    from 'lucide-react';
 import { toast }              from 'sonner';
 import { useSettings }        from '@/lib/context/SettingsContext';
 import { useTradingContext }   from '@/lib/context/TradingContext';
-import { useQueryClient }     from '@tanstack/react-query';
-import { tradeKeys }          from '@/lib/hooks/useTrades';
+import { useTradesMutation }  from '@/lib/hooks/useTrades';
+import { validateTrade }      from '@/lib/validation/trades';
 import {
   calcPosition,
   calcExitTargets,
@@ -34,7 +34,7 @@ export default function FloatPositionSizer({ historyData, onCalculationSaved = (
   const rafRef = useRef(null); // Add missing ref declaration
   const { selectedSymbol, selectedEntryPrice } = useTradingContext();
   const settingsData = useSettings();
-  const queryClient = useQueryClient();
+  const { createTrade } = useTradesMutation();
   
   // Extract values from settings object
   const { settings, isLoading, refetch: refetchSettings } = settingsData;
@@ -153,31 +153,74 @@ export default function FloatPositionSizer({ historyData, onCalculationSaved = (
 
   // ── Float fetch ───────────────────────────────────────────────────────────
   const fetchShareFloat = useCallback(async () => {
-    if (!symbol) { toast.error('Enter a symbol first'); return; }
-
-    const cached = floatDataService.loadSavedFloatData();
-    if (floatDataService.isCacheValid(cached, symbol)) {
-      setFloatData(cached);
-      setShareFloat(cached.share_float);
-      setFloatCategory(resolveCategory(cached.share_float));
-      toast.success(`Loaded float data for ${symbol} (cached)`);
-      return;
-    }
+    const symbolToFetch = symbol?.trim().toUpperCase();
+    if (!symbolToFetch) { toast.error('Enter a symbol first'); return; }
 
     setLoadingFloat(true);
     try {
-      const data = await floatDataService.fetchFloatData(symbol);
-      floatDataService.saveFloatData(data);
-      setFloatData(data);
-      setShareFloat(data.share_float);
-      setFloatCategory(resolveCategory(data.share_float));
-      toast.success(`Float data loaded for ${symbol}`);
+      const data = await floatDataService.fetchFloatData(symbolToFetch);
+
+      const cached = floatDataService.loadSavedFloatData();
+      const isErrorFallback = Array.isArray(data?.data_sources) && data.data_sources.includes('Error Fallback');
+      const dataToUse = (isErrorFallback && floatDataService.isCacheValid(cached, symbolToFetch)) ? cached : data;
+
+      const resolvedCategory = resolveCategory(dataToUse.share_float);
+
+      if (!dataToUse?.share_float) {
+        toast.error(`No share float found for ${symbolToFetch}`);
+        return;
+      }
+
+      setFloatData(dataToUse);
+      setShareFloat(dataToUse.share_float);
+      setFloatCategory(resolvedCategory);
+
+      floatDataService.saveFloatData(dataToUse);
+
+      if (entryPrice) {
+        const autoResult = calcPosition({
+          entryPrice,
+          direction,
+          accountSize,
+          positionPct: positionSizingPct,
+          stopPct: defaultStopLossPct,
+          stopLossPrice: customStop || undefined,
+          riskAmount,
+          shareFloat: dataToUse.share_float ?? undefined,
+          floatCategory: resolvedCategory ?? undefined,
+          floatCategories,
+          maxDollars,
+          targetProfitDollars,
+          riskRewardRatio: 3,
+        });
+
+        setCalculation(autoResult);
+        toast.success(`Float data loaded for ${symbolToFetch} and position calculated`);
+      } else {
+        toast.success(`Float data loaded for ${symbolToFetch}`);
+      }
+
+      if (isErrorFallback && floatDataService.isCacheValid(cached, symbolToFetch)) {
+        toast.info(`Polygon unavailable - used cached data for ${symbolToFetch}`);
+      }
     } catch (e) {
       toast.error('Failed to fetch float data');
     } finally {
       setLoadingFloat(false);
     }
-  }, [symbol, floatCategories]);
+  }, [
+    symbol,
+    entryPrice,
+    direction,
+    accountSize,
+    positionSizingPct,
+    defaultStopLossPct,
+    customStop,
+    riskAmount,
+    floatCategories,
+    maxDollars,
+    targetProfitDollars,
+  ]);
 
   function resolveCategory(floatSize) {
     if (!floatSize || !floatCategories) return null;
@@ -259,10 +302,16 @@ export default function FloatPositionSizer({ historyData, onCalculationSaved = (
   // ── Add to Journal ────────────────────────────────────────────────────────
   const handleAddToJournal = useCallback(async () => {
     if (!entryPrice) { toast.error('Enter an entry price first'); return; }
+    const normalizedSymbol = String(symbol || '').trim().toUpperCase();
+    if (!normalizedSymbol) { toast.error('Enter a symbol first'); return; }
+    if (!/^[A-Z]{1,5}$/.test(normalizedSymbol)) {
+      toast.error('Symbol must be 1-5 uppercase letters (e.g., AAPL)');
+      return;
+    }
     
     try {
       const tradeData = await TradeCreator.createTrade({
-        symbol:       symbol || 'N/A',
+        symbol:       normalizedSymbol,
         entryPrice,
         direction,
         calculation,
@@ -270,17 +319,42 @@ export default function FloatPositionSizer({ historyData, onCalculationSaved = (
         floatCategory,
         stopLoss: calculation?.stopLossPrice, // Use calculated stop loss
       });
-      
-      await TradeCreator.saveTrade(tradeData);
-      
-      // Invalidate trades cache to refresh Journal UI
-      queryClient.invalidateQueries({ queryKey: tradeKeys.lists() });
+
+      const validation = validateTrade(tradeData);
+      if (!validation.isValid) {
+        console.error('[Calculator] Trade payload validation failed', {
+          errors: validation.errors,
+          tradeData,
+        });
+        toast.error(`Trade validation failed: ${validation.errors.join(', ')}`);
+        return;
+      }
+
+      console.info('[Calculator] Add to Journal requested', {
+        symbol: tradeData.symbol,
+        entry_price: tradeData.entry_price,
+        quantity: tradeData.quantity,
+        direction: tradeData.direction,
+      });
+
+      // Use the standard trades mutation path so account tier + cache invalidation
+      // behavior matches manual Journal entries.
+      const savedTrade = await createTrade(tradeData);
+      console.info('[Calculator] Add to Journal success', {
+        id: savedTrade?.id,
+        symbol: savedTrade?.symbol || tradeData.symbol,
+      });
       
       toast.success(`Trade added to journal`);
     } catch (e) {
+      console.error('[Calculator] Add to Journal failed', {
+        code: e?.code,
+        message: e?.message,
+        name: e?.name,
+      });
       toast.error(`Failed: ${e.message}`);
     }
-  }, [symbol, entryPrice, direction, calculation, floatData, floatCategory, queryClient]);
+  }, [symbol, entryPrice, direction, calculation, floatData, floatCategory, createTrade]);
 
   const handleReset = () => {
     setSymbol(''); setEntryPrice(''); setCustomStop('');
@@ -315,6 +389,7 @@ export default function FloatPositionSizer({ historyData, onCalculationSaved = (
           symbol={symbol}
           shareFloat={shareFloat}
           floatCategory={floatCategory}
+          floatCategories={floatCategories}
           calculation={calculation}
         />
       )}
@@ -342,7 +417,7 @@ export default function FloatPositionSizer({ historyData, onCalculationSaved = (
 
         <Button
           onClick={handleAddToJournal}
-          disabled={!entryPrice || !calculation}
+          disabled={!entryPrice || !calculation || !symbol?.trim()}
           className="bg-emerald-600 hover:bg-emerald-700 gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <Plus className="w-4 h-4" />Add to Journal

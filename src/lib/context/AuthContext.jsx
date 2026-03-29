@@ -8,7 +8,7 @@
  *   const { user, signIn, signUp, signInGoogle, signOut, loading } = useAuth();
  */
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { firebaseAuth } from '@/lib/db';
 
 const AuthContext = createContext(null);
@@ -17,12 +17,34 @@ export function AuthProvider({ children }) {
   const [user,    setUser]    = useState(null);
   const [loading, setLoading] = useState(true);
   const [error,   setError]   = useState(null);
+  const isBootstrappingRef = useRef(false);
 
   // Listen to Firebase auth state (only if auth is available)
   useEffect(() => {
     if (firebaseAuth && firebaseAuth.onAuthChange) {
-      const unsub = firebaseAuth.onAuthChange(u => {
+      const unsub = firebaseAuth.onAuthChange(async (u) => {
         setUser(u);
+        
+        if (u) {
+          setLoading(false);
+          return;
+        }
+
+        // Keep the app on Firebase by creating an anonymous session
+        // when no explicit user session exists.
+        if (firebaseAuth.ensureAuth && !isBootstrappingRef.current) {
+          isBootstrappingRef.current = true;
+          try {
+            await firebaseAuth.ensureAuth();
+          } catch (e) {
+            setError(e.message);
+            setLoading(false);
+          } finally {
+            isBootstrappingRef.current = false;
+          }
+          return;
+        }
+
         setLoading(false);
       });
       return unsub;

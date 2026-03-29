@@ -120,7 +120,7 @@ export const FieldValidations = {
   // Trade fields
   symbol: [ValidationTypes.REQUIRED, ValidationTypes.SYMBOL],
   entry_price: [ValidationTypes.REQUIRED, ValidationTypes.POSITIVE_NUMBER],
-  exit_price: [ValidationTypes.REQUIRED, ValidationTypes.POSITIVE_NUMBER],
+  exit_price: [ValidationTypes.POSITIVE_NUMBER],
   quantity: [ValidationTypes.REQUIRED, ValidationTypes.POSITIVE_NUMBER],
   entry_time: [ValidationTypes.REQUIRED, ValidationTypes.DATE],
   exit_time: [ValidationTypes.DATE],
@@ -157,6 +157,16 @@ export const FieldValidations = {
 export function validateField(fieldName, value) {
   const rules = FieldValidations[fieldName] || [];
   const errors = [];
+  const isEmpty = value === undefined || value === null || value === '';
+  const isRequired = rules.includes(ValidationTypes.REQUIRED);
+
+  // Optional fields should accept empty values.
+  if (isEmpty && !isRequired) {
+    return {
+      isValid: true,
+      errors: []
+    };
+  }
   
   for (const ruleType of rules) {
     const rule = ValidationRules[ruleType];

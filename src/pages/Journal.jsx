@@ -72,8 +72,8 @@ export default function Journal() {
     const validation = validateTrade(data);
     
     if (!validation.isValid) {
-      toast.error('Please fix validation errors');
-      return;
+      toast.error(`Trade validation failed: ${(validation.errors || []).join(', ')}`);
+      throw new Error(`Trade validation failed: ${(validation.errors || []).join(', ')}`);
     }
 
     try {
@@ -86,10 +86,13 @@ export default function Journal() {
       }
       setShowModal(false);
       setEditingTrade(null);
+      return true;
     } catch (err) {
-      toast.error(`Failed to save: ${err.message}`);
+      const codeText = err?.code ? ` (${err.code})` : '';
+      toast.error(`Failed to save${codeText}: ${err?.message || 'Unknown error'}`);
+      throw err;
     }
-  }, [editingTrade, createTrade, updateTrade]);
+  }, [editingTrade, createTrade, updateTrade, currentTier]);
 
   const handleEdit = useCallback((trade) => {
     setEditingTrade(trade);

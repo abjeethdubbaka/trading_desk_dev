@@ -1,5 +1,6 @@
 import React, { useState, useCallback } from 'react';
-import { ACCOUNT_TIERS, ACCOUNT_TIER_IDS, getTierSettingsWithCustomizations, detectTierFromSettings, getTierCustomizations, saveTierCustomizations } from '@/lib/config/accountTypes';
+import { ACCOUNT_TIERS, ACCOUNT_TIER_IDS, getTierSettingsWithCustomizations, detectTierFromSettings, getTierSettingsFields, saveTierCustomizations } from '@/lib/config/accountTypes';
+import { useSettings } from '@/lib/context/SettingsContext';
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -13,21 +14,43 @@ import {
 
 export default function AccountTierSelector() {
   const [isOpen, setIsOpen] = useState(false);
-  const [currentTierId, setCurrentTierId] = useState('25K'); // Default fallback
+  const { settings, updateFields, isLoading } = useSettings();
+
+  const currentTierId = (settings?.account_tier && ACCOUNT_TIERS[settings.account_tier])
+    ? settings.account_tier
+    : detectTierFromSettings(settings) || '25K';
   
   const currentTier = ACCOUNT_TIERS[currentTierId];
   
-  const handleTierSelect = useCallback(async (tierId) => {
+  const handleTierSelect = useCallback((tierId) => {
     try {
-      // Simple tier selection - just update local state
-      setCurrentTierId(tierId);
+      // Preserve current tier customizations before switching away
+      if (currentTierId && currentTierId !== 'custom') {
+        const baseTier = getTierSettingsFields(currentTierId);
+        const customizations = {};
+
+        Object.keys(baseTier).forEach((key) => {
+          if (key === 'account_tier') return;
+          if (settings?.[key] !== undefined && settings[key] !== baseTier[key]) {
+            customizations[key] = settings[key];
+          }
+        });
+
+        saveTierCustomizations(currentTierId, customizations);
+      }
+
+      if (tierId === 'custom') {
+        updateFields({ account_tier: 'custom' });
+      } else {
+        const tierSettings = getTierSettingsWithCustomizations(tierId);
+        updateFields(tierSettings);
+      }
+
       setIsOpen(false);
-      
-      // TODO: Save to backend when available
     } catch (error) {
       // Handle error silently
     }
-  }, []);
+  }, [currentTierId, settings, updateFields]);
 
   return (
     <div className="space-y-2">
@@ -40,6 +63,7 @@ export default function AccountTierSelector() {
         <DropdownMenuTrigger asChild>
           <Button
             variant="outline"
+            disabled={isLoading}
             className="w-full justify-between bg-white/5 border-white/10 hover:bg-white/10 text-white"
           >
             <div className="flex items-center gap-2">

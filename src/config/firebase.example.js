@@ -1,23 +1,18 @@
 /**
  * @file src/config/firebase.example.js
  * 
- * Firebase configuration template
- * Copy this file to firebase.js and fill in your actual Firebase credentials.
- * 
- * NEVER commit the actual firebase.js file with real credentials!
+ * Firebase config example for environment-based setup.
+ * Use .env.local instead of storing credentials in source files.
  */
 
-export const firebaseConfig = {
-  apiKey: "YOUR_API_KEY_HERE",
-  authDomain: "your-project.firebaseapp.com",
-  projectId: "your-project-id",
-  storageBucket: "your-project.appspot.com",
-  messagingSenderId: "1234567890",
-  appId: "1:1234567890:web:abcdef123456",
-  measurementId: "G-XXXXXXXXXX",
-};
-
-// Development flag - set to false in production
-export const IS_DEVELOPMENT = true;
+export const FIREBASE_ENV_KEYS = [
+  'VITE_FIREBASE_API_KEY',
+  'VITE_FIREBASE_AUTH_DOMAIN',
+  'VITE_FIREBASE_PROJECT_ID',
+  'VITE_FIREBASE_STORAGE_BUCKET',
+  'VITE_FIREBASE_MESSAGING_SENDER_ID',
+  'VITE_FIREBASE_APP_ID',
+  'VITE_FIREBASE_MEASUREMENT_ID',
+];
 
 

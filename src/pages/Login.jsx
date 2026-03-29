@@ -71,7 +71,7 @@ export default function Login() {
         <div className="bg-white/[0.03] border border-white/[0.08] rounded-2xl p-6 backdrop-blur-xl">
           {/* Mode tabs */}
           <div className="flex bg-white/5 rounded-xl p-1 mb-6">
-            {(['signin','signup'] as const).map(m => (
+            {['signin', 'signup'].map((m) => (
               <button
                 key={m}
                 onClick={() => { setMode(m); setLocalErr(''); }}

@@ -17,12 +17,14 @@ import {
   calcMaxDrawdown,
   calcSharpeRatio,
 } from '@/lib/calculations/trades';
+import { buildDisciplineSnapshot } from '@/lib/calculations/discipline';
 
 import TradingCalendar    from '@/components/dashboard/TradingCalendar';
 import PerformanceBreakdown from '@/components/dashboard/PerformanceBreakdown';
 import DashboardHeader    from '@/components/dashboard/DashboardHeader';
 import StreakTracker       from '@/components/dashboard/StreakTracker';
 import DailyGoalBar        from '@/components/dashboard/DailyGoalBar';
+import DisciplineCoachCard from '@/components/dashboard/DisciplineCoachCard';
 import MorningBrief        from '@/components/dashboard/MorningBrief';
 import DayPanel            from '@/components/dashboard/DayPanel';
 
@@ -47,6 +49,10 @@ export default function Dashboard() {
   const curve      = useMemo(() => buildEquityCurve(trades, accountSize), [trades, accountSize]);
   const maxDD      = useMemo(() => calcMaxDrawdown(curve),         [curve]);
   const sharpe     = useMemo(() => calcSharpeRatio(trades),        [trades]);
+  const disciplineSnapshot = useMemo(
+    () => buildDisciplineSnapshot(trades, settings),
+    [trades, settings]
+  );
 
   const currentBalance = (Number(accountSize) || 0) + (Number(allStats.totalPnL) || 0);
   const maxDailyLoss   = -(maxDollars || 250);
@@ -79,6 +85,7 @@ export default function Dashboard() {
             targetProfit={targetProfitDollars}
             maxDailyLoss={maxDailyLoss}
           />
+          <DisciplineCoachCard snapshot={disciplineSnapshot} />
           <StreakTracker sequence={sequence} />
           <TradingCalendar trades={trades} onDaySelect={setSelectedDay} />
         </div>
