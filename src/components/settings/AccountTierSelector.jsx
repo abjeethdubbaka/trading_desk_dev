@@ -14,7 +14,7 @@ import {
 
 export default function AccountTierSelector() {
   const [isOpen, setIsOpen] = useState(false);
-  const { settings, updateFields, isLoading } = useSettings();
+  const { settings, updateFields, saveImmediately, isLoading } = useSettings();
 
   const currentTierId = (settings?.account_tier && ACCOUNT_TIERS[settings.account_tier])
     ? settings.account_tier
@@ -22,7 +22,7 @@ export default function AccountTierSelector() {
   
   const currentTier = ACCOUNT_TIERS[currentTierId];
   
-  const handleTierSelect = useCallback((tierId) => {
+  const handleTierSelect = useCallback(async (tierId) => {
     try {
       // Preserve current tier customizations before switching away
       if (currentTierId && currentTierId !== 'custom') {
@@ -39,18 +39,21 @@ export default function AccountTierSelector() {
         saveTierCustomizations(currentTierId, customizations);
       }
 
-      if (tierId === 'custom') {
-        updateFields({ account_tier: 'custom' });
-      } else {
-        const tierSettings = getTierSettingsWithCustomizations(tierId);
-        updateFields(tierSettings);
-      }
+      const nextSettings = tierId === 'custom'
+        ? { account_tier: 'custom' }
+        : getTierSettingsWithCustomizations(tierId);
+
+      // Keep UI responsive immediately.
+      updateFields(nextSettings);
+
+      // Persist right away so a restart won't lose tier selection.
+      await saveImmediately(nextSettings);
 
       setIsOpen(false);
     } catch (error) {
       // Handle error silently
     }
-  }, [currentTierId, settings, updateFields]);
+  }, [currentTierId, settings, updateFields, saveImmediately]);
 
   return (
     <div className="space-y-2">

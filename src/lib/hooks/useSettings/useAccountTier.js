@@ -10,21 +10,21 @@ import { detectTierFromSettings, getTierSettingsWithCustomizations } from '../..
 import { ACCOUNT_TIERS } from '../../config/accountTypes.js';
 
 export function useAccountTier() {
-  const { settings, updateFields, isSaving } = useSettings();
+  const { settings, updateFields, saveImmediately, isSaving } = useSettings();
   
   // Detect current tier
   const currentTierId = detectTierFromSettings(settings);
   const currentTier = ACCOUNT_TIERS[currentTierId];
   
   // Apply tier settings
-  const applyTier = useCallback((tierId) => {
-    if (tierId === 'custom') {
-      return updateFields({ account_tier: 'custom' });
-    } else {
-      const tierSettings = getTierSettingsWithCustomizations(tierId);
-      return updateFields(tierSettings);
-    }
-  }, [updateFields]);
+  const applyTier = useCallback(async (tierId) => {
+    const updates = tierId === 'custom'
+      ? { account_tier: 'custom' }
+      : getTierSettingsWithCustomizations(tierId);
+
+    updateFields(updates);
+    return saveImmediately(updates);
+  }, [updateFields, saveImmediately]);
   
   // Check if settings match a tier
   const isTierMatched = currentTierId !== 'custom';
@@ -41,5 +41,4 @@ export function useAccountTier() {
     isSaving
   };
 }
-
 

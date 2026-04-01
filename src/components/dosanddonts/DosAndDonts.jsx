@@ -6,8 +6,8 @@ import { RuleModal } from './components/RuleModal';
 import { Stats } from './components/Stats';
 import { CATEGORIES } from './constants';
 import { getDefaultItems } from './utils';
+import { loadDosAndDontsItems, saveDosAndDontsItems } from './storage';
 
-const STORAGE_KEY = 'dosAndDonts';
 const PRIORITY_WEIGHT = { high: 3, medium: 2, low: 1 };
 
 export default function DosAndDonts() {
@@ -24,24 +24,30 @@ export default function DosAndDonts() {
 
   // Load items from localStorage
   useEffect(() => {
-    try {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      const parsed = stored ? JSON.parse(stored) : null;
-      if (Array.isArray(parsed)) {
-        setItems(parsed);
-      } else {
-        setItems(getDefaultItems());
-      }
-    } catch (error) {
-      
-      setItems(getDefaultItems());
-    }
+    setItems(loadDosAndDontsItems());
   }, []);
 
   // Save items to localStorage
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
+    saveDosAndDontsItems(items);
   }, [items]);
+
+  // Sync rules saved from other screens (e.g., Journal note -> Dos/Don't).
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined;
+
+    const syncFromStorage = () => {
+      setItems(loadDosAndDontsItems());
+    };
+
+    window.addEventListener('dosanddonts-updated', syncFromStorage);
+    window.addEventListener('storage', syncFromStorage);
+
+    return () => {
+      window.removeEventListener('dosanddonts-updated', syncFromStorage);
+      window.removeEventListener('storage', syncFromStorage);
+    };
+  }, []);
 
   const filteredItems = useMemo(() => {
     const normalizedQuery = searchQuery.trim().toLowerCase();

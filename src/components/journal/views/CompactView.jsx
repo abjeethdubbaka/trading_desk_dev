@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { cn } from '@/lib/utils/general';
-import { formatDate, formatCurrency } from '../utils/formatters';
+import { formatDate, formatTime, formatCurrency } from '../utils/formatters';
 import { Image, AlertCircle, ChevronDown, Edit2, Trash2 } from 'lucide-react';
 import { PnlBadge, DirectionBadge, RMultipleBadge, EmotionBadge, SetupBadge } from '@/components/ui/TradeBadge';
 import TradeReviewPanel from '../analysis/TradeReviewPanel';
 import { createMediaService } from '@/lib/services/MediaService.js';
 import { db } from '@/lib/db/index.js';
 import { indexedDBAdapter } from '@/lib/db/adapters/IndexedDBAdapter.js';
+import { getRuleSuggestionsFromTrade } from '@/components/dosanddonts/storage';
 
 const mediaService = createMediaService(db, indexedDBAdapter);
 
@@ -81,6 +82,7 @@ function TradeRow({
   trade,
   onEdit,
   onDelete,
+  onSaveNoteAsRule,
   review,
   reviewLoading,
   onReviewTrade,
@@ -95,6 +97,14 @@ function TradeRow({
   const exitPrice    = trade.exit_price     || 0;
   const positionSize = trade.position_size  || 0;
   const screenshots  = trade.screenshots   || [];
+  const emotionList = Array.isArray(trade.emotions)
+    ? trade.emotions.filter(Boolean)
+    : (trade.emotions ? [trade.emotions] : []);
+  const primaryEmotion = emotionList[0] || null;
+  const notesPreview = String(trade.notes || '').trim();
+  const entryTimeLabel = trade.entry_time ? formatTime(trade.entry_time) : '--';
+  const exitTimeLabel = trade.exit_time ? formatTime(trade.exit_time) : '--';
+  const suggestionLists = getRuleSuggestionsFromTrade(trade);
 
   const pnlPct = entryPrice && positionSize
     ? ((pnl / (entryPrice * positionSize)) * 100).toFixed(1)
@@ -120,9 +130,14 @@ function TradeRow({
 
         {/* Date */}
         <div className="w-[82px] flex-shrink-0">
-          <span className="text-[11px] text-white/40 font-mono">
-            {formatDate(trade.entry_time || trade.created_date)}
-          </span>
+          <div className="leading-tight">
+            <span className="block text-[11px] text-white/40 font-mono">
+              {formatDate(trade.entry_time || trade.created_date)}
+            </span>
+            <span className="block text-[9px] text-white/30 font-mono">
+              {entryTimeLabel} | {exitTimeLabel}
+            </span>
+          </div>
         </div>
 
         {/* Symbol + direction */}
@@ -147,7 +162,7 @@ function TradeRow({
         </div>
 
         {/* P&L */}
-        <div className="flex-1 min-w-[90px]">
+        <div className="w-[150px] flex-shrink-0">
           <div className="flex items-center gap-1.5 flex-wrap">
             <PnlBadge value={pnl} size="sm" />
             {pnlPct && (
@@ -166,6 +181,27 @@ function TradeRow({
         {/* Setup */}
         <div className="w-[110px] flex-shrink-0 hidden xl:block">
           <SetupBadge setup={trade.setup_type} />
+        </div>
+
+        {/* Emotions */}
+        <div className="w-[120px] flex-shrink-0 hidden xl:block">
+          <div className="flex items-center gap-1">
+            {primaryEmotion ? (
+              <EmotionBadge emotion={primaryEmotion} />
+            ) : (
+              <span className="text-[10px] text-white/25">—</span>
+            )}
+            {emotionList.length > 1 ? (
+              <span className="text-[10px] text-white/35">+{emotionList.length - 1}</span>
+            ) : null}
+          </div>
+        </div>
+
+        {/* Notes */}
+        <div className="w-[180px] flex-shrink-0 hidden xl:block pr-2">
+          <span className="block text-[10px] text-white/40 truncate">
+            {notesPreview || '—'}
+          </span>
         </div>
 
         {/* Thumbnails */}
@@ -234,9 +270,64 @@ function TradeRow({
             )}
           </div>
 
+          <div className="flex flex-wrap items-center gap-3 text-[10px] text-white/45 font-mono">
+            <span>Entry Time: {entryTimeLabel}</span>
+            <span>Exit Time: {exitTimeLabel}</span>
+          </div>
+
           {/* Notes */}
-          {trade.notes && (
-            <p className="text-[11px] text-white/40 leading-relaxed max-w-xl">{trade.notes}</p>
+          <p className="text-[11px] text-white/40 leading-relaxed max-w-xl whitespace-pre-wrap break-words">
+            {trade.notes ? trade.notes : 'No notes added.'}
+          </p>
+          {trade.notes && typeof onSaveNoteAsRule === 'function' && (
+            <div className="space-y-2">
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => onSaveNoteAsRule(trade, 'do')}
+                  className="text-[10px] px-2 py-1 rounded border border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/15 transition-colors"
+                >
+                  Save Note as Do
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onSaveNoteAsRule(trade, 'dont')}
+                  className="text-[10px] px-2 py-1 rounded border border-rose-500/30 text-rose-300 hover:bg-rose-500/15 transition-colors"
+                >
+                  Save Note as Don&apos;t
+                </button>
+              </div>
+
+              <div className="grid sm:grid-cols-2 gap-2">
+                <div className="rounded border border-emerald-500/20 bg-emerald-500/5 p-2 space-y-1.5">
+                  <p className="text-[10px] uppercase tracking-wide text-emerald-300/85">Suggestions: Repeat (Do)</p>
+                  {suggestionLists.dos.map((suggestion, suggestionIndex) => (
+                    <button
+                      key={`do-${trade.id}-${suggestionIndex}`}
+                      type="button"
+                      onClick={() => onSaveNoteAsRule(trade, 'do', suggestion)}
+                      className="w-full text-left text-[10px] text-emerald-100/85 border border-emerald-500/20 rounded px-2 py-1 hover:bg-emerald-500/15 transition-colors"
+                    >
+                      {suggestion}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="rounded border border-rose-500/20 bg-rose-500/5 p-2 space-y-1.5">
+                  <p className="text-[10px] uppercase tracking-wide text-rose-300/85">Suggestions: What Went Wrong (Don&apos;t)</p>
+                  {suggestionLists.donts.map((suggestion, suggestionIndex) => (
+                    <button
+                      key={`dont-${trade.id}-${suggestionIndex}`}
+                      type="button"
+                      onClick={() => onSaveNoteAsRule(trade, 'dont', suggestion)}
+                      className="w-full text-left text-[10px] text-rose-100/85 border border-rose-500/20 rounded px-2 py-1 hover:bg-rose-500/15 transition-colors"
+                    >
+                      {suggestion}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
           )}
 
           {/* Mistakes */}
@@ -273,7 +364,7 @@ function Header() {
     <div className="flex items-center gap-0 px-3 py-2 border-b border-white/[0.06] bg-white/[0.015]">
       <div className="w-5 mr-2 flex-shrink-0" />
       <div className="w-[82px] flex-shrink-0">
-        <span className="text-[9px] font-semibold uppercase tracking-widest text-white/25">Date</span>
+        <span className="text-[9px] font-semibold uppercase tracking-widest text-white/25">Date/Time</span>
       </div>
       <div className="w-[110px] flex-shrink-0">
         <span className="text-[9px] font-semibold uppercase tracking-widest text-white/25">Symbol</span>
@@ -284,7 +375,7 @@ function Header() {
       <div className="w-[58px] flex-shrink-0 hidden md:block">
         <span className="text-[9px] font-semibold uppercase tracking-widest text-white/25">Size</span>
       </div>
-      <div className="flex-1 min-w-[90px]">
+      <div className="w-[150px] flex-shrink-0">
         <span className="text-[9px] font-semibold uppercase tracking-widest text-white/25">P&L</span>
       </div>
       <div className="w-[52px] flex-shrink-0 hidden lg:block">
@@ -292,6 +383,12 @@ function Header() {
       </div>
       <div className="w-[110px] flex-shrink-0 hidden xl:block">
         <span className="text-[9px] font-semibold uppercase tracking-widest text-white/25">Setup</span>
+      </div>
+      <div className="w-[120px] flex-shrink-0 hidden xl:block">
+        <span className="text-[9px] font-semibold uppercase tracking-widest text-white/25">Emotions</span>
+      </div>
+      <div className="w-[180px] flex-shrink-0 hidden xl:block pr-2">
+        <span className="text-[9px] font-semibold uppercase tracking-widest text-white/25">Notes</span>
       </div>
       <div className="w-20 flex-shrink-0">
         <span className="text-[9px] font-semibold uppercase tracking-widest text-white/25">Img</span>
@@ -301,7 +398,7 @@ function Header() {
 }
 
 /* ─── Main export ──────────────────────────────────────────────────────── */
-export default function CompactView({ trades, onEdit, onDelete, reviews, reviewLoading, onReviewTrade, onClearReview }) {
+export default function CompactView({ trades, onEdit, onDelete, onSaveNoteAsRule, reviews, reviewLoading, onReviewTrade, onClearReview }) {
   return (
     <div className="overflow-x-auto">
       <Header />
@@ -313,6 +410,7 @@ export default function CompactView({ trades, onEdit, onDelete, reviews, reviewL
             index={i}
             onEdit={onEdit}
             onDelete={onDelete}
+            onSaveNoteAsRule={onSaveNoteAsRule}
             review={reviews?.[trade.id]}
             reviewLoading={reviewLoading?.[trade.id]}
             onReviewTrade={onReviewTrade}

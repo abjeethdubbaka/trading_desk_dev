@@ -5,11 +5,12 @@ import { AlertCircle } from 'lucide-react';
 import { createMediaService } from '@/lib/services/MediaService.js';
 import { db } from '@/lib/db/index.js';
 import { indexedDBAdapter } from '@/lib/db/adapters/IndexedDBAdapter.js';
+import { getRuleSuggestionsFromTrade } from '@/components/dosanddonts/storage';
 
 // Create media service instance
 const mediaService = createMediaService(db, indexedDBAdapter);
 
-export default function DetailedView({ trades, onEdit }) {
+export default function DetailedView({ trades, onEdit, onSaveNoteAsRule }) {
   const [imageStates, setImageStates] = useState({});
   const [screenshotUrls, setScreenshotUrls] = useState({});
 
@@ -167,7 +168,9 @@ export default function DetailedView({ trades, onEdit }) {
 
   return (
     <div className="grid grid-cols-2 gap-3 p-3 max-h-[600px] overflow-y-auto">
-      {trades.map(trade => (
+      {trades.map((trade) => {
+        const suggestionLists = getRuleSuggestionsFromTrade(trade);
+        return (
         <div
           key={trade.id}
           className="bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg p-3 transition-colors cursor-pointer"
@@ -187,7 +190,10 @@ export default function DetailedView({ trades, onEdit }) {
                 </span>
               </div>
               <div className="text-xs text-white/50">
-                {formatDate(trade.entry_time)} {trade.entry_time && formatTime(trade.entry_time)}
+                {formatDate(trade.entry_time || trade.created_date)}
+              </div>
+              <div className="text-[11px] text-white/45">
+                Entry: {trade.entry_time ? formatTime(trade.entry_time) : '-'} | Exit: {trade.exit_time ? formatTime(trade.exit_time) : '-'}
               </div>
             </div>
             <div className={cn(
@@ -311,9 +317,56 @@ export default function DetailedView({ trades, onEdit }) {
             </div>
           )}
 
-          {trade.notes && (
-            <div className="text-xs text-white/60 border-t border-white/10 pt-2 mt-1 truncate">
-              {trade.notes}
+          <div className="text-xs text-white/60 border-t border-white/10 pt-2 mt-1 whitespace-pre-wrap break-words">
+            {trade.notes ? trade.notes : 'No notes added.'}
+          </div>
+          {trade.notes && typeof onSaveNoteAsRule === 'function' && (
+            <div className="mt-2 space-y-2" onClick={(event) => event.stopPropagation()}>
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => onSaveNoteAsRule(trade, 'do')}
+                  className="text-[10px] px-2 py-1 rounded border border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/15 transition-colors"
+                >
+                  Save Note as Do
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onSaveNoteAsRule(trade, 'dont')}
+                  className="text-[10px] px-2 py-1 rounded border border-rose-500/30 text-rose-300 hover:bg-rose-500/15 transition-colors"
+                >
+                  Save Note as Don&apos;t
+                </button>
+              </div>
+
+              <div className="grid sm:grid-cols-2 gap-2">
+                <div className="rounded border border-emerald-500/20 bg-emerald-500/5 p-2 space-y-1.5">
+                  <p className="text-[10px] uppercase tracking-wide text-emerald-300/85">Suggestions: Repeat (Do)</p>
+                  {suggestionLists.dos.map((suggestion, suggestionIndex) => (
+                    <button
+                      key={`do-${trade.id}-${suggestionIndex}`}
+                      type="button"
+                      onClick={() => onSaveNoteAsRule(trade, 'do', suggestion)}
+                      className="w-full text-left text-[10px] text-emerald-100/85 border border-emerald-500/20 rounded px-2 py-1 hover:bg-emerald-500/15 transition-colors"
+                    >
+                      {suggestion}
+                    </button>
+                  ))}
+                </div>
+                <div className="rounded border border-rose-500/20 bg-rose-500/5 p-2 space-y-1.5">
+                  <p className="text-[10px] uppercase tracking-wide text-rose-300/85">Suggestions: What Went Wrong (Don&apos;t)</p>
+                  {suggestionLists.donts.map((suggestion, suggestionIndex) => (
+                    <button
+                      key={`dont-${trade.id}-${suggestionIndex}`}
+                      type="button"
+                      onClick={() => onSaveNoteAsRule(trade, 'dont', suggestion)}
+                      className="w-full text-left text-[10px] text-rose-100/85 border border-rose-500/20 rounded px-2 py-1 hover:bg-rose-500/15 transition-colors"
+                    >
+                      {suggestion}
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
           )}
 
@@ -367,7 +420,8 @@ export default function DetailedView({ trades, onEdit }) {
             </div>
           )}
         </div>
-      ))}
+        );
+      })}
     </div>
   );
 }

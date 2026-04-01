@@ -235,12 +235,28 @@ class IndexedDBAdapter {
       const fileRecord = await this.get(this.stores.files, id);
       if (!fileRecord) return null;
 
-      // Convert base64 back to Blob if needed
-      if (fileRecord.data && fileRecord.data.startsWith('data:')) {
-        const response = await fetch(fileRecord.data);
-        const blob = await response.blob();
-        
-        return new File([blob], fileRecord.name, { type: fileRecord.type });
+      // Convert serialized payloads back to File without using fetch(data:),
+      // which can be blocked by CSP connect-src.
+      if (typeof fileRecord.data === 'string' && fileRecord.data.startsWith('data:')) {
+        const blob = this._dataUrlToBlob(fileRecord.data);
+        return new File([blob], fileRecord.name || `file-${id}`, {
+          type: fileRecord.type || blob.type || 'application/octet-stream'
+        });
+      }
+
+      if (fileRecord.data instanceof Blob) {
+        return new File([fileRecord.data], fileRecord.name || `file-${id}`, {
+          type: fileRecord.type || fileRecord.data.type || 'application/octet-stream'
+        });
+      }
+
+      if (fileRecord.data instanceof ArrayBuffer) {
+        const blob = new Blob([fileRecord.data], {
+          type: fileRecord.type || 'application/octet-stream'
+        });
+        return new File([blob], fileRecord.name || `file-${id}`, {
+          type: fileRecord.type || blob.type || 'application/octet-stream'
+        });
       }
       
       return fileRecord;
@@ -277,6 +293,30 @@ class IndexedDBAdapter {
     if (typeof window !== 'undefined') {
       window.dispatchEvent(new CustomEvent(channel, { detail }));
     }
+  }
+
+  _dataUrlToBlob(dataUrl) {
+    const parts = dataUrl.split(',');
+    if (parts.length < 2) {
+      throw new Error('Invalid data URL');
+    }
+
+    const header = parts[0];
+    const payload = parts.slice(1).join(',');
+    const mimeMatch = header.match(/^data:([^;]+)(;base64)?$/i);
+    const mimeType = mimeMatch?.[1] || 'application/octet-stream';
+    const isBase64 = /;base64$/i.test(header);
+
+    if (isBase64) {
+      const binaryString = atob(payload);
+      const bytes = new Uint8Array(binaryString.length);
+      for (let i = 0; i < binaryString.length; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+      }
+      return new Blob([bytes], { type: mimeType });
+    }
+
+    return new Blob([decodeURIComponent(payload)], { type: mimeType });
   }
 
   // Storage management

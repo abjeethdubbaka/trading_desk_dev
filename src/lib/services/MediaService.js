@@ -14,12 +14,18 @@ export class MediaService {
   // Upload file
   async uploadFile(file, metadata = {}) {
     try {
+      const createdAt = metadata?.created_at || new Date().toISOString();
+      const normalizedMetadata = {
+        ...metadata,
+        created_at: createdAt
+      };
+
       // Validate file metadata
       const fileData = {
         file_name: file.name,
         file_type: file.type,
         file_size: file.size,
-        ...metadata
+        ...normalizedMetadata
       };
       
       const validation = validateSchema(MediaSchema, fileData);
@@ -37,8 +43,7 @@ export class MediaService {
         file_type: file.type,
         file_size: file.size,
         file_id: fileRecord.id, // Reference to IndexedDB
-        created_at: new Date().toISOString(),
-        ...metadata
+        ...normalizedMetadata
       });
       
       // Broadcast change
@@ -57,13 +62,19 @@ export class MediaService {
   // Upload screenshot specifically
   async uploadScreenshot(imageData, metadata = {}) {
     try {
+      const createdAt = metadata?.created_at || new Date().toISOString();
+      const normalizedMetadata = {
+        ...metadata,
+        created_at: createdAt
+      };
+
       const screenshotData = {
         file_name: metadata.file_name || `screenshot-${Date.now()}.png`,
         file_type: 'image/png',
         file_size: typeof imageData === 'string' ? 
           Math.round(imageData.length * 0.75) : // Base64 approximation
           imageData.size,
-        ...metadata
+        ...normalizedMetadata
       };
       
       const validation = validateSchema(MediaSchema, screenshotData);
@@ -82,8 +93,7 @@ export class MediaService {
         file_size: screenshotData.file_size,
         file_id: screenshotRecord.id,
         media_type: 'screenshot',
-        created_at: new Date().toISOString(),
-        ...metadata
+        ...normalizedMetadata
       });
       
       // Broadcast change
