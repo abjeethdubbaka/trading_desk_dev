@@ -29,10 +29,11 @@ TradeDesk Pro provides:
 - A **dashboard** with account-level performance snapshot and calendar
 - A **journal** to add/edit/delete trades with screenshots and setup metadata
 - A **position sizing calculator** with float-aware logic and history
+- A **position analysis timer** in calculator output, configurable from Settings
 - A **calculation history screen** to reload prior sizing setups
 - A **settings center** for account/risk/float category configuration
 - A **knowledge base** for custom learning entries + learning progress
-- A **Do's & Don'ts rulebook** to maintain trading discipline
+- A **Do's & Don'ts rulebook** to maintain trading discipline with usage tracking
 - A **performance analytics module** broken down by time/setup/price buckets
 
 The current main navigation includes: Dashboard, Journal, Calculator, Calc History, Knowledge Base, Do's & Don'ts, Performance, Settings.
@@ -125,9 +126,10 @@ VITE_ANTHROPIC_BASE_URL=https://api.anthropic.com/v1/messages
 VITE_ANTHROPIC_MODEL=claude-sonnet-4-20250514
 VITE_ANTHROPIC_VERSION=2023-06-01
 
-NEXT_PUBLIC_BASE44_API_KEY=your_base44_api_key_here
-NEXT_PUBLIC_APP_URL=http://localhost:3000
-NEXT_PUBLIC_USE_MOCK_DATA=false
+# Optional Base44 app params
+VITE_BASE44_APP_ID=
+VITE_BASE44_FUNCTIONS_VERSION=
+VITE_BASE44_APP_BASE_URL=
 ```
 
 Notes:
@@ -206,6 +208,7 @@ Page: `src/pages/Journal.jsx`
   - **Detailed cards**
 - Right-side analysis panel with key performance stats
 - Trade screenshot upload and preview
+- Link trades to **Do/Don't rules** directly while logging
 
 ### Add/Edit Trade modal
 
@@ -216,8 +219,23 @@ Supports:
 - Symbol, direction, entry/exit, size, fee
 - Setup type and strategy preset
 - Emotions and followed-plan flag
-- Notes and lessons
+- Reflection notes:
+  - What went wrong?
+  - What did you learn?
 - Screenshot upload
+- Do/Don't selector:
+  - Select existing rules
+  - Create new rules from trade context
+  - Apply suggestion chips and attach rules to the trade
+
+### Add Trade modal architecture
+
+`AddTradeModal` was split into focused modules:
+
+- `AddTradeModal/index.jsx` (thin wrapper)
+- `hooks/useAddTradeModalController.js` (state + submit logic)
+- `components/AddTradeForm.jsx` (form layout)
+- `utils/setupGrade.js` (VWAP grading helper)
 
 ### VWAP Pullback workflow
 
@@ -271,6 +289,17 @@ Implemented in `useFloatPositionSizer`:
 ### Output
 
 - Shares, position value, stop loss, target, risk %, account impact
+- Position Analysis timer controls:
+  - Start / Pause
+  - Reset
+  - Countdown badge (`mm:ss`)
+  - Uses Settings value `analysis_timer_seconds`
+
+### Calculator state persistence
+
+Calculator state is persisted so prior results survive navigation between pages.
+
+Persisted fields include symbol, entry, stop, direction, float context, and latest calculation.
 
 ### Integration with Journal
 
@@ -303,6 +332,7 @@ Configurable settings include:
 - position sizing %
 - stop loss defaults
 - risk amount
+- position analysis timer seconds (`analysis_timer_seconds`)
 - target profit and max dollars
 - float category definitions and multipliers
 
@@ -336,6 +366,9 @@ Features:
 - Track discipline rules grouped by category
 - Search/filter rules
 - Add/edit/delete rule cards
+- View per-rule usage counts
+- See aggregate usage and top-used rule in stats
+- Rule usage automatically updates when attached/removed on trades
 
 Persistence:
 
@@ -369,7 +402,18 @@ Data source:
 - `calcHistory` - calculator history entries
 - `userSettings` - persisted settings snapshot
 - `dosAndDonts` - discipline rule items
+- `calculator.floatPositionSizer.state.v1` - latest calculator working state/results
 - knowledge base keys defined in knowledge base constants/hooks
+
+### Key model fields added
+
+- Trade:
+  - `dos_donts_rule_ids` (array of linked Do/Don't rule IDs)
+- Settings:
+  - `analysis_timer_seconds` (integer seconds for calculator timer)
+- Do/Don't item:
+  - `usage_count` (how many times applied on trades)
+  - `last_used_at` (ISO timestamp of most recent use)
 
 ### Entity schemas
 

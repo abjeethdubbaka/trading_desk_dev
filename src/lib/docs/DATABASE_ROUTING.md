@@ -291,6 +291,32 @@ const routing = {
 }
 ```
 
+## Feature Enhancement Notes
+
+Recent feature updates added new persisted fields. If you maintain custom adapters,
+composite routing, or migration scripts, include these keys for compatibility.
+
+### Settings additions
+
+- `analysis_timer_seconds` (number)
+  - Used by Calculator Position Analysis timer.
+  - Default: `180`.
+
+### Trade additions
+
+- `dos_donts_rule_ids` (string[])
+  - Links a trade to selected Do/Don't rules.
+
+### Do/Don't rule additions
+
+- `usage_count` (number)
+- `last_used_at` (ISO string or `null`)
+
+### Local storage key additions
+
+- `calculator.floatPositionSizer.state.v1`
+  - Stores calculator state/results across navigation.
+
 ---
 
 **Advanced database routing and validation patterns provide flexible, powerful storage solutions!** 🎉
