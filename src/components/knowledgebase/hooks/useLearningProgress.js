@@ -13,7 +13,7 @@ export function useLearningProgress() {
       setLearningProgress(progress);
       setEnrolledCourses(Object.keys(progress));
     } catch (error) {
-      console.error('Failed to load learning progress:', error);
+      
       setLearningProgress({});
       setEnrolledCourses([]);
     }
@@ -21,9 +21,7 @@ export function useLearningProgress() {
 
   // Save learning progress to localStorage
   useEffect(() => {
-    if (Object.keys(learningProgress).length > 0) {
-      localStorage.setItem(CONSTANTS.LEARNING_PROGRESS_KEY, JSON.stringify(learningProgress));
-    }
+    localStorage.setItem(CONSTANTS.LEARNING_PROGRESS_KEY, JSON.stringify(learningProgress));
   }, [learningProgress]);
 
   // Handle enroll course
@@ -72,9 +70,11 @@ export function useLearningProgress() {
     const learningEntries = entries.filter(entry => 
       ['course', 'tutorial', 'video', 'article'].includes(entry.type)
     );
+    const learningEntryIds = new Set(learningEntries.map((entry) => entry.id));
+    const activeProgressEntries = Object.entries(learningProgress).filter(([courseId]) => learningEntryIds.has(courseId));
     
-    const enrolledCount = Object.keys(learningProgress).length;
-    const completedCourses = Object.values(learningProgress).filter(progress => progress.overallProgress === 100).length;
+    const enrolledCount = activeProgressEntries.length;
+    const completedCourses = activeProgressEntries.filter(([, progress]) => progress.overallProgress === 100).length;
     const totalLearningTime = learningEntries.reduce((total, entry) => {
       const duration = parseInt(entry.duration) || 0;
       return total + duration;
@@ -98,3 +98,5 @@ export function useLearningProgress() {
     getLearningStats
   };
 }
+
+

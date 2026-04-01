@@ -2,7 +2,7 @@ import React from 'react';
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { AlertCircle } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { cn } from '@/lib/utils/general';
 import { isValidExitTime } from '../utils/dateUtils';
 
 const TimeFields = ({ entryTime, exitTime, onEntryChange, onExitChange }) => {
@@ -44,3 +44,5 @@ const TimeFields = ({ entryTime, exitTime, onEntryChange, onExitChange }) => {
 };
 
 export default React.memo(TimeFields);
+
+

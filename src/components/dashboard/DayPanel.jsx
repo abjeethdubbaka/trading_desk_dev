@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { X } from 'lucide-react';
 import { format, isSameDay } from 'date-fns';
-import { cn } from '@/lib/utils';
+import { cn } from '@/lib/utils/general';
 
 export default function DayPanel({ day, trades = [], onClose }) {
   const dayTrades = useMemo(
@@ -61,3 +61,5 @@ export default function DayPanel({ day, trades = [], onClose }) {
     </div>
   );
 }
+
+

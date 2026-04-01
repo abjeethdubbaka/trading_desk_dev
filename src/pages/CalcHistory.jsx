@@ -7,12 +7,12 @@
 import React, { useMemo }     from 'react';
 import { useNavigate }         from 'react-router-dom';
 import { createPageUrl }       from '@/utils';
-import { useCalcHistory }      from '@/hooks/useCalcHistory';
+import { useCalcHistory } from '@/lib/hooks/useCalcHistory';
 import { Card, CardContent }   from '@/components/ui/card';
 import { Button }              from '@/components/ui/button';
 import { Badge }               from '@/components/ui/badge';
-import { History, Trash2, TrendingUp, TrendingDown, Calculator, ArrowLeft, RefreshCw } from 'lucide-react';
-import { cn }                  from '@/lib/utils';
+import { /* History, */ Trash2, TrendingUp, TrendingDown, Calculator, /* ArrowLeft, RefreshCw */ } from 'lucide-react';  // History, ArrowLeft & RefreshCw unused
+import { cn }                  from '@/lib/utils/general';
 
 const fmt = (n) =>
   new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0 }).format(n ?? 0);
@@ -48,7 +48,7 @@ function FloatBadge({ category }) {
 
 export default function CalcHistory() {
   const navigate = useNavigate();
-  const { history, isLoading, deleteItem, clearHistory } = useCalcHistory();
+  const { data: history = [], isLoading, deleteItem, clearHistory } = useCalcHistory();
 
   const summary = useMemo(() => ({
     totalRisk:         history.reduce((s, i) => s + (i.actualRisk       ?? 0), 0),
@@ -65,30 +65,15 @@ export default function CalcHistory() {
     <div className="min-h-screen bg-[#0a0a0f] text-white p-4 lg:p-8">
       <div className="max-w-6xl mx-auto space-y-6">
 
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" onClick={() => navigate(createPageUrl('Calculator'))} className="text-white/60">
-              <ArrowLeft className="w-4 h-4 mr-2" />Back
-            </Button>
-            <div>
-              <h1 className="text-2xl font-bold flex items-center gap-2">
-                <History className="w-6 h-6 text-blue-400" />
-                Calculation History
-              </h1>
-              <p className="text-white/40 text-sm mt-0.5">Click any row to reload into the calculator</p>
-            </div>
-          </div>
-          {history.length > 0 && (
-            <Button
-              variant="ghost"
-              onClick={() => window.confirm('Clear all history?') && clearHistory()}
-              className="text-red-400 hover:text-red-300 hover:bg-red-500/10"
-            >
-              <Trash2 className="w-4 h-4 mr-2" />Clear All
-            </Button>
-          )}
-        </div>
+        {history.length > 0 && (
+          <Button
+            variant="ghost"
+            onClick={() => window.confirm('Clear all history?') && clearHistory()}
+            className="text-red-400 hover:text-red-300 hover:bg-red-500/10"
+          >
+            <Trash2 className="w-4 h-4 mr-2" />Clear All
+          </Button>
+        )}
 
         {/* Summary */}
         {history.length > 0 && (
@@ -190,3 +175,5 @@ export default function CalcHistory() {
     </div>
   );
 }
+
+

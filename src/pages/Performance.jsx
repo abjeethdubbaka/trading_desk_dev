@@ -6,8 +6,8 @@
  */
 
 import React, { useMemo }    from 'react';
-import { useTrades }          from '@/hooks/useTrades';
-import { useSettings }        from '@/lib/SettingsContext';
+import { useTrades } from '@/lib/hooks/useTrades';
+import { useSettings }        from '@/lib/context/SettingsContext';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   calcCoreStats,
@@ -19,10 +19,9 @@ import {
   perfBySetupType,
   perfByPriceRange,
 } from '@/lib/calculations/trades';
-import { cn } from '@/lib/utils';
+import { cn } from '@/lib/utils/general';
 
 // Existing chart components (unchanged)
-import EquityCurve        from '@/components/performance/EquityCurve';
 import EmotionMatrix      from '@/components/performance/EmotionMatrix';
 import PlanAdherenceCard  from '@/components/performance/PlanAdherenceCard';
 import PeriodComparison   from '@/components/performance/PeriodComparison';
@@ -30,6 +29,12 @@ import PerformanceByHourOfDay  from '@/components/performance/PerformanceByHourO
 import PerformanceByDayOfWeek  from '@/components/performance/PerformanceByDayOfWeek';
 import PerformanceBySetupType  from '@/components/performance/PerformanceBySetupType';
 import PerformanceByPrice      from '@/components/performance/PerformanceByPrice';
+import AnalysisPanel           from '@/components/journal/analysis/AnalysisPanel';
+
+const toFiniteNumber = (value, fallback = 0) => {
+  const numericValue = Number(value);
+  return Number.isFinite(numericValue) ? numericValue : fallback;
+};
 
 function StatPill({ label, value, color }) {
   return (
@@ -41,8 +46,12 @@ function StatPill({ label, value, color }) {
 }
 
 export default function PerformancePage() {
-  const { data: trades = [], isLoading } = useTrades();
-  const { accountSize } = useSettings();
+  const { settings } = useSettings();
+  const currentTier = settings?.account_tier || 'custom';
+  const accountSize = toFiniteNumber(settings?.account_size, 50000);
+  const { data: trades = [], isLoading } = useTrades({
+    filters: { account_tier: currentTier },
+  });
 
   const stats  = useMemo(() => calcCoreStats(trades),                   [trades]);
   const curve  = useMemo(() => buildEquityCurve(trades, accountSize),   [trades, accountSize]);
@@ -65,12 +74,6 @@ export default function PerformancePage() {
 
   return (
     <div className="space-y-5">
-      <div>
-        <h1 className="text-2xl font-bold">Performance</h1>
-        <p className="text-white/40 text-sm mt-1">
-          {trades.length} trades · all data synced from Firebase
-        </p>
-      </div>
 
       {/* KPI row */}
       <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3">
@@ -96,30 +99,42 @@ export default function PerformancePage() {
       </div>
 
       <PeriodComparison trades={trades} initialBalance={accountSize} />
-      <EquityCurve      trades={trades} initialBalance={accountSize} />
 
       <Tabs defaultValue="behavior">
         <TabsList className="bg-white/5 border border-white/10">
           <TabsTrigger value="behavior">Behavior</TabsTrigger>
           <TabsTrigger value="timing">Timing</TabsTrigger>
           <TabsTrigger value="setups">Setups</TabsTrigger>
+          <TabsTrigger value="analysis">Analysis</TabsTrigger>
         </TabsList>
 
         <TabsContent value="behavior" className="space-y-4 mt-4">
-          <EmotionMatrix    trades={trades} />
-          <PlanAdherenceCard trades={trades} />
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <EmotionMatrix    trades={trades} />
+            <PlanAdherenceCard trades={trades} />
+          </div>
         </TabsContent>
 
-        <TabsContent value="timing" className="space-y-4 mt-4">
-          <PerformanceByHourOfDay data={byHour}  />
-          <PerformanceByDayOfWeek data={byDay}   />
+        <TabsContent value="timing" className="mt-4">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <PerformanceByHourOfDay data={byHour}  />
+            <PerformanceByDayOfWeek data={byDay}   />
+          </div>
         </TabsContent>
 
-        <TabsContent value="setups" className="space-y-4 mt-4">
-          <PerformanceBySetupType data={bySetup} />
-          <PerformanceByPrice     data={byPrice} />
+        <TabsContent value="setups" className="mt-4">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <PerformanceBySetupType data={bySetup} />
+            <PerformanceByPrice     data={byPrice} />
+          </div>
+        </TabsContent>
+
+        <TabsContent value="analysis" className="mt-4">
+          <AnalysisPanel trades={trades} isCollapsed={false} />
         </TabsContent>
       </Tabs>
     </div>
   );
 }
+
+

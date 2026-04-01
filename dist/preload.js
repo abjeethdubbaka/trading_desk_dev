@@ -9,6 +9,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Dialog
   showMessageBox: (options) => ipcRenderer.invoke('show-message-box', options),
   
+  // App control
+  closeApp: () => ipcRenderer.invoke('close-app'),
+  
   // Menu events
   onMenuNewTrade: (callback) => ipcRenderer.on('menu-new-trade', callback),
   onMenuAbout: (callback) => ipcRenderer.on('menu-about', callback),

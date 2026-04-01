@@ -1,8 +1,20 @@
 import React from 'react';
 import { FiBook } from 'react-icons/fi';
 
-export function EmptyState({ searchQuery, selectedType, selectedTags, activeTab, onCreateEntry }) {
-  const hasFilters = searchQuery || selectedType !== 'all' || selectedTags.length > 0;
+export function EmptyState({
+  searchQuery,
+  selectedType,
+  selectedTags,
+  selectedCategory,
+  selectedDifficulty,
+  activeTab,
+  onCreateEntry
+}) {
+  const hasFilters = searchQuery
+    || selectedType !== 'all'
+    || selectedCategory !== 'all'
+    || selectedDifficulty !== 'all'
+    || selectedTags.length > 0;
   
   return (
     <div className="text-center py-12">
@@ -10,7 +22,7 @@ export function EmptyState({ searchQuery, selectedType, selectedTags, activeTab,
       <h3 className="text-lg font-medium text-white mb-2">No entries found</h3>
       <p className="text-gray-400 mb-4">
         {hasFilters
-          ? 'Try adjusting your filters or search query'
+          ? 'Try adjusting your filters, tags, or search query'
           : activeTab === 'learning' 
             ? 'Get started by exploring our learning courses'
             : 'Get started by creating your first knowledge base entry'}
@@ -26,3 +38,5 @@ export function EmptyState({ searchQuery, selectedType, selectedTags, activeTab,
     </div>
   );
 }
+
+

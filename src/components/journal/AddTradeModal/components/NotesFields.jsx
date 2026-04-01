@@ -101,7 +101,6 @@ const ChecklistStep = ({
 };
 
 const NotesFields = ({
-  pnlValue,
   setupType,
   setupGrade,
   breakoutChecklist,
@@ -111,61 +110,35 @@ const NotesFields = ({
   onBreakoutMetaChange
 }) => {
   const isVWAPPullback = (setupType || '').toLowerCase().trim() === 'vwap pullback';
-  const outcome = Number(pnlValue) < 0 ? 'loss' : Number(pnlValue) > 0 ? 'profit' : 'neutral';
 
   return (
     <>
-      {outcome === 'loss' && (
-        <div className="space-y-3 border border-red-500/20 rounded-lg p-4 bg-red-500/5">
-          <p className="text-sm font-semibold text-red-300">Loss Reflection (saved for analysis)</p>
-          <div className="space-y-2">
-            <Label htmlFor="what-went-wrong" className="text-xs text-white/80">What went wrong?</Label>
-            <Textarea
-              id="what-went-wrong"
-              value={reflectionAnswers?.what_went_wrong || ''}
-              onChange={(e) => onReflectionChange('what_went_wrong', e.target.value)}
-              placeholder="Example: Entered too early before confirmation, ignored stop discipline..."
-              className="bg-white/5 border-white/10 min-h-[72px] resize-y"
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="what-learned-loss" className="text-xs text-white/80">What did you learn?</Label>
-            <Textarea
-              id="what-learned-loss"
-              value={reflectionAnswers?.what_learned || ''}
-              onChange={(e) => onReflectionChange('what_learned', e.target.value)}
-              placeholder="Example: Wait for full setup confirmation and keep risk fixed."
-              className="bg-white/5 border-white/10 min-h-[72px] resize-y"
-            />
-          </div>
-        </div>
-      )}
+      {/* Always show reflection section */}
+      <div className="space-y-3 border border-white/20 rounded-lg p-4 bg-white/5">
+        <p className="text-sm font-semibold text-white">Reflection</p>
 
-      {outcome === 'profit' && (
-        <div className="space-y-3 border border-emerald-500/20 rounded-lg p-4 bg-emerald-500/5">
-          <p className="text-sm font-semibold text-emerald-300">Profit Reflection (saved for analysis)</p>
-          <div className="space-y-2">
-            <Label htmlFor="what-went-right" className="text-xs text-white/80">What went right?</Label>
-            <Textarea
-              id="what-went-right"
-              value={reflectionAnswers?.what_went_right || ''}
-              onChange={(e) => onReflectionChange('what_went_right', e.target.value)}
-              placeholder="Example: Followed plan, entered on confirmation, respected targets."
-              className="bg-white/5 border-white/10 min-h-[72px] resize-y"
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="what-to-repeat" className="text-xs text-white/80">What should you repeat?</Label>
-            <Textarea
-              id="what-to-repeat"
-              value={reflectionAnswers?.what_to_repeat || ''}
-              onChange={(e) => onReflectionChange('what_to_repeat', e.target.value)}
-              placeholder="Example: Keep this entry timing and risk management process consistent."
-              className="bg-white/5 border-white/10 min-h-[72px] resize-y"
-            />
-          </div>
+        <div className="space-y-2">
+          <Label htmlFor="what-went-wrong" className="text-xs text-white/80">What went wrong?</Label>
+          <Textarea
+            id="what-went-wrong"
+            value={reflectionAnswers?.what_went_wrong || ''}
+            onChange={(e) => onReflectionChange('what_went_wrong', e.target.value)}
+            placeholder="Example: Entered too early before confirmation, ignored stop discipline..."
+            className="bg-white/5 border-white/10 min-h-[72px] resize-y"
+          />
         </div>
-      )}
+        
+        <div className="space-y-2">
+          <Label htmlFor="what-learned" className="text-xs text-white/80">What did you learn?</Label>
+          <Textarea
+            id="what-learned"
+            value={reflectionAnswers?.what_learned || ''}
+            onChange={(e) => onReflectionChange('what_learned', e.target.value)}
+            placeholder="Example: Wait for full setup confirmation and keep risk fixed."
+            className="bg-white/5 border-white/10 min-h-[72px] resize-y"
+          />
+        </div>
+      </div>
 
       {isVWAPPullback && (
         <>
@@ -231,3 +204,5 @@ const NotesFields = ({
 };
 
 export default React.memo(NotesFields);
+
+

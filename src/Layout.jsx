@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { createPageUrl } from './utils';
-import { useElectron } from '@/hooks/useElectron';
+import { useElectron } from '@/lib/hooks/useElectron';
 import {
   LayoutDashboard,
   BookOpen,
@@ -167,9 +167,6 @@ export default function Layout({ children, currentPageName }) {
             {!collapsed && (
               <div>
                 <h1 className="font-bold text-lg tracking-tight">TradeDesk</h1>
-                <p className="text-[10px] text-white/40 uppercase tracking-wider">
-                  {isElectron ? 'Desktop App' : 'Web Version'} {appVersion && `v${appVersion}`}
-                </p>
               </div>
             )}
           </div>
@@ -265,3 +262,5 @@ export default function Layout({ children, currentPageName }) {
     </div>
   );
 }
+
+

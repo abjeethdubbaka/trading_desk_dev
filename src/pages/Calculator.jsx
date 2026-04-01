@@ -4,10 +4,10 @@
  * Phase 2 — rewired to useSettings() + useCalcHistory() (Firebase-backed).
  */
 
-import React, { useEffect } from 'react';
+import React from 'react';
 import { useLocation }       from 'react-router-dom';
 import FloatPositionSizer    from '@/components/calculator/FloatPositionSizer';
-import { useCalcHistory }    from '@/hooks/useCalcHistory';
+import { useCalcHistory } from '@/lib/hooks/useCalcHistory';
 
 export default function Calculator() {
   const location    = useLocation();
@@ -21,3 +21,5 @@ export default function Calculator() {
     />
   );
 }
+
+

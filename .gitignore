@@ -13,6 +13,9 @@
 
 # misc
 .DS_Store
+.env
+.env.*
+!.env.example
 .env.local
 .env.development.local
 .env.test.local
@@ -22,6 +25,11 @@
 src/config/firebase.js
 firebase-config.js
 firebase-credentials.js
+*.pem
+*.key
+*.p12
+*.p8
+*.crt
 
 # Logs
 npm-debug.log*

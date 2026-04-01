@@ -51,3 +51,5 @@ export const CHART_CONFIG = {
   margin: { top: 20, right: 30, left: 20, bottom: 20 },
   barRadius: 4
 };
+
+

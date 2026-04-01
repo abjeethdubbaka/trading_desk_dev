@@ -45,7 +45,7 @@ export const utcToLocalDateTime = (utcISO) => {
     
     return `${year}-${month}-${day}T${hours}:${minutes}`;
   } catch (error) {
-    console.error('Error converting UTC to local datetime:', error);
+    
     return '';
   }
 };
@@ -79,3 +79,5 @@ export const isValidExitTime = (entryTime, exitTime) => {
   
   return exit > entry;
 };
+
+

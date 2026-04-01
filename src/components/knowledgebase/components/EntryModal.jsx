@@ -47,7 +47,7 @@ export function EntryModal({ entry, onSave, onCancel }) {
           }]
         }));
       } catch (error) {
-        console.error('Failed to process image:', error);
+        
       }
     }
   };
@@ -60,10 +60,11 @@ export function EntryModal({ entry, onSave, onCancel }) {
   };
 
   const addTag = () => {
-    if (tagInput.trim() && !formData.tags.includes(tagInput.trim())) {
+    const nextTag = tagInput.trim().toLowerCase();
+    if (nextTag && !formData.tags.includes(nextTag)) {
       setFormData(prev => ({
         ...prev,
-        tags: [...prev.tags, tagInput.trim()]
+        tags: [...prev.tags, nextTag]
       }));
       setTagInput('');
     }
@@ -165,7 +166,7 @@ export function EntryModal({ entry, onSave, onCancel }) {
                         <option value={CONSTANTS.LEARNING_CATEGORIES.TRADING_PSYCHOLOGY} className="bg-[#0a0a0f]">Trading Psychology</option>
                         <option value={CONSTANTS.LEARNING_CATEGORIES.MARKET_STRUCTURE} className="bg-[#0a0a0f]">Market Structure</option>
                         <option value={CONSTANTS.LEARNING_CATEGORIES.STRATEGY_DEVELOPMENT} className="bg-[#0a0a0f]">Strategy Development</option>
-                        <option value={CONSTANTS.LEARNING_CATEGORIES.PORTFOLIO_MANAGEMENT} className="bg-[##0a0a0f]">Portfolio Management</option>
+                        <option value={CONSTANTS.LEARNING_CATEGORIES.PORTFOLIO_MANAGEMENT} className="bg-[#0a0a0f]">Portfolio Management</option>
                         <option value={CONSTANTS.LEARNING_CATEGORIES.ALGORITHMIC_TRADING} className="bg-[#0a0a0f]">Algorithmic Trading</option>
                       </select>
                     </div>
@@ -272,7 +273,12 @@ export function EntryModal({ entry, onSave, onCancel }) {
                     type="text"
                     value={tagInput}
                     onChange={(e) => setTagInput(e.target.value)}
-                    onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addTag())}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ',') {
+                        e.preventDefault();
+                        addTag();
+                      }
+                    }}
                     placeholder="Add tag..."
                     className="flex-1 px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white placeholder-gray-400"
                   />
@@ -339,7 +345,7 @@ export function EntryModal({ entry, onSave, onCancel }) {
                     type="text"
                     value={formulaInput}
                     onChange={(e) => setFormulaInput(e.target.value)}
-                    onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addFormula())}
+                    onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addFormula())}
                     placeholder="Enter LaTeX formula..."
                     className="flex-1 px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white placeholder-gray-400"
                   />
@@ -389,3 +395,5 @@ export function EntryModal({ entry, onSave, onCancel }) {
     </div>
   );
 }
+
+

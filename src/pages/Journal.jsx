@@ -1,119 +1,108 @@
 /**
  * @file src/pages/Journal.jsx
  *
- * Phase 2 — rewired to useJournal() (Firebase-backed).
+ * Phase 2 - rewired to useJournal() (Firebase-backed).
  * All trade CRUD flows through the new db layer.
  */
 
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { useJournal }           from '@/hooks/useTrades';
-import { useJournalFilters }    from '@/components/journal/hooks/useJournalFilters';
-import AddTradeModal            from '@/components/journal/AddTradeModal';
-import JournalToolbar           from '@/components/journal/components/JournalToolbar';
-import CompactView              from '@/components/journal/components/CompactView';
-import DetailedView             from '@/components/journal/components/DetailedView';
-import EmptyState               from '@/components/journal/components/EmptyState';
-import AnalysisPanel            from '@/components/journal/components/Analysis';
-import JournalStatsBar          from '@/components/journal/components/JournalStatsBar';
-import { useTradeReview }       from '@/lib/useTradeReview';
-import { VIEW_MODES }           from '@/components/journal/utils/constants';
-import { validateTrade, sanitizeTrade } from '@/lib/validation/trades';
-import { cn }                   from '@/lib/utils';
-import { toast }                from 'sonner';
+import React, { useEffect, useMemo, useState } from 'react';
+import { useJournal, useTradesMutation } from '@/lib/hooks/useTrades';
+import { useTradeReview } from '@/lib/hooks/useTradeReview';
+import { useSettings } from '@/lib/context/SettingsContext';
+import {
+  AddTradeModal,
+  CompactView,
+  DetailedView,
+  EmptyState,
+  JournalPagination,
+  JournalStatsBar,
+  JournalToolbar,
+  VIEW_MODES,
+  useJournalDataTransfer,
+  useJournalFilters,
+  useJournalPagination,
+  useJournalTradeManagement,
+} from '@/components/journal';
+
+const PAGE_SIZE = 20;
 
 export default function Journal() {
-  const [showModal,      setShowModal]      = useState(false);
-  const [editingTrade,   setEditingTrade]   = useState(null);
-  const [viewMode,       setViewMode]       = useState(VIEW_MODES.COMPACT);
-  const [isPanelExpanded,setPanelExpanded]  = useState(false);
+  const [viewMode, setViewMode] = useState(VIEW_MODES.COMPACT);
 
-  // ── Data (Firebase via useTrades) ────────────────────────────────────────
-  const { trades, isLoading, createTrade, updateTrade, deleteTrade, isSaving } = useJournal();
-
-  // ── Filters (client-side on fetched data) ────────────────────────────────
+  const { trades, isLoading, refetch } = useJournal();
+  const { settings } = useSettings();
   const {
-    searchTerm, setSearchTerm,
-    filter,     setFilter,
-    dateRange,  setDateRange,
+    createTrade,
+    updateTrade,
+    deleteTrade,
+    bulkCreateTrades,
+    isCreating,
+    isUpdating,
+    isBulkCreating,
+  } = useTradesMutation();
+  const accountTier = settings?.account_tier || 'custom';
+  const isSaving = isCreating || isUpdating || isBulkCreating;
+
+  const {
+    searchTerm,
+    setSearchTerm,
+    filter,
+    setFilter,
+    dateRange,
+    setDateRange,
     filteredTrades,
   } = useJournalFilters(trades);
 
+  const resetSignal = useMemo(() => `${searchTerm}|${filter}|${dateRange}`, [searchTerm, filter, dateRange]);
+
+  const {
+    currentPage,
+    setCurrentPage,
+    totalPages,
+    paginatedItems,
+    pageStartNumber,
+    pageEndNumber,
+  } = useJournalPagination(filteredTrades, {
+    pageSize: PAGE_SIZE,
+    resetSignal,
+  });
+
+  const {
+    isImporting,
+    importStatus,
+    handleImportCsv,
+    handleExportCsv,
+  } = useJournalDataTransfer({
+    filteredTrades,
+    accountTier,
+    bulkCreateTrades,
+  });
+
+  const {
+    showModal,
+    editingTrade,
+    openCreateModal,
+    handleEdit,
+    handleClose,
+    handleSave,
+    handleDelete,
+  } = useJournalTradeManagement({
+    createTrade,
+    updateTrade,
+    deleteTrade,
+  });
+
   const { reviews, loading: reviewLoading, reviewTrade, clearReview } = useTradeReview();
 
-  // ── Listen for external "open modal" events (e.g. from Calculator) ───────
   useEffect(() => {
-    const handler = (e) => {
-      setEditingTrade(e.detail?.tradeData ?? null);
-      setShowModal(true);
+    const handleTradesUpdated = () => {
+      refetch();
     };
-    window.addEventListener('open-add-trade-modal', handler);
-    return () => window.removeEventListener('open-add-trade-modal', handler);
-  }, []);
 
-  // ── Save handler ─────────────────────────────────────────────────────────
-  const handleSave = useCallback(async (data) => {
-    console.log('📝 Journal Handle Save - START:', data);
-    console.log('📝 Journal Handle Save - Editing Trade:', editingTrade);
-    
-    const validation = validateTrade(data);
-    console.log('📝 Journal Handle Save - Validation Result:', validation);
-    console.log('📝 Journal Handle Save - Validation Errors:', validation.errors);
-    console.log('📝 Journal Handle Save - Validation Warnings:', validation.warnings);
-    
-    if (!validation.isValid) {
-      console.error('❌ Journal Handle Save - Validation Failed:', validation.errors);
-      toast.error('Fix validation errors before saving');
-      validation.errors.forEach(e => {
-        console.error('❌ Validation Error:', e);
-        toast.error(e);
-      });
-      return;
-    }
-    if (validation.hasWarnings) {
-      validation.warnings.forEach(w => toast.warning(w));
-    }
+    window.addEventListener('trades-updated', handleTradesUpdated);
+    return () => window.removeEventListener('trades-updated', handleTradesUpdated);
+  }, [refetch]);
 
-    try {
-      if (editingTrade) {
-        console.log('📝 Journal Handle Save - UPDATING trade:', editingTrade.id);
-        await updateTrade(editingTrade.id, data);
-        toast.success(`${data.symbol} updated`);
-      } else {
-        console.log('📝 Journal Handle Save - CREATING new trade');
-        await createTrade(data);
-        toast.success(`${data.symbol} logged`);
-      }
-      console.log('📝 Journal Handle Save - SUCCESS');
-      setShowModal(false);
-      setEditingTrade(null);
-    } catch (err) {
-      console.error('💥 Journal Handle Save - ERROR:', err);
-      console.error('💥 Journal Handle Save - ERROR MESSAGE:', err.message);
-      toast.error(`Failed to save: ${err.message}`);
-    }
-  }, [editingTrade, createTrade, updateTrade]);
-
-  const handleEdit = useCallback((trade) => {
-    setEditingTrade(trade);
-    setShowModal(true);
-  }, []);
-
-  const handleDelete = useCallback(async (id) => {
-    if (!window.confirm('Delete this trade?')) return;
-    try {
-      await deleteTrade(id);
-      toast.success('Trade deleted');
-    } catch (err) {
-      toast.error(`Delete failed: ${err.message}`);
-    }
-  }, [deleteTrade]);
-
-  const handleClose = useCallback(() => {
-    setShowModal(false);
-    setEditingTrade(null);
-  }, []);
-
-  // ── Render ────────────────────────────────────────────────────────────────
   return (
     <div className="space-y-4">
       <JournalToolbar
@@ -125,7 +114,12 @@ export default function Journal() {
         onDateRangeChange={setDateRange}
         viewMode={viewMode}
         onViewModeChange={setViewMode}
-        onAddTrade={() => setShowModal(true)}
+        onAddTrade={openCreateModal}
+        onExportCsv={handleExportCsv}
+        canExport={filteredTrades.length > 0}
+        onImportCsv={handleImportCsv}
+        isImporting={isImporting}
+        importStatus={importStatus}
         trades={filteredTrades}
       />
 
@@ -140,48 +134,37 @@ export default function Journal() {
       ) : filteredTrades.length === 0 ? (
         <EmptyState
           hasFilters={!!(searchTerm || filter !== 'all' || dateRange !== 'all')}
-          onAddTrade={() => setShowModal(true)}
+          onAddTrade={openCreateModal}
         />
       ) : (
-        <div className="flex gap-4">
-          {/* Trade list */}
-          <div className="flex-1 bg-[#1a1a24] border border-white/10 rounded overflow-hidden">
-            {viewMode === VIEW_MODES.COMPACT ? (
-              <CompactView
-                trades={filteredTrades}
-                onEdit={handleEdit}
-                onDelete={handleDelete}
-                reviews={reviews}
-                reviewLoading={reviewLoading}
-                onReviewTrade={reviewTrade}
-                onClearReview={clearReview}
-              />
-            ) : (
-              <DetailedView
-                trades={filteredTrades}
-                onEdit={handleEdit}
-                reviews={reviews}
-                reviewLoading={reviewLoading}
-                onReviewTrade={reviewTrade}
-                onClearReview={clearReview}
-              />
-            )}
-          </div>
-
-          {/* Analysis panel — expands on hover */}
-          <div
-            onMouseEnter={() => setPanelExpanded(true)}
-            onMouseLeave={() => setPanelExpanded(false)}
-          >
-            <div className={cn(
-              'transition-all duration-300 ease-in-out',
-              isPanelExpanded ? 'w-80 opacity-100' : 'w-12 opacity-60',
-            )}>
-              <AnalysisPanel trades={filteredTrades} isCollapsed={!isPanelExpanded} />
-            </div>
-          </div>
+        <div className="bg-[#1a1a24] border border-white/10 rounded overflow-hidden">
+          {viewMode === VIEW_MODES.COMPACT ? (
+            <CompactView
+              trades={paginatedItems}
+              onEdit={handleEdit}
+              onDelete={handleDelete}
+              reviews={reviews}
+              reviewLoading={reviewLoading}
+              onReviewTrade={reviewTrade}
+              onClearReview={clearReview}
+            />
+          ) : (
+            <DetailedView
+              trades={paginatedItems}
+              onEdit={handleEdit}
+            />
+          )}
         </div>
       )}
+
+      <JournalPagination
+        totalItems={filteredTrades.length}
+        totalPages={totalPages}
+        currentPage={currentPage}
+        onPageChange={setCurrentPage}
+        pageStartNumber={pageStartNumber}
+        pageEndNumber={pageEndNumber}
+      />
 
       <AddTradeModal
         open={showModal}

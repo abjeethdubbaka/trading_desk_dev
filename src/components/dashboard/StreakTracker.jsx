@@ -1,5 +1,5 @@
 import React from 'react';
-import { cn } from '@/lib/utils';
+import { cn } from '@/lib/utils/general';
 import { calcStreaks } from '@/lib/calculations/trades';
 
 export default function StreakTracker({ sequence = [] }) {
@@ -38,3 +38,5 @@ export default function StreakTracker({ sequence = [] }) {
     </div>
   );
 }
+
+

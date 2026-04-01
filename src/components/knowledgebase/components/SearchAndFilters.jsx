@@ -1,5 +1,5 @@
 import React from 'react';
-import { FiSearch, FiFilter, FiChevronDown, FiChevronUp, FiPlus, FiBook, FiAward, FiTarget, FiGrid, FiList, FiX } from 'react-icons/fi';
+import { FiSearch, FiFilter, FiChevronDown, FiChevronUp, FiPlus, FiBook, FiAward, FiTarget, FiGrid, FiList, FiX, FiRefreshCw, FiDownload } from 'react-icons/fi';
 import { CONSTANTS } from '../constants';
 
 export function SearchAndFilters({ 
@@ -20,6 +20,10 @@ export function SearchAndFilters({
   selectedTags,
   setSelectedTags,
   allTags,
+  hasActiveFilters,
+  onClearFilters,
+  onExportEntries,
+  onResetDefaults,
   onCreateEntry,
   activeTab,
   setActiveTab,
@@ -180,7 +184,9 @@ export function SearchAndFilters({
                 <option value={CONSTANTS.SORT_OPTIONS.CREATED_DESC} className="bg-[#0a0a0f]">Newest First</option>
                 <option value={CONSTANTS.SORT_OPTIONS.CREATED_ASC} className="bg-[#0a0a0f]">Oldest First</option>
                 <option value={CONSTANTS.SORT_OPTIONS.UPDATED_DESC} className="bg-[#0a0a0f]">Recently Updated</option>
+                <option value={CONSTANTS.SORT_OPTIONS.UPDATED_ASC} className="bg-[#0a0a0f]">Least Recently Updated</option>
                 <option value={CONSTANTS.SORT_OPTIONS.TITLE_ASC} className="bg-[#0a0a0f]">Title A-Z</option>
+                <option value={CONSTANTS.SORT_OPTIONS.TITLE_DESC} className="bg-[#0a0a0f]">Title Z-A</option>
               </select>
             </div>
           </div>
@@ -222,8 +228,34 @@ export function SearchAndFilters({
               ))}
             </div>
           )}
+
+          <div className="mt-4 flex flex-wrap gap-2">
+            <button
+              onClick={onClearFilters}
+              disabled={!hasActiveFilters}
+              className="flex items-center gap-2 px-3 py-1.5 border border-white/10 rounded-lg hover:bg-white/5 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm"
+            >
+              <FiRefreshCw />
+              Clear Filters
+            </button>
+            <button
+              onClick={onExportEntries}
+              className="flex items-center gap-2 px-3 py-1.5 border border-blue-500/30 text-blue-300 rounded-lg hover:bg-blue-500/10 text-sm"
+            >
+              <FiDownload />
+              Export JSON
+            </button>
+            <button
+              onClick={onResetDefaults}
+              className="px-3 py-1.5 border border-orange-500/30 text-orange-300 rounded-lg hover:bg-orange-500/10 text-sm"
+            >
+              Reset Defaults
+            </button>
+          </div>
         </div>
       )}
     </div>
   );
 }
+
+

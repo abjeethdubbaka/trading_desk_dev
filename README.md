@@ -101,6 +101,30 @@ npm run electron-pack
 From `.env.example`:
 
 ```env
+# Firebase
+VITE_FIREBASE_API_KEY=your_firebase_api_key
+VITE_FIREBASE_AUTH_DOMAIN=your-project.firebaseapp.com
+VITE_FIREBASE_PROJECT_ID=your-project-id
+VITE_FIREBASE_STORAGE_BUCKET=your-project.appspot.com
+VITE_FIREBASE_MESSAGING_SENDER_ID=1234567890
+VITE_FIREBASE_APP_ID=1:1234567890:web:abcdef123456
+VITE_FIREBASE_MEASUREMENT_ID=G-XXXXXXXXXX
+
+# Polygon
+VITE_POLYGON_API_KEY=your_polygon_api_key
+VITE_POLYGON_BASE_URL=https://api.polygon.io/v3
+
+# Optional discipline coach AI overlay (backend endpoint)
+VITE_DISCIPLINE_COACH_ENDPOINT=
+VITE_DISCIPLINE_COACH_API_KEY=
+VITE_DISCIPLINE_COACH_TIMEOUT_MS=12000
+
+# Optional screenshot AI (Anthropic)
+VITE_ANTHROPIC_API_KEY=
+VITE_ANTHROPIC_BASE_URL=https://api.anthropic.com/v1/messages
+VITE_ANTHROPIC_MODEL=claude-sonnet-4-20250514
+VITE_ANTHROPIC_VERSION=2023-06-01
+
 NEXT_PUBLIC_BASE44_API_KEY=your_base44_api_key_here
 NEXT_PUBLIC_APP_URL=http://localhost:3000
 NEXT_PUBLIC_USE_MOCK_DATA=false
@@ -108,8 +132,9 @@ NEXT_PUBLIC_USE_MOCK_DATA=false
 
 Notes:
 
-- The current codebase uses a local/mock-style `base44Client` for many flows.
-- Most journaling and analytics features are persisted in localStorage for immediate offline behavior.
+- Keep real values in `.env.local` only; never commit `.env.local`.
+- `.gitignore` already excludes local env files and credential artifacts.
+- Most journaling and analytics features are still persisted in localStorage for immediate offline behavior.
 
 ---
 
@@ -427,4 +452,3 @@ Highlights:
 - Follow existing component structure by feature folder.
 - Keep persistence-compatible changes backward-safe for existing localStorage data.
 - Prefer hook-based state logic and focused UI components.
-

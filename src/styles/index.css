@@ -1,0 +1,13 @@
+@import './tailwind.css';
+@import './tokens.css';
+@import './base.css';
+@import './animations.css';
+@import './scrollbar.css';
+@import './components.css';
+@import './typography.css';
+@import './tables.css';
+@import './progress.css';
+@import './badges.css';
+@import './inputs.css';
+@import './sidebar.css';
+@import './misc.css';

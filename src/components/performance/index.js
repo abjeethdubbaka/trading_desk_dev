@@ -7,3 +7,5 @@ export { PerformanceByPrice } from './components/PerformanceByPrice';
 export { PerformanceByHourOfDay } from './components/PerformanceByHourOfDay';
 export { PerformanceByMonthOfYear } from './components/PerformanceByMonthOfYear';
 export { PerformanceBySetupType } from './components/PerformanceBySetupType';
+
+

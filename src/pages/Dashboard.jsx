@@ -6,47 +6,62 @@
  */
 
 import React, { useState, useMemo } from 'react';
-import { useTrades }        from '@/hooks/useTrades';
-import { useSettings }      from '@/lib/SettingsContext';
-import { useTradeEvents }   from '@/components/journal/hooks/useTradeEvents';
+import { useTrades } from '@/lib/hooks/useTrades';
+import { useSettings }      from '@/lib/context/SettingsContext';
+import { useTradeEvents }   from '@/components/journal';
 import {
   calcCoreStats,
   calcTodayStats,
   getDailySequence,
   buildEquityCurve,
-  calcMaxDrawdown,
-  calcSharpeRatio,
 } from '@/lib/calculations/trades';
+import { buildDisciplineSnapshot } from '@/lib/calculations/discipline';
 
 import TradingCalendar    from '@/components/dashboard/TradingCalendar';
 import PerformanceBreakdown from '@/components/dashboard/PerformanceBreakdown';
 import DashboardHeader    from '@/components/dashboard/DashboardHeader';
 import StreakTracker       from '@/components/dashboard/StreakTracker';
 import DailyGoalBar        from '@/components/dashboard/DailyGoalBar';
+import DisciplineCoachCard from '@/components/dashboard/DisciplineCoachCard';
 import MorningBrief        from '@/components/dashboard/MorningBrief';
 import DayPanel            from '@/components/dashboard/DayPanel';
+
+const toFiniteNumber = (value, fallback = 0) => {
+  const numericValue = Number(value);
+  return Number.isFinite(numericValue) ? numericValue : fallback;
+};
 
 export default function Dashboard() {
   useTradeEvents();
   const [selectedDay, setSelectedDay] = useState(null);
 
-  const { data: trades = [], isLoading } = useTrades({ sortBy: 'entry_time', sortDir: 'desc' });
-  const {
-    accountSize,
-    targetProfitDollars,
-    maxDollars,
-  } = useSettings();
+  const { settings } = useSettings();
+  const currentTier = settings?.account_tier || 'custom';
+  const { data: trades = [], isLoading } = useTrades({
+    filters: {
+      account_tier: currentTier,
+      sortBy: 'entry_time',
+      sortDir: 'desc',
+    },
+  });
+
+  const accountSize = toFiniteNumber(settings?.account_size, 50000);
+  const targetProfitDollars = toFiniteNumber(settings?.target_profit_dollars, 500);
+  const maxDollars = toFiniteNumber(settings?.max_dollars, 250);
 
   // ── Analytics (pure functions, no extra queries) ──────────────────────────
   const allStats   = useMemo(() => calcCoreStats(trades),          [trades]);
   const todayStats = useMemo(() => calcTodayStats(trades),         [trades]);
   const sequence   = useMemo(() => getDailySequence(trades, 20),   [trades]);
   const curve      = useMemo(() => buildEquityCurve(trades, accountSize), [trades, accountSize]);
-  const maxDD      = useMemo(() => calcMaxDrawdown(curve),         [curve]);
-  const sharpe     = useMemo(() => calcSharpeRatio(trades),        [trades]);
+  const recentDailyPnL = useMemo(() => sequence.map((item) => item.pnl), [sequence]);
+  const disciplineSnapshot = useMemo(
+    () => buildDisciplineSnapshot(trades, settings),
+    [trades, settings]
+  );
 
-  const currentBalance = accountSize + allStats.totalPnL;
-  const maxDailyLoss   = -(maxDollars || 250);
+  const currentBalance = accountSize + toFiniteNumber(allStats.totalPnL, 0);
+  const maxDailyLoss = -Math.abs(maxDollars);
 
   if (isLoading) {
     return (
@@ -67,18 +82,18 @@ export default function Dashboard() {
         winRate={allStats.winRate}
         avgR={allStats.avgR}
         todayTrades={todayStats.totalTrades}
+        recentDailyPnL={recentDailyPnL}
       />
-
-      <DailyGoalBar
-        todayPnL={todayStats.totalPnL}
-        targetProfit={targetProfitDollars}
-        maxDailyLoss={maxDailyLoss}
-      />
-
-      <StreakTracker sequence={sequence} />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-        <div className="lg:col-span-2">
+        <div className="lg:col-span-2 space-y-5">
+          <DailyGoalBar
+            todayPnL={todayStats.totalPnL}
+            targetProfit={targetProfitDollars}
+            maxDailyLoss={maxDailyLoss}
+          />
+          <DisciplineCoachCard snapshot={disciplineSnapshot} />
+          <StreakTracker sequence={sequence} />
           <TradingCalendar trades={trades} onDaySelect={setSelectedDay} />
         </div>
         {selectedDay
@@ -87,7 +102,9 @@ export default function Dashboard() {
         }
       </div>
 
-      <PerformanceBreakdown trades={trades} />
+      <PerformanceBreakdown data={curve} />
     </div>
   );
 }
+
+

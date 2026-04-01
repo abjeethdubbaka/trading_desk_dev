@@ -1,10 +1,42 @@
-import React from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useSettings } from '@/lib/SettingsContext';
+import { useSettings } from '@/lib/context/SettingsContext';
+
+const FLOAT_TARGET_FIELDS = [
+  'float_10m_min_r',
+  'float_10m_max_r',
+  'float_10_50m_min_r',
+  'float_10_50m_max_r',
+  'float_50_200m_min_r',
+  'float_50_200m_max_r',
+  'float_200m_min_r',
+  'float_200m_max_r',
+];
 
 export default function FloatTargetSettings() {
   const { settings, loading, saving, updateSettings } = useSettings();
+  const [draft, setDraft] = useState({});
+
+  useEffect(() => {
+    const nextDraft = {};
+    FLOAT_TARGET_FIELDS.forEach((field) => {
+      const raw = settings?.[field];
+      nextDraft[field] = raw == null ? '' : String(raw);
+    });
+    setDraft(nextDraft);
+  }, [settings]);
+
+  const handleChange = useCallback((field, value) => {
+    setDraft((prev) => ({ ...prev, [field]: value }));
+  }, []);
+
+  const commitField = useCallback((field, rawValue) => {
+    const parsed = rawValue === '' ? 0 : parseFloat(rawValue);
+    updateSettings({
+      [field]: Number.isFinite(parsed) ? parsed : 0,
+    });
+  }, [updateSettings]);
 
   return (
     <div className="glass-card rounded-2xl p-5 gradient-border max-w-md">
@@ -16,8 +48,9 @@ export default function FloatTargetSettings() {
             <Input
               type="number"
               step="0.5"
-              value={settings.float_10m_min_r || ''}
-              onChange={(e) => updateSettings({ float_10m_min_r: e.target.value })}
+              value={draft.float_10m_min_r ?? ''}
+              onChange={(e) => handleChange('float_10m_min_r', e.target.value)}
+              onBlur={(e) => commitField('float_10m_min_r', e.target.value)}
               placeholder="4"
               className="bg-white/5 border-white/10 text-sm"
               disabled={loading || saving}
@@ -28,8 +61,9 @@ export default function FloatTargetSettings() {
             <Input
               type="number"
               step="0.5"
-              value={settings.float_10m_max_r || ''}
-              onChange={(e) => updateSettings({ float_10m_max_r: e.target.value })}
+              value={draft.float_10m_max_r ?? ''}
+              onChange={(e) => handleChange('float_10m_max_r', e.target.value)}
+              onBlur={(e) => commitField('float_10m_max_r', e.target.value)}
               placeholder="7"
               className="bg-white/5 border-white/10 text-sm"
               disabled={loading || saving}
@@ -43,8 +77,9 @@ export default function FloatTargetSettings() {
             <Input
               type="number"
               step="0.5"
-              value={settings.float_10_50m_min_r || ''}
-              onChange={(e) => updateSettings({ float_10_50m_min_r: e.target.value })}
+              value={draft.float_10_50m_min_r ?? ''}
+              onChange={(e) => handleChange('float_10_50m_min_r', e.target.value)}
+              onBlur={(e) => commitField('float_10_50m_min_r', e.target.value)}
               placeholder="3"
               className="bg-white/5 border-white/10 text-sm"
               disabled={loading || saving}
@@ -55,8 +90,9 @@ export default function FloatTargetSettings() {
             <Input
               type="number"
               step="0.5"
-              value={settings.float_10_50m_max_r || ''}
-              onChange={(e) => updateSettings({ float_10_50m_max_r: e.target.value })}
+              value={draft.float_10_50m_max_r ?? ''}
+              onChange={(e) => handleChange('float_10_50m_max_r', e.target.value)}
+              onBlur={(e) => commitField('float_10_50m_max_r', e.target.value)}
               placeholder="5"
               className="bg-white/5 border-white/10 text-sm"
               disabled={loading || saving}
@@ -70,8 +106,9 @@ export default function FloatTargetSettings() {
             <Input
               type="number"
               step="0.5"
-              value={settings.float_50_200m_min_r || ''}
-              onChange={(e) => updateSettings({ float_50_200m_min_r: e.target.value })}
+              value={draft.float_50_200m_min_r ?? ''}
+              onChange={(e) => handleChange('float_50_200m_min_r', e.target.value)}
+              onBlur={(e) => commitField('float_50_200m_min_r', e.target.value)}
               placeholder="2"
               className="bg-white/5 border-white/10 text-sm"
               disabled={loading || saving}
@@ -82,8 +119,9 @@ export default function FloatTargetSettings() {
             <Input
               type="number"
               step="0.5"
-              value={settings.float_50_200m_max_r || ''}
-              onChange={(e) => updateSettings({ float_50_200m_max_r: e.target.value })}
+              value={draft.float_50_200m_max_r ?? ''}
+              onChange={(e) => handleChange('float_50_200m_max_r', e.target.value)}
+              onBlur={(e) => commitField('float_50_200m_max_r', e.target.value)}
               placeholder="3"
               className="bg-white/5 border-white/10 text-sm"
               disabled={loading || saving}
@@ -97,8 +135,9 @@ export default function FloatTargetSettings() {
             <Input
               type="number"
               step="0.5"
-              value={settings.float_200m_min_r || ''}
-              onChange={(e) => updateSettings({ float_200m_min_r: e.target.value })}
+              value={draft.float_200m_min_r ?? ''}
+              onChange={(e) => handleChange('float_200m_min_r', e.target.value)}
+              onBlur={(e) => commitField('float_200m_min_r', e.target.value)}
               placeholder="1"
               className="bg-white/5 border-white/10 text-sm"
               disabled={loading || saving}
@@ -109,8 +148,9 @@ export default function FloatTargetSettings() {
             <Input
               type="number"
               step="0.5"
-              value={settings.float_200m_max_r || ''}
-              onChange={(e) => updateSettings({ float_200m_max_r: e.target.value })}
+              value={draft.float_200m_max_r ?? ''}
+              onChange={(e) => handleChange('float_200m_max_r', e.target.value)}
+              onBlur={(e) => commitField('float_200m_max_r', e.target.value)}
               placeholder="2"
               className="bg-white/5 border-white/10 text-sm"
               disabled={loading || saving}
@@ -121,3 +161,5 @@ export default function FloatTargetSettings() {
     </div>
   );
 }
+
+

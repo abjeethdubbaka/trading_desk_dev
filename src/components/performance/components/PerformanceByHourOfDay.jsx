@@ -59,3 +59,5 @@ export function PerformanceByHourOfDay({ data, trades = [] }) {
 }
 
 export default PerformanceByHourOfDay;
+
+

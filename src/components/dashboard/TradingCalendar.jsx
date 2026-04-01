@@ -65,33 +65,33 @@ export default function TradingCalendar({ trades }) {
   const prevMonth = () => setCurrentMonth(subMonths(currentMonth, 1));
 
   return (
-    <div className="glass-card rounded-2xl p-6 gradient-border">
-      <div className="flex items-center justify-between mb-6">
-        <h3 className="text-lg font-semibold">Trading Calendar</h3>
-        <div className="flex items-center gap-2">
+    <div className="glass-card rounded-2xl p-2 gradient-border">
+      <div className="flex items-center justify-between mb-2">
+        <h3 className="text-xs font-semibold">Trading Calendar</h3>
+        <div className="flex items-center gap-1">
           <button
             onClick={prevMonth}
-            className="p-1 rounded hover:bg-white/10 transition-colors"
+            className="p-0.5 rounded hover:bg-white/10 transition-colors"
           >
-            <ChevronLeft className="w-4 h-4" />
+            <ChevronLeft className="w-2 h-2" />
           </button>
-          <span className="text-sm font-medium min-w-[120px] text-center">
-            {format(currentMonth, 'MMMM yyyy')}
+          <span className="text-[10px] font-medium min-w-[70px] text-center">
+            {format(currentMonth, 'MMM yy')}
           </span>
           <button
             onClick={nextMonth}
-            className="p-1 rounded hover:bg-white/10 transition-colors"
+            className="p-0.5 rounded hover:bg-white/10 transition-colors"
           >
-            <ChevronRight className="w-4 h-4" />
+            <ChevronRight className="w-2 h-2" />
           </button>
         </div>
       </div>
 
       {/* Calendar Grid */}
-      <div className="grid grid-cols-7 gap-1">
+      <div className="grid grid-cols-7 gap-0.5">
         {/* Weekday headers */}
         {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((day, index) => (
-          <div key={index} className="text-center text-xs text-white/50 font-medium p-2">
+          <div key={index} className="text-center text-[9px] text-white/50 font-medium p-0.5">
             {day}
           </div>
         ))}
@@ -105,37 +105,37 @@ export default function TradingCalendar({ trades }) {
             <div
               key={index}
               className={`
-                aspect-square rounded-lg p-1 cursor-pointer transition-all
+                aspect-[2/1] rounded p-0.5 cursor-pointer transition-all
                 ${getDayColor(metrics)}
                 ${!isCurrentMonth ? 'opacity-30' : ''}
                 relative flex flex-col justify-between
               `}
             >
-              <div className="text-sm text-white/80 text-center">
+              <div className="text-[9px] text-white/80 text-center leading-tight">
                 {format(day, 'd')}
               </div>
               
               {metrics && (
                 <div className="flex flex-col items-center">
-                  <div className="text-base font-bold text-white">
+                  <div className="text-[9px] font-bold text-white leading-tight">
                     ${metrics.totalPnL.toFixed(0)}
                   </div>
-                  <div className="flex items-center gap-1 text-sm mt-1">
+                  <div className="flex items-center gap-0.5">
                     {metrics.wins > 0 && (
                       <div className="flex items-center gap-0.5">
-                        <TrendingUp className="w-3 h-3 text-emerald-400" />
-                        <span className="text-emerald-400">{metrics.wins}</span>
+                        <TrendingUp className="w-1 h-1 text-emerald-400" />
+                        <span className="text-[9px] text-emerald-400">{metrics.wins}</span>
                       </div>
                     )}
                     {metrics.losses > 0 && (
                       <div className="flex items-center gap-0.5">
-                        <TrendingDown className="w-3 h-3 text-red-400" />
-                        <span className="text-red-400">{metrics.losses}</span>
+                        <TrendingDown className="w-1 h-1 text-red-400" />
+                        <span className="text-[9px] text-red-400">{metrics.losses}</span>
                       </div>
                     )}
                   </div>
-                  <div className="text-xs text-white/60 mt-1">
-                    {metrics.trades}T
+                  <div className="text-[8px] text-white/60">
+                    {metrics.trades}
                   </div>
                 </div>
               )}
@@ -164,3 +164,5 @@ export default function TradingCalendar({ trades }) {
     </div>
   );
 }
+
+

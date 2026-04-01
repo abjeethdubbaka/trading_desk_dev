@@ -16,6 +16,8 @@ export function RuleModal({ item, categories, onSave, onCancel }) {
     e.preventDefault();
     const data = {
       ...formData,
+      title: formData.title.trim(),
+      description: formData.description.trim(),
       examples: formData.examples.filter(ex => ex.trim() !== ''),
       icon: formData.type === 'do' ? FiCheckCircle : FiXCircle
     };
@@ -49,10 +51,11 @@ export function RuleModal({ item, categories, onSave, onCancel }) {
   };
 
   const addTag = (tag) => {
-    if (tag.trim() && !formData.tags.includes(tag.trim())) {
+    const nextTag = tag.trim().toLowerCase();
+    if (nextTag && !formData.tags.includes(nextTag)) {
       setFormData(prev => ({
         ...prev,
-        tags: [...prev.tags, tag.trim()]
+        tags: [...prev.tags, nextTag]
       }));
     }
   };
@@ -191,8 +194,8 @@ export function RuleModal({ item, categories, onSave, onCancel }) {
                 <input
                   type="text"
                   placeholder="Add tags (press Enter)"
-                  onKeyPress={(e) => {
-                    if (e.key === 'Enter') {
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ',') {
                       e.preventDefault();
                       addTag(e.target.value);
                       e.target.value = '';
@@ -224,3 +227,5 @@ export function RuleModal({ item, categories, onSave, onCancel }) {
     </div>
   );
 }
+
+

@@ -1,12 +1,49 @@
-import React from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Layers } from 'lucide-react';
-import { useSettings } from '@/lib/SettingsContext';
+import { useSettings } from '@/lib/context/SettingsContext';
 
 export default function FloatCategoriesSettings() {
   const { settings, loading, saving, updateFloatCategory } = useSettings();
-  const inputValue = (value) => (value == null || value === Infinity ? '' : String(value));
+  const [draftValues, setDraftValues] = useState({});
+  const categories = settings?.float_categories || {};
+
+  const inputValue = useCallback((value) => (value == null || value === Infinity ? '' : String(value)), []);
+  const keyFor = useCallback((categoryKey, field) => `${categoryKey}:${field}`, []);
+
+  const getFieldValue = useCallback((categoryKey, field, sourceValue) => {
+    const lookupKey = keyFor(categoryKey, field);
+    return draftValues[lookupKey] ?? inputValue(sourceValue);
+  }, [draftValues, inputValue, keyFor]);
+
+  const updateDraftValue = useCallback((categoryKey, field, value) => {
+    const lookupKey = keyFor(categoryKey, field);
+    setDraftValues((prev) => ({
+      ...prev,
+      [lookupKey]: value,
+    }));
+  }, [keyFor]);
+
+  const commitNumericField = useCallback((categoryKey, field, rawValue, fallbackValue, allowInfinity = false) => {
+    let parsedValue;
+    if (rawValue === '' && allowInfinity) {
+      parsedValue = Infinity;
+    } else {
+      const numericValue = parseFloat(rawValue);
+      parsedValue = Number.isFinite(numericValue) ? numericValue : fallbackValue;
+    }
+
+    updateFloatCategory(categoryKey, { [field]: parsedValue });
+    const lookupKey = keyFor(categoryKey, field);
+    setDraftValues((prev) => {
+      const next = { ...prev };
+      delete next[lookupKey];
+      return next;
+    });
+  }, [keyFor, updateFloatCategory]);
+
+  const categoryEntries = useMemo(() => Object.entries(categories), [categories]);
 
   return (
     <div className="glass-card rounded-2xl p-5 gradient-border max-w-2xl">
@@ -16,7 +53,7 @@ export default function FloatCategoriesSettings() {
       </div>
       
       <div className="space-y-4">
-        {Object.entries(settings.float_categories).map(([key, category]) => (
+        {categoryEntries.map(([key, category]) => (
           <div key={key} className="bg-white/5 rounded-lg p-4 border border-white/10">
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
@@ -31,11 +68,9 @@ export default function FloatCategoriesSettings() {
                 <Label className="text-xs text-white/60">Min Float</Label>
                 <Input
                   type="number"
-                  value={inputValue(category.min)}
-                  onChange={(e) => {
-                    const newValue = e.target.value === '' ? Infinity : parseFloat(e.target.value) || 0;
-                    updateFloatCategory(key, { min: newValue });
-                  }}
+                  value={getFieldValue(key, 'min', category.min)}
+                  onChange={(e) => updateDraftValue(key, 'min', e.target.value)}
+                  onBlur={(e) => commitNumericField(key, 'min', e.target.value, 0, true)}
                   placeholder="0"
                   className="bg-white/5 border-white/10 text-sm"
                   disabled={loading || saving}
@@ -46,11 +81,9 @@ export default function FloatCategoriesSettings() {
                 <Label className="text-xs text-white/60">Max Float</Label>
                 <Input
                   type="number"
-                  value={inputValue(category.max)}
-                  onChange={(e) => {
-                    const newValue = e.target.value === '' ? Infinity : parseFloat(e.target.value) || 0;
-                    updateFloatCategory(key, { max: newValue });
-                  }}
+                  value={getFieldValue(key, 'max', category.max)}
+                  onChange={(e) => updateDraftValue(key, 'max', e.target.value)}
+                  onBlur={(e) => commitNumericField(key, 'max', e.target.value, 0, true)}
                   placeholder="Infinity"
                   className="bg-white/5 border-white/10 text-sm"
                   disabled={loading || saving}
@@ -80,8 +113,9 @@ export default function FloatCategoriesSettings() {
                 <Input
                   type="number"
                   step="0.1"
-                  value={inputValue(category.positionMultiplier)}
-                  onChange={(e) => updateFloatCategory(key, { positionMultiplier: parseFloat(e.target.value) || 1 })}
+                  value={getFieldValue(key, 'positionMultiplier', category.positionMultiplier)}
+                  onChange={(e) => updateDraftValue(key, 'positionMultiplier', e.target.value)}
+                  onBlur={(e) => commitNumericField(key, 'positionMultiplier', e.target.value, 1)}
                   placeholder="1.0"
                   className="bg-white/5 border-white/10 text-sm"
                   disabled={loading || saving}
@@ -93,8 +127,9 @@ export default function FloatCategoriesSettings() {
                 <Input
                   type="number"
                   step="0.1"
-                  value={inputValue(category.stopLossPercent)}
-                  onChange={(e) => updateFloatCategory(key, { stopLossPercent: parseFloat(e.target.value) || 2 })}
+                  value={getFieldValue(key, 'stopLossPercent', category.stopLossPercent)}
+                  onChange={(e) => updateDraftValue(key, 'stopLossPercent', e.target.value)}
+                  onBlur={(e) => commitNumericField(key, 'stopLossPercent', e.target.value, 2)}
                   placeholder="3.0"
                   className="bg-white/5 border-white/10 text-sm"
                   disabled={loading || saving}
@@ -106,8 +141,9 @@ export default function FloatCategoriesSettings() {
                 <Input
                   type="number"
                   step="0.05"
-                  value={inputValue(category.maxFloatPercent)}
-                  onChange={(e) => updateFloatCategory(key, { maxFloatPercent: parseFloat(e.target.value) || 0.5 })}
+                  value={getFieldValue(key, 'maxFloatPercent', category.maxFloatPercent)}
+                  onChange={(e) => updateDraftValue(key, 'maxFloatPercent', e.target.value)}
+                  onBlur={(e) => commitNumericField(key, 'maxFloatPercent', e.target.value, 0.5)}
                   placeholder="0.5"
                   className="bg-white/5 border-white/10 text-sm"
                   disabled={loading || saving}
@@ -120,3 +156,5 @@ export default function FloatCategoriesSettings() {
     </div>
   );
 }
+
+

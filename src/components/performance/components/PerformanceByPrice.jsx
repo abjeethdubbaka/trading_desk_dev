@@ -58,3 +58,5 @@ export function PerformanceByPrice({ data, trades = [] }) {
 }
 
 export default PerformanceByPrice;
+
+

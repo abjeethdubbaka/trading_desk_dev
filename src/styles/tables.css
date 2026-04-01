@@ -1,0 +1,31 @@
+.trade-table {
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.trade-table th {
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.3);
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border-subtle);
+  white-space: nowrap;
+}
+
+.trade-table td {
+  padding: 8px 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  transition: background 0.15s ease;
+}
+
+.trade-table tr:hover td {
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.trade-table tr:last-child td {
+  border-bottom: none;
+}
