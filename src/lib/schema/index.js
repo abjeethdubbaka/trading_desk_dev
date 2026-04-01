@@ -44,6 +44,7 @@ export const TradeSchema = {
     'notes',
     'lessons',
     'reflection_answers',
+    'dos_donts_rule_ids',
     'emotions',
     'emotion_before',
     'emotion_after',
@@ -102,6 +103,7 @@ export const SettingsSchema = {
     'max_positions',
     'max_daily_trades',
     'target_profit_dollars',
+    'analysis_timer_seconds',
     'exit_strategy',
     
     // Float-based Risk Management
@@ -153,6 +155,7 @@ export const SettingsSchema = {
     max_positions: 3,
     max_daily_trades: 5,
     target_profit_dollars: 500,
+    analysis_timer_seconds: 180,
     exit_strategy: {
       levels: [
         { r: 1, percent: 33, trailingStop: false },

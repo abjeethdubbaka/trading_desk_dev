@@ -1,13 +1,18 @@
 import React from 'react';
 import { FiCheckCircle, FiXCircle, FiAlertTriangle, FiEye } from 'react-icons/fi';
 
-export function Stats({ items, totalItems = items.length }) {
+export function Stats({ items, totalItems = items.length, allItems = items }) {
+  const mostUsed = [...allItems]
+    .sort((a, b) => (Number(b?.usage_count) || 0) - (Number(a?.usage_count) || 0))[0];
+  const mostUsedCount = Number(mostUsed?.usage_count) || 0;
+
   const stats = {
     dos: items.filter(item => item.type === 'do').length,
     donts: items.filter(item => item.type === 'dont').length,
     highPriority: items.filter(item => item.priority === 'high').length,
     total: items.length,
-    overall: totalItems
+    overall: totalItems,
+    totalUsage: allItems.reduce((sum, item) => sum + (Number(item?.usage_count) || 0), 0),
   };
 
   return (
@@ -59,6 +64,12 @@ export function Stats({ items, totalItems = items.length }) {
             {stats.total !== stats.overall && (
               <p className="text-[11px] text-white/35">of {stats.overall}</p>
             )}
+            <p className="text-[11px] text-white/45 mt-0.5">Uses: {stats.totalUsage}</p>
+            <p className="text-[11px] text-white/35">
+              {mostUsed && mostUsedCount > 0
+                ? `Top used: ${mostUsed.title} (${mostUsedCount}x)`
+                : 'Top used: none yet'}
+            </p>
           </div>
         </div>
       </div>

@@ -6,9 +6,7 @@ import { formatCurrency } from '../../utils/formatters';
 export const useTradeForm = (initialData, userId = 'user-123') => {
   const getDefaultReflectionAnswers = () => ({
     what_went_wrong: '',
-    what_went_right: '',
-    what_learned: '',
-    what_to_repeat: ''
+    what_learned: ''
   });
 
   const defaultBreakoutChecklist = {
@@ -59,7 +57,8 @@ export const useTradeForm = (initialData, userId = 'user-123') => {
     breakout_checklist: defaultBreakoutChecklist,
     screenshots: [],
     trade_plan_id: null,
-    strategy_preset_id: null
+    strategy_preset_id: null,
+    dos_donts_rule_ids: []
   });
 
   // Initialize form with initial data - only run when initialData actually changes
@@ -116,7 +115,10 @@ export const useTradeForm = (initialData, userId = 'user-123') => {
       },
       screenshots: screenshotIds,
       trade_plan_id: initialData.trade_plan_id || null,
-      strategy_preset_id: initialData.strategy_preset_id || null
+      strategy_preset_id: initialData.strategy_preset_id || null,
+      dos_donts_rule_ids: Array.isArray(initialData.dos_donts_rule_ids)
+        ? [...new Set(initialData.dos_donts_rule_ids.map((id) => String(id || '').trim()).filter(Boolean))]
+        : []
     };
   }, [initialData?.id]); // Only depend on the ID, not the whole object
 
@@ -154,7 +156,8 @@ export const useTradeForm = (initialData, userId = 'user-123') => {
       breakout_checklist: defaultBreakoutChecklist,
       screenshots: [],
       trade_plan_id: null,
-      strategy_preset_id: null
+      strategy_preset_id: null,
+      dos_donts_rule_ids: []
     });
   }, []);
 
@@ -182,6 +185,8 @@ export const useTradeForm = (initialData, userId = 'user-123') => {
       fee: formData.fee
     });
 
+    const reflectionAnswers = formData.reflection_answers || {};
+
     const submissionData = {
       ...formData,
       direction: detectedDirection, // Use detected direction
@@ -201,8 +206,8 @@ export const useTradeForm = (initialData, userId = 'user-123') => {
       screenshots: formData.screenshots.length > 0 ? formData.screenshots : null,
       emotions: formData.emotions ? [formData.emotions] : [], // Convert string to array
       reflection_answers: {
-        ...getDefaultReflectionAnswers(),
-        ...(formData.reflection_answers || {}),
+        what_went_wrong: String(reflectionAnswers.what_went_wrong || '').trim(),
+        what_learned: String(reflectionAnswers.what_learned || '').trim(),
         outcome:
           pnl < 0 ? 'loss' :
           pnl > 0 ? 'profit' :
@@ -210,6 +215,9 @@ export const useTradeForm = (initialData, userId = 'user-123') => {
       },
       trade_plan_id: formData.trade_plan_id || null,
       strategy_preset_id: formData.strategy_preset_id || null,
+      dos_donts_rule_ids: Array.isArray(formData.dos_donts_rule_ids)
+        ? [...new Set(formData.dos_donts_rule_ids.map((id) => String(id || '').trim()).filter(Boolean))]
+        : [],
       // Handle setup type - use custom if Manual, otherwise use selected setup
       setup_type: formData.setup_type === 'Manual' 
         ? (formData.custom_setup_type || 'Manual') 

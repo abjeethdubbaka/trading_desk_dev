@@ -34,30 +34,74 @@ import { TradeCreator } from './float-calculator/TradeCreator';
 import { FloatDataService } from './float-calculator/FloatDataService';
 
 const floatDataService = new FloatDataService();
+const CALCULATOR_STATE_KEY = 'calculator.floatPositionSizer.state.v1';
+
+const loadCalculatorState = () => {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = localStorage.getItem(CALCULATOR_STATE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === 'object' ? parsed : null;
+  } catch {
+    return null;
+  }
+};
+
+const saveCalculatorState = (state) => {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(CALCULATOR_STATE_KEY, JSON.stringify(state));
+  } catch {
+    // Ignore write errors (quota/private mode).
+  }
+};
+
+const clearCalculatorState = () => {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.removeItem(CALCULATOR_STATE_KEY);
+  } catch {
+    // Ignore storage cleanup errors.
+  }
+};
 
 export default function FloatPositionSizer({ historyData, onCalculationSaved = () => {} }) {
   const { selectedSymbol, selectedEntryPrice } = useTradingContext();
   const { createTrade } = useTradesMutation();
   const { settings, refetch: refetchSettings } = useSettings();
+  const initialState = React.useMemo(() => loadCalculatorState() || {}, []);
+  const settingsHydratedRef = React.useRef(false);
+  const previousSettingsRef = React.useRef({ accountSize: null, riskAmount: null });
 
   const accountSize = settings?.account_size;
   const riskAmount = settings?.risk_amount;
   const positionSizingPct = settings?.position_sizing_percent;
   const defaultStopLossPct = settings?.default_stop_loss_percent;
   const targetProfitDollars = settings?.target_profit_dollars;
+  const analysisTimerSeconds = settings?.analysis_timer_seconds;
   const maxDollars = settings?.max_dollars;
   const floatCategories = settings?.float_categories;
   const exitStrategy = settings?.exit_strategy;
 
-  const [symbol, setSymbol] = useState('');
-  const [entryPrice, setEntryPrice] = useState('');
-  const [customStop, setCustomStop] = useState('');
-  const [direction, setDirection] = useState('long');
-  const [shareFloat, setShareFloat] = useState(null);
-  const [floatCategory, setFloatCategory] = useState(null);
-  const [floatData, setFloatData] = useState(null);
+  const [symbol, setSymbol] = useState(() => String(initialState.symbol || ''));
+  const [entryPrice, setEntryPrice] = useState(() => String(initialState.entryPrice || ''));
+  const [customStop, setCustomStop] = useState(() => String(initialState.customStop || ''));
+  const [direction, setDirection] = useState(() => (initialState.direction === 'short' ? 'short' : 'long'));
+  const [shareFloat, setShareFloat] = useState(() => {
+    const value = Number(initialState.shareFloat);
+    return Number.isFinite(value) && value > 0 ? value : null;
+  });
+  const [floatCategory, setFloatCategory] = useState(() => (
+    initialState.floatCategory ? String(initialState.floatCategory) : null
+  ));
+  const [floatData, setFloatData] = useState(() => (
+    initialState.floatData && typeof initialState.floatData === 'object' ? initialState.floatData : null
+  ));
   const [loadingFloat, setLoadingFloat] = useState(false);
-  const [calculation, setCalculation] = useState(null);
+  const [calculation, setCalculation] = useState(() => (
+    initialState.calculation && typeof initialState.calculation === 'object' ? initialState.calculation : null
+  ));
 
   const clearCalculation = useCallback(() => {
     setCalculation((prev) => (prev == null ? prev : null));
@@ -131,7 +175,30 @@ export default function FloatPositionSizer({ historyData, onCalculationSaved = (
   }, [buildCalculationParams]);
 
   useEffect(() => {
-    if (riskAmount !== undefined || accountSize !== undefined) {
+    if (riskAmount === undefined && accountSize === undefined) return;
+
+    const normalizedAccountSize = Number(accountSize);
+    const normalizedRiskAmount = Number(riskAmount);
+
+    if (!settingsHydratedRef.current) {
+      settingsHydratedRef.current = true;
+      previousSettingsRef.current = {
+        accountSize: normalizedAccountSize,
+        riskAmount: normalizedRiskAmount,
+      };
+      return;
+    }
+
+    const previous = previousSettingsRef.current;
+    const hasSettingsChanged = previous.accountSize !== normalizedAccountSize
+      || previous.riskAmount !== normalizedRiskAmount;
+
+    previousSettingsRef.current = {
+      accountSize: normalizedAccountSize,
+      riskAmount: normalizedRiskAmount,
+    };
+
+    if (hasSettingsChanged) {
       clearCalculation();
     }
   }, [riskAmount, accountSize, clearCalculation]);
@@ -155,6 +222,20 @@ export default function FloatPositionSizer({ historyData, onCalculationSaved = (
     updateDirection(historyData.direction ?? 'long');
     toast.info(`Loaded ${historyData.symbol} from history`);
   }, [historyData, updateSymbol, updateEntryPrice, updateDirection]);
+
+  useEffect(() => {
+    saveCalculatorState({
+      symbol,
+      entryPrice,
+      customStop,
+      direction,
+      shareFloat,
+      floatCategory,
+      floatData,
+      calculation,
+      updatedAt: new Date().toISOString(),
+    });
+  }, [symbol, entryPrice, customStop, direction, shareFloat, floatCategory, floatData, calculation]);
 
   const fetchShareFloat = useCallback(async () => {
     const symbolToFetch = symbol?.trim().toUpperCase();
@@ -326,6 +407,7 @@ export default function FloatPositionSizer({ historyData, onCalculationSaved = (
     setFloatCategory(null);
     setFloatData(null);
     setCalculation(null);
+    clearCalculatorState();
   };
 
   const formatCurrency = (value, fallback = '--') => {
@@ -444,7 +526,13 @@ export default function FloatPositionSizer({ historyData, onCalculationSaved = (
         />
       )}
 
-      {calculation && <MemoizedResultsDisplay {...calculation} exitStrategy={exitStrategy} />}
+      {calculation && (
+        <MemoizedResultsDisplay
+          {...calculation}
+          exitStrategy={exitStrategy}
+          analysisTimerSeconds={analysisTimerSeconds}
+        />
+      )}
 
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pt-2 border-t border-white/5">
         <div className="flex flex-wrap gap-2">

@@ -29,6 +29,7 @@ const INPUT_FIELDS = [
   'position_sizing_percent',
   'default_stop_loss_percent',
   'risk_amount',
+  'analysis_timer_seconds',
 ];
 
 export default function SettingsPage() {

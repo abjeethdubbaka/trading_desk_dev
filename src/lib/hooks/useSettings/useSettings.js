@@ -36,7 +36,7 @@ export function useSettings(options = {}) {
   const saveMutation = useMutation({
     mutationFn: (updates) => {
       // Convert string numeric values to numbers before validation
-      const numericFields = ['account_size', 'target_profit_dollars', 'max_dollars', 'risk_amount', 'position_sizing_percent', 'default_stop_loss_percent'];
+      const numericFields = ['account_size', 'target_profit_dollars', 'analysis_timer_seconds', 'max_dollars', 'risk_amount', 'position_sizing_percent', 'default_stop_loss_percent'];
       const convertedUpdates = { ...updates };
       
       numericFields.forEach(field => {
@@ -217,4 +217,3 @@ export function useSettings(options = {}) {
     validate: settingsService.validate.bind(settingsService)
   };
 }
-

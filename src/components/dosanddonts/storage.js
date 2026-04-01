@@ -3,6 +3,23 @@ import { getDefaultItems } from './utils';
 export const DOS_AND_DONTS_STORAGE_KEY = 'dosAndDonts';
 
 const normalizeText = (value) => String(value || '').trim().replace(/\s+/g, ' ');
+const normalizeUsageCount = (value) => {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric) || numeric <= 0) return 0;
+  return Math.floor(numeric);
+};
+const normalizeRuleItem = (item) => ({
+  ...item,
+  usage_count: normalizeUsageCount(item?.usage_count),
+  last_used_at: item?.last_used_at || null,
+});
+const normalizeRuleItems = (items) => (
+  Array.isArray(items) ? items.map((item) => normalizeRuleItem(item)) : []
+);
+const dispatchDosAndDontsUpdated = (detail = {}) => {
+  if (typeof window === 'undefined') return;
+  window.dispatchEvent(new CustomEvent('dosanddonts-updated', { detail }));
+};
 const appendUnique = (list, text) => {
   const normalized = normalizeText(text);
   if (!normalized) return;
@@ -29,81 +46,160 @@ const buildRuleTitle = (note, type) => {
 
 export function loadDosAndDontsItems() {
   if (typeof window === 'undefined' || !window.localStorage) {
-    return getDefaultItems();
+    return normalizeRuleItems(getDefaultItems());
   }
 
   try {
     const stored = localStorage.getItem(DOS_AND_DONTS_STORAGE_KEY);
     const parsed = stored ? JSON.parse(stored) : null;
-    return Array.isArray(parsed) ? parsed : getDefaultItems();
+    return normalizeRuleItems(Array.isArray(parsed) ? parsed : getDefaultItems());
   } catch {
-    return getDefaultItems();
+    return normalizeRuleItems(getDefaultItems());
   }
 }
 
 export function saveDosAndDontsItems(items) {
   if (typeof window === 'undefined' || !window.localStorage) {
-    return;
+    return false;
   }
 
-  localStorage.setItem(DOS_AND_DONTS_STORAGE_KEY, JSON.stringify(items));
+  try {
+    localStorage.setItem(DOS_AND_DONTS_STORAGE_KEY, JSON.stringify(items));
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 export function addRuleFromTradeNote({ trade, type = 'do', note } = {}) {
-  const normalizedType = type === 'dont' ? 'dont' : 'do';
-  const noteText = normalizeText(note ?? trade?.notes);
+  try {
+    const normalizedType = type === 'dont' ? 'dont' : 'do';
+    const noteText = normalizeText(note ?? trade?.notes);
 
-  if (!noteText) {
-    return { ok: false, reason: 'empty_note' };
+    if (!noteText) {
+      return { ok: false, reason: 'empty_note' };
+    }
+
+    const items = loadDosAndDontsItems();
+    const descriptionKey = noteText.toLowerCase();
+    const duplicateItem = items.find((item) => (
+      item?.type === normalizedType
+      && normalizeText(item?.description).toLowerCase() === descriptionKey
+    ));
+
+    if (duplicateItem) {
+      return { ok: false, reason: 'duplicate', item: duplicateItem };
+    }
+
+    const symbol = String(trade?.symbol || '').trim().toUpperCase();
+    const tradeDateSource = trade?.entry_time || trade?.created_date || trade?.created_at;
+    const tradeDate = tradeDateSource ? new Date(tradeDateSource) : null;
+    const tradeDateLabel = tradeDate && !Number.isNaN(tradeDate.getTime())
+      ? tradeDate.toLocaleDateString()
+      : null;
+    const exampleContext = [
+      'Captured from journal note',
+      symbol ? `(${symbol})` : '',
+      tradeDateLabel ? `on ${tradeDateLabel}` : ''
+    ].filter(Boolean).join(' ');
+
+    const createdAt = new Date().toISOString();
+    const newItem = {
+      id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      type: normalizedType,
+      category: 'execution',
+      title: buildRuleTitle(noteText, normalizedType),
+      description: noteText,
+      priority: 'medium',
+      examples: [exampleContext],
+      tags: ['journal-note', ...(symbol ? [symbol.toLowerCase()] : [])],
+      source_trade_id: trade?.id || null,
+      usage_count: 0,
+      last_used_at: null,
+      createdAt
+    };
+
+    const nextItems = [...items, newItem];
+    const saved = saveDosAndDontsItems(nextItems);
+    if (!saved) {
+      return { ok: false, reason: 'storage_error' };
+    }
+
+    dispatchDosAndDontsUpdated({ action: 'create', item: newItem });
+
+    return { ok: true, item: newItem };
+  } catch {
+    return { ok: false, reason: 'storage_error' };
+  }
+}
+
+export function syncRuleUsageCounts({ previousRuleIds = [], nextRuleIds = [] } = {}) {
+  const previousUnique = [...new Set(
+    (Array.isArray(previousRuleIds) ? previousRuleIds : [])
+      .map((id) => String(id || '').trim())
+      .filter(Boolean)
+  )];
+  const nextUnique = [...new Set(
+    (Array.isArray(nextRuleIds) ? nextRuleIds : [])
+      .map((id) => String(id || '').trim())
+      .filter(Boolean)
+  )];
+
+  const addedIds = nextUnique.filter((id) => !previousUnique.includes(id));
+  const removedIds = previousUnique.filter((id) => !nextUnique.includes(id));
+  if (addedIds.length === 0 && removedIds.length === 0) {
+    return { ok: true, changed: false, addedIds: [], removedIds: [] };
   }
 
   const items = loadDosAndDontsItems();
-  const descriptionKey = noteText.toLowerCase();
-  const duplicate = items.some((item) => (
-    item?.type === normalizedType
-    && normalizeText(item?.description).toLowerCase() === descriptionKey
-  ));
+  const nowISO = new Date().toISOString();
+  let touched = 0;
 
-  if (duplicate) {
-    return { ok: false, reason: 'duplicate' };
+  const nextItems = items.map((item) => {
+    const ruleId = String(item?.id || '');
+    if (!ruleId) return item;
+
+    if (addedIds.includes(ruleId)) {
+      touched += 1;
+      return {
+        ...item,
+        usage_count: normalizeUsageCount(item?.usage_count) + 1,
+        last_used_at: nowISO,
+      };
+    }
+
+    if (removedIds.includes(ruleId)) {
+      touched += 1;
+      return {
+        ...item,
+        usage_count: Math.max(0, normalizeUsageCount(item?.usage_count) - 1),
+      };
+    }
+
+    return item;
+  });
+
+  if (touched === 0) {
+    return { ok: true, changed: false, addedIds: [], removedIds: [] };
   }
 
-  const symbol = String(trade?.symbol || '').trim().toUpperCase();
-  const tradeDateSource = trade?.entry_time || trade?.created_date || trade?.created_at;
-  const tradeDate = tradeDateSource ? new Date(tradeDateSource) : null;
-  const tradeDateLabel = tradeDate && !Number.isNaN(tradeDate.getTime())
-    ? tradeDate.toLocaleDateString()
-    : null;
-  const exampleContext = [
-    'Captured from journal note',
-    symbol ? `(${symbol})` : '',
-    tradeDateLabel ? `on ${tradeDateLabel}` : ''
-  ].filter(Boolean).join(' ');
+  const saved = saveDosAndDontsItems(nextItems);
+  if (!saved) {
+    return { ok: false, reason: 'storage_error', addedIds, removedIds };
+  }
 
-  const createdAt = new Date().toISOString();
-  const newItem = {
-    id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-    type: normalizedType,
-    category: 'execution',
-    title: buildRuleTitle(noteText, normalizedType),
-    description: noteText,
-    priority: 'medium',
-    examples: [exampleContext],
-    tags: ['journal-note', ...(symbol ? [symbol.toLowerCase()] : [])],
-    source_trade_id: trade?.id || null,
-    createdAt
+  dispatchDosAndDontsUpdated({
+    action: 'usage-sync',
+    addedIds,
+    removedIds,
+  });
+
+  return {
+    ok: true,
+    changed: true,
+    addedIds,
+    removedIds,
   };
-
-  const nextItems = [...items, newItem];
-  saveDosAndDontsItems(nextItems);
-
-  if (typeof window !== 'undefined') {
-    window.dispatchEvent(new CustomEvent('dosanddonts-updated', {
-      detail: { action: 'create', item: newItem }
-    }));
-  }
-
-  return { ok: true, item: newItem };
 }
 
 export function getRuleSuggestionsFromTrade(trade = {}) {

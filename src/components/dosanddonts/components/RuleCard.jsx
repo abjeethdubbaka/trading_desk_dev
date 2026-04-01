@@ -8,6 +8,7 @@ export function RuleCard({ item, onEdit, onDelete }) {
   const IconComponent = item.icon || (item.type === 'do' ? FiCheckCircle : FiAlertTriangle);
   const categoryLabel = CATEGORIES.find((c) => c.value === item.category)?.label || item.category;
   const updatedDate = item.updatedAt || item.createdAt;
+  const usageCount = Number(item?.usage_count) || 0;
 
   return (
     <div
@@ -37,6 +38,9 @@ export function RuleCard({ item, onEdit, onDelete }) {
                 </span>
                 <span className="inline-block px-2 py-1 text-xs rounded-full bg-white/10 text-white/70 border border-white/15">
                   {item.type === 'do' ? 'Do' : "Don't"} - {categoryLabel}
+                </span>
+                <span className="inline-block px-2 py-1 text-xs rounded-full bg-blue-500/15 text-blue-200 border border-blue-400/25">
+                  Used {usageCount}x
                 </span>
               </div>
             </div>

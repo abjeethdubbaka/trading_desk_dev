@@ -20,17 +20,20 @@ export default function DosAndDonts() {
   const [isEditing, setIsEditing] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
   const [items, setItems] = useState([]);
+  const [isHydrated, setIsHydrated] = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);
 
   // Load items from localStorage
   useEffect(() => {
     setItems(loadDosAndDontsItems());
+    setIsHydrated(true);
   }, []);
 
   // Save items to localStorage
   useEffect(() => {
+    if (!isHydrated) return;
     saveDosAndDontsItems(items);
-  }, [items]);
+  }, [items, isHydrated]);
 
   // Sync rules saved from other screens (e.g., Journal note -> Dos/Don't).
   useEffect(() => {
@@ -125,7 +128,9 @@ export default function DosAndDonts() {
     const item = {
       ...newItem,
       id: `${Date.now()}`,
-      createdAt: new Date().toISOString()
+      createdAt: new Date().toISOString(),
+      usage_count: Number(newItem?.usage_count) || 0,
+      last_used_at: newItem?.last_used_at || null,
     };
     setItems((prev) => [...prev, item]);
     setShowAddForm(false);
@@ -139,7 +144,9 @@ export default function DosAndDonts() {
         return { 
           ...updatedItem, 
           updatedAt: new Date().toISOString(),
-          icon: iconToUse
+          icon: iconToUse,
+          usage_count: Number(updatedItem?.usage_count ?? item?.usage_count) || 0,
+          last_used_at: updatedItem?.last_used_at || item?.last_used_at || null,
         };
       }
       return item;
@@ -192,7 +199,7 @@ export default function DosAndDonts() {
         onResetDefaults={handleResetDefaults}
       />
 
-      <Stats items={filteredItems} totalItems={items.length} />
+      <Stats items={filteredItems} totalItems={items.length} allItems={items} />
 
       <div className="flex justify-between items-center mb-4">
         <p className="text-xs text-white/50">

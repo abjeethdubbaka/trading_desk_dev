@@ -30,6 +30,7 @@ export const TRADE_DEFAULTS = {
   reflection_answers: null,
   trade_plan_id: null,
   strategy_preset_id: null,
+  dos_donts_rule_ids: [],
 };
 
 /**
@@ -45,6 +46,7 @@ export const SETTINGS_DEFAULTS = {
   position_sizing_percent: 1,
   default_stop_loss_percent: 4,
   target_profit_dollars: 500,
+  analysis_timer_seconds: 180,
   max_dollars: 0,              // 0 = disabled
   risk_amount: 1000,
   exit_strategy: {

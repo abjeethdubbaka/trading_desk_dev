@@ -7,7 +7,6 @@ import TradeReviewPanel from '../analysis/TradeReviewPanel';
 import { createMediaService } from '@/lib/services/MediaService.js';
 import { db } from '@/lib/db/index.js';
 import { indexedDBAdapter } from '@/lib/db/adapters/IndexedDBAdapter.js';
-import { getRuleSuggestionsFromTrade } from '@/components/dosanddonts/storage';
 
 const mediaService = createMediaService(db, indexedDBAdapter);
 
@@ -82,7 +81,6 @@ function TradeRow({
   trade,
   onEdit,
   onDelete,
-  onSaveNoteAsRule,
   review,
   reviewLoading,
   onReviewTrade,
@@ -104,7 +102,6 @@ function TradeRow({
   const notesPreview = String(trade.notes || '').trim();
   const entryTimeLabel = trade.entry_time ? formatTime(trade.entry_time) : '--';
   const exitTimeLabel = trade.exit_time ? formatTime(trade.exit_time) : '--';
-  const suggestionLists = getRuleSuggestionsFromTrade(trade);
 
   const pnlPct = entryPrice && positionSize
     ? ((pnl / (entryPrice * positionSize)) * 100).toFixed(1)
@@ -279,56 +276,6 @@ function TradeRow({
           <p className="text-[11px] text-white/40 leading-relaxed max-w-xl whitespace-pre-wrap break-words">
             {trade.notes ? trade.notes : 'No notes added.'}
           </p>
-          {trade.notes && typeof onSaveNoteAsRule === 'function' && (
-            <div className="space-y-2">
-              <div className="flex flex-wrap items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => onSaveNoteAsRule(trade, 'do')}
-                  className="text-[10px] px-2 py-1 rounded border border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/15 transition-colors"
-                >
-                  Save Note as Do
-                </button>
-                <button
-                  type="button"
-                  onClick={() => onSaveNoteAsRule(trade, 'dont')}
-                  className="text-[10px] px-2 py-1 rounded border border-rose-500/30 text-rose-300 hover:bg-rose-500/15 transition-colors"
-                >
-                  Save Note as Don&apos;t
-                </button>
-              </div>
-
-              <div className="grid sm:grid-cols-2 gap-2">
-                <div className="rounded border border-emerald-500/20 bg-emerald-500/5 p-2 space-y-1.5">
-                  <p className="text-[10px] uppercase tracking-wide text-emerald-300/85">Suggestions: Repeat (Do)</p>
-                  {suggestionLists.dos.map((suggestion, suggestionIndex) => (
-                    <button
-                      key={`do-${trade.id}-${suggestionIndex}`}
-                      type="button"
-                      onClick={() => onSaveNoteAsRule(trade, 'do', suggestion)}
-                      className="w-full text-left text-[10px] text-emerald-100/85 border border-emerald-500/20 rounded px-2 py-1 hover:bg-emerald-500/15 transition-colors"
-                    >
-                      {suggestion}
-                    </button>
-                  ))}
-                </div>
-
-                <div className="rounded border border-rose-500/20 bg-rose-500/5 p-2 space-y-1.5">
-                  <p className="text-[10px] uppercase tracking-wide text-rose-300/85">Suggestions: What Went Wrong (Don&apos;t)</p>
-                  {suggestionLists.donts.map((suggestion, suggestionIndex) => (
-                    <button
-                      key={`dont-${trade.id}-${suggestionIndex}`}
-                      type="button"
-                      onClick={() => onSaveNoteAsRule(trade, 'dont', suggestion)}
-                      className="w-full text-left text-[10px] text-rose-100/85 border border-rose-500/20 rounded px-2 py-1 hover:bg-rose-500/15 transition-colors"
-                    >
-                      {suggestion}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
 
           {/* Mistakes */}
           {trade.mistakes?.length > 0 && (
@@ -398,7 +345,7 @@ function Header() {
 }
 
 /* ─── Main export ──────────────────────────────────────────────────────── */
-export default function CompactView({ trades, onEdit, onDelete, onSaveNoteAsRule, reviews, reviewLoading, onReviewTrade, onClearReview }) {
+export default function CompactView({ trades, onEdit, onDelete, reviews, reviewLoading, onReviewTrade, onClearReview }) {
   return (
     <div className="overflow-x-auto">
       <Header />
@@ -410,7 +357,6 @@ export default function CompactView({ trades, onEdit, onDelete, onSaveNoteAsRule
             index={i}
             onEdit={onEdit}
             onDelete={onDelete}
-            onSaveNoteAsRule={onSaveNoteAsRule}
             review={reviews?.[trade.id]}
             reviewLoading={reviewLoading?.[trade.id]}
             onReviewTrade={onReviewTrade}

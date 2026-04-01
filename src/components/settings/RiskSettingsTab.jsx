@@ -62,6 +62,20 @@ export default function RiskSettingsTab({
           />
         </Field>
 
+        <Field label="Position analysis timer (sec)" hint="Calculator timer length beside Position Analysis">
+          <Input
+            type="number"
+            step="5"
+            min="5"
+            value={getDisplayValue('analysis_timer_seconds', '180')}
+            onChange={handleFieldChange('analysis_timer_seconds')}
+            onBlur={() => commitDraftField('analysis_timer_seconds')}
+            placeholder="180"
+            className="bg-white/5 border-white/10"
+            disabled={isLoading}
+          />
+        </Field>
+
         <ExitStrategySettings
           exitDraft={exitDraft}
           onAddLevel={handleAddExitLevel}
@@ -80,4 +94,3 @@ export default function RiskSettingsTab({
     </div>
   );
 }
-
