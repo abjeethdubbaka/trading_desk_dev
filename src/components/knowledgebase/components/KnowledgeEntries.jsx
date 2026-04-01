@@ -2,9 +2,9 @@ import React from 'react';
 import { FiImage, FiCode } from 'react-icons/fi';
 import { CONSTANTS } from '../constants';
 
-export function KnowledgeEntries({ entries, onViewEntry }) {
+export function KnowledgeEntries({ entries, onViewEntry, viewMode = 'grid' }) {
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+    <div className={viewMode === 'list' ? 'space-y-4' : 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6'}>
       {entries.map(entry => (
         <div
           key={entry.id}
@@ -24,7 +24,7 @@ export function KnowledgeEntries({ entries, onViewEntry }) {
               </span>
             </div>
 
-            <p className="text-gray-300 mb-4 line-clamp-3">
+            <p className={`text-gray-300 mb-4 ${viewMode === 'list' ? 'line-clamp-2' : 'line-clamp-3'}`}>
               {entry.content}
             </p>
 
@@ -44,7 +44,7 @@ export function KnowledgeEntries({ entries, onViewEntry }) {
             )}
 
             <div className="flex justify-between items-center text-sm text-gray-400">
-              <span>{new Date(entry.updatedAt).toLocaleDateString()}</span>
+              <span>{new Date(entry.updatedAt || entry.createdAt || 0).toLocaleDateString()}</span>
               <div className="flex gap-3">
                 {entry.images && entry.images.length > 0 && (
                   <span className="flex items-center gap-1">

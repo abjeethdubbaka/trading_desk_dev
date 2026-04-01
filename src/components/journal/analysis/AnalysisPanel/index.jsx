@@ -1,8 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useJournalAnalytics } from '../../shared/hooks/useJournalAnalytics';
 import { formatCurrency } from '../../utils/formatters';
-import PerformanceSummary from './PerformanceSummary';
-import RiskMetrics from './RiskMetrics';
 import QualityIndicators from './QualityIndicators';
 import { Filter, BarChart3 } from 'lucide-react';
 
@@ -28,7 +26,6 @@ const calculateConsecutive = (trades, type) => {
 
 export default function AnalysisPanel({ trades, isCollapsed }) {
   const [viewMode, setViewMode] = useState('all'); // 'all', 'winners', 'losers'
-  const [expandedSections, setExpandedSections] = useState(new Set()); // Controls which sections are expanded
   
   const { overallPerformance } = useJournalAnalytics(trades);
   
@@ -59,17 +56,6 @@ export default function AnalysisPanel({ trades, isCollapsed }) {
       expectancy: overallPerformance.avgPerTrade || 0
     };
   }, [trades, overallPerformance]);
-
-  // Toggle section expansion
-  const toggleSection = (section) => {
-    const newExpanded = new Set(expandedSections);
-    if (newExpanded.has(section)) {
-      newExpanded.delete(section);
-    } else {
-      newExpanded.add(section);
-    }
-    setExpandedSections(newExpanded);
-  };
 
   if (!trades || trades.length === 0) {
     return (
@@ -180,21 +166,6 @@ export default function AnalysisPanel({ trades, isCollapsed }) {
       </div>
 
       <div className="p-4 space-y-6 max-h-[600px] overflow-y-auto">
-        {/* Performance Summary */}
-        <PerformanceSummary
-          overallPerformance={overallPerformance}
-          additionalMetrics={additionalMetrics}
-          isExpanded={expandedSections.has('performance')}
-          onToggle={() => toggleSection('performance')}
-        />
-
-        {/* Risk Metrics */}
-        <RiskMetrics
-          additionalMetrics={additionalMetrics}
-          isExpanded={expandedSections.has('risk')}
-          onToggle={() => toggleSection('risk')}
-        />
-
         {/* Quality Indicators */}
         <QualityIndicators
           overallPerformance={overallPerformance}

@@ -2,9 +2,9 @@ import React from 'react';
 import { FiClock, FiPlay } from 'react-icons/fi';
 import { CONSTANTS } from '../constants';
 
-export function LearningEntries({ entries, onViewEntry, onEnrollCourse, getCourseProgress }) {
+export function LearningEntries({ entries, onViewEntry, onEnrollCourse, getCourseProgress, viewMode = 'grid' }) {
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+    <div className={viewMode === 'list' ? 'space-y-4' : 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6'}>
       {entries.map(entry => {
         const progress = getCourseProgress(entry.id);
         const isEnrolled = progress.enrolled;
@@ -38,7 +38,7 @@ export function LearningEntries({ entries, onViewEntry, onEnrollCourse, getCours
                 </div>
               </div>
 
-              <p className="text-gray-300 mb-4 line-clamp-3">
+              <p className={`text-gray-300 mb-4 ${viewMode === 'list' ? 'line-clamp-2' : 'line-clamp-3'}`}>
                 {entry.content}
               </p>
 

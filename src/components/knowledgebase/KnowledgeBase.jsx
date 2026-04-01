@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Header } from './components/Header';
 import { SearchAndFilters } from './components/SearchAndFilters';
 import { LearningStats } from './components/LearningStats';
@@ -24,6 +24,7 @@ export default function KnowledgeBase() {
   const learningProgress = useLearningProgress();
 
   const {
+    entries,
     filteredEntries,
     searchQuery,
     setSearchQuery,
@@ -38,6 +39,9 @@ export default function KnowledgeBase() {
     selectedDifficulty,
     setSelectedDifficulty,
     allTags,
+    clearFilters,
+    resetToDefaults,
+    exportEntries,
     handleCreateEntry,
     handleUpdateEntry,
     handleDeleteEntry,
@@ -98,6 +102,34 @@ export default function KnowledgeBase() {
 
   const currentEntries = activeTab === 'knowledge' ? knowledgeEntries : learningEntries;
   const learningStats = getLearningStats(filteredEntries);
+  const hasActiveFilters = Boolean(
+    searchQuery.trim() ||
+    selectedType !== 'all' ||
+    selectedCategory !== 'all' ||
+    selectedDifficulty !== 'all' ||
+    selectedTags.length > 0
+  );
+  const entryCounts = useMemo(() => ({
+    total: filteredEntries.length,
+    all: entries.length,
+    knowledge: knowledgeEntries.length,
+    learning: learningEntries.length,
+  }), [filteredEntries.length, entries.length, knowledgeEntries.length, learningEntries.length]);
+
+  const handleExportEntries = () => {
+    const payload = exportEntries();
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+    const link = Object.assign(document.createElement('a'), {
+      href: URL.createObjectURL(blob),
+      download: `knowledge-base-${new Date().toISOString().slice(0, 10)}.json`,
+    });
+    link.click();
+  };
+
+  const handleResetDefaults = () => {
+    if (!confirm('Reset Knowledge Base to default entries? This will replace current entries.')) return;
+    resetToDefaults();
+  };
 
   return (
     <div className="min-h-screen bg-[#0a0a0f] text-white p-4 lg:p-8">
@@ -113,13 +145,17 @@ export default function KnowledgeBase() {
           setSelectedType={setSelectedType}
           selectedCategory={selectedCategory}
           setSelectedCategory={setSelectedCategory}
-          selectedDifficulty={setSelectedDifficulty}
+          selectedDifficulty={selectedDifficulty}
           setSelectedDifficulty={setSelectedDifficulty}
           sortBy={sortBy}
           setSortBy={setSortBy}
           selectedTags={selectedTags}
           setSelectedTags={setSelectedTags}
           allTags={allTags}
+          hasActiveFilters={hasActiveFilters}
+          onClearFilters={clearFilters}
+          onExportEntries={handleExportEntries}
+          onResetDefaults={handleResetDefaults}
           onCreateEntry={handleCreateEntryClick}
           activeTab={activeTab}
           setActiveTab={setActiveTab}
@@ -127,6 +163,16 @@ export default function KnowledgeBase() {
           setShowLearningPath={setShowLearningPath}
         />
       </Header>
+
+      <div className="flex justify-between items-center mb-4">
+        <p className="text-xs text-white/50">
+          Showing {entryCounts.total} of {entryCounts.all} entries
+          <span className="mx-2 text-white/25">|</span>
+          Knowledge {entryCounts.knowledge}
+          <span className="mx-2 text-white/25">|</span>
+          Learning {entryCounts.learning}
+        </p>
+      </div>
 
       {/* Learning Stats Dashboard */}
       {activeTab === 'learning' && (
@@ -144,6 +190,7 @@ export default function KnowledgeBase() {
           <KnowledgeEntries 
             entries={knowledgeEntries}
             onViewEntry={handleViewEntryClick}
+            viewMode={viewMode}
           />
         ) : (
           <LearningContent 
@@ -151,6 +198,7 @@ export default function KnowledgeBase() {
             onViewEntry={handleViewEntryClick}
             onEnrollCourse={handleEnrollCourse}
             getCourseProgress={getCourseProgress}
+            viewMode={viewMode}
           />
         )
       ) : (
@@ -158,6 +206,8 @@ export default function KnowledgeBase() {
           searchQuery={searchQuery}
           selectedType={selectedType}
           selectedTags={selectedTags}
+          selectedCategory={selectedCategory}
+          selectedDifficulty={selectedDifficulty}
           activeTab={activeTab}
           onCreateEntry={handleCreateEntryClick}
         />

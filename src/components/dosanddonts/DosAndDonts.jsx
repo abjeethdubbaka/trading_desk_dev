@@ -1,13 +1,20 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { SearchAndFilters } from './components/SearchAndFilters';
 import { RuleCard } from './components/RuleCard';
 import { EmptyState } from './components/EmptyState';
 import { RuleModal } from './components/RuleModal';
+import { Stats } from './components/Stats';
 import { CATEGORIES } from './constants';
 import { getDefaultItems } from './utils';
 
+const STORAGE_KEY = 'dosAndDonts';
+const PRIORITY_WEIGHT = { high: 3, medium: 2, low: 1 };
+
 export default function DosAndDonts() {
   const [selectedCategory, setSelectedCategory] = useState('all');
+  const [selectedType, setSelectedType] = useState('all');
+  const [selectedPriority, setSelectedPriority] = useState('all');
+  const [sortBy, setSortBy] = useState('priority-desc');
   const [searchQuery, setSearchQuery] = useState('');
   const [showFilters, setShowFilters] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -18,9 +25,13 @@ export default function DosAndDonts() {
   // Load items from localStorage
   useEffect(() => {
     try {
-      const stored = localStorage.getItem('dosAndDonts');
-      const data = stored ? JSON.parse(stored) : getDefaultItems();
-      setItems(data);
+      const stored = localStorage.getItem(STORAGE_KEY);
+      const parsed = stored ? JSON.parse(stored) : null;
+      if (Array.isArray(parsed)) {
+        setItems(parsed);
+      } else {
+        setItems(getDefaultItems());
+      }
     } catch (error) {
       
       setItems(getDefaultItems());
@@ -29,31 +40,93 @@ export default function DosAndDonts() {
 
   // Save items to localStorage
   useEffect(() => {
-    if (items.length > 0) {
-      localStorage.setItem('dosAndDonts', JSON.stringify(items));
-    }
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
   }, [items]);
 
-  const filteredItems = items.filter(item => {
-    const matchesCategory = selectedCategory === 'all' || item.category === selectedCategory;
-    const matchesSearch = item.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         item.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         item.tags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()));
-    return matchesCategory && matchesSearch;
-  });
+  const filteredItems = useMemo(() => {
+    const normalizedQuery = searchQuery.trim().toLowerCase();
+
+    const list = items.filter((item) => {
+      const matchesCategory = selectedCategory === 'all' || item.category === selectedCategory;
+      const matchesType = selectedType === 'all' || item.type === selectedType;
+      const matchesPriority = selectedPriority === 'all' || item.priority === selectedPriority;
+      const matchesSearch = normalizedQuery.length === 0
+        || (item.title || '').toLowerCase().includes(normalizedQuery)
+        || (item.description || '').toLowerCase().includes(normalizedQuery)
+        || (item.tags || []).some((tag) => String(tag).toLowerCase().includes(normalizedQuery));
+
+      return matchesCategory && matchesType && matchesPriority && matchesSearch;
+    });
+
+    const sorted = [...list];
+    sorted.sort((a, b) => {
+      if (sortBy === 'priority-desc') {
+        return (PRIORITY_WEIGHT[b.priority] || 0) - (PRIORITY_WEIGHT[a.priority] || 0);
+      }
+      if (sortBy === 'priority-asc') {
+        return (PRIORITY_WEIGHT[a.priority] || 0) - (PRIORITY_WEIGHT[b.priority] || 0);
+      }
+      if (sortBy === 'title-asc') {
+        return String(a.title || '').localeCompare(String(b.title || ''));
+      }
+      if (sortBy === 'title-desc') {
+        return String(b.title || '').localeCompare(String(a.title || ''));
+      }
+      if (sortBy === 'oldest') {
+        return new Date(a.updatedAt || a.createdAt || 0) - new Date(b.updatedAt || b.createdAt || 0);
+      }
+      return new Date(b.updatedAt || b.createdAt || 0) - new Date(a.updatedAt || a.createdAt || 0);
+    });
+
+    return sorted;
+  }, [items, selectedCategory, selectedType, selectedPriority, searchQuery, sortBy]);
+
+  const hasActiveFilters = selectedCategory !== 'all'
+    || selectedType !== 'all'
+    || selectedPriority !== 'all'
+    || searchQuery.trim().length > 0
+    || sortBy !== 'priority-desc';
+
+  const handleClearFilters = useCallback(() => {
+    setSelectedCategory('all');
+    setSelectedType('all');
+    setSelectedPriority('all');
+    setSortBy('priority-desc');
+    setSearchQuery('');
+  }, []);
+
+  const handleResetDefaults = useCallback(() => {
+    if (!confirm('Reset all rules to defaults? Your custom rules will be replaced.')) return;
+    setItems(getDefaultItems());
+  }, []);
+
+  const handleExportRules = useCallback(() => {
+    const exportPayload = {
+      exportedAt: new Date().toISOString(),
+      total: items.length,
+      items,
+    };
+
+    const blob = new Blob([JSON.stringify(exportPayload, null, 2)], { type: 'application/json' });
+    const link = Object.assign(document.createElement('a'), {
+      href: URL.createObjectURL(blob),
+      download: `dos-and-donts-${new Date().toISOString().slice(0, 10)}.json`,
+    });
+    link.click();
+  }, [items]);
 
   const handleAddItem = (newItem) => {
     const item = {
       ...newItem,
-      id: Date.now().toString(),
+      id: `${Date.now()}`,
       createdAt: new Date().toISOString()
     };
-    setItems([...items, item]);
+    setItems((prev) => [...prev, item]);
     setShowAddForm(false);
   };
 
   const handleEditItem = (updatedItem) => {
-    setItems(items.map(item => {
+    setItems((prev) => prev.map(item => {
       if (item.id === updatedItem.id) {
         // Preserve the original icon if it exists and the updated item doesn't have one
         const iconToUse = updatedItem.icon || item.icon;
@@ -71,7 +144,7 @@ export default function DosAndDonts() {
 
   const handleDeleteItem = (id) => {
     if (confirm('Are you sure you want to delete this item?')) {
-      setItems(items.filter(item => item.id !== id));
+      setItems((prev) => prev.filter(item => item.id !== id));
     }
   };
 
@@ -99,9 +172,27 @@ export default function DosAndDonts() {
         setShowFilters={setShowFilters}
         selectedCategory={selectedCategory}
         setSelectedCategory={setSelectedCategory}
+        selectedType={selectedType}
+        setSelectedType={setSelectedType}
+        selectedPriority={selectedPriority}
+        setSelectedPriority={setSelectedPriority}
+        sortBy={sortBy}
+        setSortBy={setSortBy}
+        hasActiveFilters={hasActiveFilters}
         categories={CATEGORIES}
         onAddRule={handleAddRule}
+        onClearFilters={handleClearFilters}
+        onExportRules={handleExportRules}
+        onResetDefaults={handleResetDefaults}
       />
+
+      <Stats items={filteredItems} totalItems={items.length} />
+
+      <div className="flex justify-between items-center mb-4">
+        <p className="text-xs text-white/50">
+          Showing {filteredItems.length} of {items.length} rules
+        </p>
+      </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {filteredItems.map(item => (
@@ -117,7 +208,8 @@ export default function DosAndDonts() {
       {filteredItems.length === 0 && (
         <EmptyState 
           searchQuery={searchQuery} 
-          selectedCategory={selectedCategory} 
+          selectedCategory={selectedCategory}
+          hasActiveFilters={hasActiveFilters}
         />
       )}
 

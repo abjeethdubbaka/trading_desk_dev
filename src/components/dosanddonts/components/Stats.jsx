@@ -1,12 +1,13 @@
 import React from 'react';
 import { FiCheckCircle, FiXCircle, FiAlertTriangle, FiEye } from 'react-icons/fi';
 
-export function Stats({ items }) {
+export function Stats({ items, totalItems = items.length }) {
   const stats = {
     dos: items.filter(item => item.type === 'do').length,
     donts: items.filter(item => item.type === 'dont').length,
     highPriority: items.filter(item => item.priority === 'high').length,
-    total: items.length
+    total: items.length,
+    overall: totalItems
   };
 
   return (
@@ -55,6 +56,9 @@ export function Stats({ items }) {
           <div>
             <p className="text-sm text-gray-400">Total Rules</p>
             <p className="text-2xl font-bold text-white">{stats.total}</p>
+            {stats.total !== stats.overall && (
+              <p className="text-[11px] text-white/35">of {stats.overall}</p>
+            )}
           </div>
         </div>
       </div>

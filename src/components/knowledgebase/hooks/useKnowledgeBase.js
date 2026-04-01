@@ -40,7 +40,7 @@ export function useKnowledgeBase() {
 
   // Save entries to localStorage (only after initialization)
   useEffect(() => {
-    if (isInitialized && entries.length > 0) {
+    if (isInitialized) {
       try {
         localStorage.setItem(CONSTANTS.LOCAL_STORAGE_KEY, JSON.stringify(entries));
       } catch (error) {
@@ -51,14 +51,15 @@ export function useKnowledgeBase() {
 
   // Filter and sort entries
   useEffect(() => {
-    let filtered = entries;
+    let filtered = [...entries];
+    const normalizedQuery = searchQuery.trim().toLowerCase();
 
     // Search filter
-    if (searchQuery) {
+    if (normalizedQuery) {
       filtered = filtered.filter(entry =>
-        entry.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        entry.content.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        entry.tags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()))
+        (entry.title || '').toLowerCase().includes(normalizedQuery) ||
+        (entry.content || '').toLowerCase().includes(normalizedQuery) ||
+        (entry.tags || []).some(tag => tag.toLowerCase().includes(normalizedQuery))
       );
     }
 
@@ -88,17 +89,17 @@ export function useKnowledgeBase() {
     filtered.sort((a, b) => {
       switch (sortBy) {
         case CONSTANTS.SORT_OPTIONS.CREATED_DESC:
-          return new Date(b.createdAt) - new Date(a.createdAt);
+          return new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
         case CONSTANTS.SORT_OPTIONS.CREATED_ASC:
-          return new Date(a.createdAt) - new Date(b.createdAt);
+          return new Date(a.createdAt || 0) - new Date(b.createdAt || 0);
         case CONSTANTS.SORT_OPTIONS.UPDATED_DESC:
-          return new Date(b.updatedAt) - new Date(a.updatedAt);
+          return new Date(b.updatedAt || b.createdAt || 0) - new Date(a.updatedAt || a.createdAt || 0);
         case CONSTANTS.SORT_OPTIONS.UPDATED_ASC:
-          return new Date(a.updatedAt) - new Date(b.updatedAt);
+          return new Date(a.updatedAt || a.createdAt || 0) - new Date(b.updatedAt || b.createdAt || 0);
         case CONSTANTS.SORT_OPTIONS.TITLE_ASC:
-          return a.title.localeCompare(b.title);
+          return String(a.title || '').localeCompare(String(b.title || ''));
         case CONSTANTS.SORT_OPTIONS.TITLE_DESC:
-          return b.title.localeCompare(a.title);
+          return String(b.title || '').localeCompare(String(a.title || ''));
         default:
           return 0;
       }
@@ -122,8 +123,11 @@ export function useKnowledgeBase() {
   const handleCreateEntry = useCallback(async (entryData) => {
     try {
       const newEntry = {
-        id: Date.now().toString(),
+        id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
         ...entryData,
+        title: String(entryData.title || '').trim(),
+        content: String(entryData.content || '').trim(),
+        tags: Array.from(new Set((entryData.tags || []).map((tag) => String(tag).trim()).filter(Boolean))),
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
         viewCount: 0
@@ -150,7 +154,16 @@ export function useKnowledgeBase() {
       setEntries(prev => {
         const updated = prev.map(entry =>
           entry.id === id
-            ? { ...entry, ...updates, updatedAt: new Date().toISOString() }
+            ? {
+              ...entry,
+              ...updates,
+              title: updates.title != null ? String(updates.title).trim() : entry.title,
+              content: updates.content != null ? String(updates.content).trim() : entry.content,
+              tags: updates.tags
+                ? Array.from(new Set(updates.tags.map((tag) => String(tag).trim()).filter(Boolean)))
+                : entry.tags,
+              updatedAt: new Date().toISOString(),
+            }
             : entry
         );
         if (process.env.NODE_ENV === 'development') {
@@ -191,6 +204,26 @@ export function useKnowledgeBase() {
     return entry;
   }, []);
 
+  const clearFilters = useCallback(() => {
+    setSearchQuery('');
+    setSelectedType('all');
+    setSelectedTags([]);
+    setSortBy(CONSTANTS.SORT_OPTIONS.CREATED_DESC);
+    setSelectedCategory('all');
+    setSelectedDifficulty('all');
+  }, []);
+
+  const resetToDefaults = useCallback(() => {
+    setEntries(migrateDataStructure(getDefaultLearningContent()));
+    clearFilters();
+  }, [clearFilters]);
+
+  const exportEntries = useCallback(() => ({
+    exportedAt: new Date().toISOString(),
+    total: entries.length,
+    entries,
+  }), [entries]);
+
   return {
     entries,
     filteredEntries,
@@ -207,6 +240,9 @@ export function useKnowledgeBase() {
     setSelectedCategory,
     selectedDifficulty,
     setSelectedDifficulty,
+    clearFilters,
+    resetToDefaults,
+    exportEntries,
     handleCreateEntry,
     handleUpdateEntry,
     handleDeleteEntry,
