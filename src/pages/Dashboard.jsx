@@ -14,8 +14,6 @@ import {
   calcTodayStats,
   getDailySequence,
   buildEquityCurve,
-  calcMaxDrawdown,
-  calcSharpeRatio,
 } from '@/lib/calculations/trades';
 import { buildDisciplineSnapshot } from '@/lib/calculations/discipline';
 
@@ -28,34 +26,42 @@ import DisciplineCoachCard from '@/components/dashboard/DisciplineCoachCard';
 import MorningBrief        from '@/components/dashboard/MorningBrief';
 import DayPanel            from '@/components/dashboard/DayPanel';
 
+const toFiniteNumber = (value, fallback = 0) => {
+  const numericValue = Number(value);
+  return Number.isFinite(numericValue) ? numericValue : fallback;
+};
+
 export default function Dashboard() {
   useTradeEvents();
   const [selectedDay, setSelectedDay] = useState(null);
 
-  const { data: trades = [], isLoading } = useTrades({ sortBy: 'entry_time', sortDir: 'desc' });
-  const settingsData = useSettings();
-  const {
-    settings,
-  } = settingsData;
-  
-  const accountSize = settings?.account_size;
-  const targetProfitDollars = settings?.target_profit_dollars;
-  const maxDollars = settings?.max_dollars;
+  const { settings } = useSettings();
+  const currentTier = settings?.account_tier || 'custom';
+  const { data: trades = [], isLoading } = useTrades({
+    filters: {
+      account_tier: currentTier,
+      sortBy: 'entry_time',
+      sortDir: 'desc',
+    },
+  });
+
+  const accountSize = toFiniteNumber(settings?.account_size, 50000);
+  const targetProfitDollars = toFiniteNumber(settings?.target_profit_dollars, 500);
+  const maxDollars = toFiniteNumber(settings?.max_dollars, 250);
 
   // ── Analytics (pure functions, no extra queries) ──────────────────────────
   const allStats   = useMemo(() => calcCoreStats(trades),          [trades]);
   const todayStats = useMemo(() => calcTodayStats(trades),         [trades]);
   const sequence   = useMemo(() => getDailySequence(trades, 20),   [trades]);
   const curve      = useMemo(() => buildEquityCurve(trades, accountSize), [trades, accountSize]);
-  const maxDD      = useMemo(() => calcMaxDrawdown(curve),         [curve]);
-  const sharpe     = useMemo(() => calcSharpeRatio(trades),        [trades]);
+  const recentDailyPnL = useMemo(() => sequence.map((item) => item.pnl), [sequence]);
   const disciplineSnapshot = useMemo(
     () => buildDisciplineSnapshot(trades, settings),
     [trades, settings]
   );
 
-  const currentBalance = (Number(accountSize) || 0) + (Number(allStats.totalPnL) || 0);
-  const maxDailyLoss   = -(maxDollars || 250);
+  const currentBalance = accountSize + toFiniteNumber(allStats.totalPnL, 0);
+  const maxDailyLoss = -Math.abs(maxDollars);
 
   if (isLoading) {
     return (
@@ -76,6 +82,7 @@ export default function Dashboard() {
         winRate={allStats.winRate}
         avgR={allStats.avgR}
         todayTrades={todayStats.totalTrades}
+        recentDailyPnL={recentDailyPnL}
       />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
@@ -95,7 +102,7 @@ export default function Dashboard() {
         }
       </div>
 
-      <PerformanceBreakdown trades={trades} />
+      <PerformanceBreakdown data={curve} />
     </div>
   );
 }

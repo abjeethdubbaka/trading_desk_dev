@@ -29,6 +29,12 @@ import PerformanceByHourOfDay  from '@/components/performance/PerformanceByHourO
 import PerformanceByDayOfWeek  from '@/components/performance/PerformanceByDayOfWeek';
 import PerformanceBySetupType  from '@/components/performance/PerformanceBySetupType';
 import PerformanceByPrice      from '@/components/performance/PerformanceByPrice';
+import AnalysisPanel           from '@/components/journal/analysis/AnalysisPanel';
+
+const toFiniteNumber = (value, fallback = 0) => {
+  const numericValue = Number(value);
+  return Number.isFinite(numericValue) ? numericValue : fallback;
+};
 
 function StatPill({ label, value, color }) {
   return (
@@ -40,8 +46,12 @@ function StatPill({ label, value, color }) {
 }
 
 export default function PerformancePage() {
-  const { data: trades = [], isLoading } = useTrades();
-  const { accountSize } = useSettings();
+  const { settings } = useSettings();
+  const currentTier = settings?.account_tier || 'custom';
+  const accountSize = toFiniteNumber(settings?.account_size, 50000);
+  const { data: trades = [], isLoading } = useTrades({
+    filters: { account_tier: currentTier },
+  });
 
   const stats  = useMemo(() => calcCoreStats(trades),                   [trades]);
   const curve  = useMemo(() => buildEquityCurve(trades, accountSize),   [trades, accountSize]);
@@ -95,6 +105,7 @@ export default function PerformancePage() {
           <TabsTrigger value="behavior">Behavior</TabsTrigger>
           <TabsTrigger value="timing">Timing</TabsTrigger>
           <TabsTrigger value="setups">Setups</TabsTrigger>
+          <TabsTrigger value="analysis">Analysis</TabsTrigger>
         </TabsList>
 
         <TabsContent value="behavior" className="space-y-4 mt-4">
@@ -116,6 +127,10 @@ export default function PerformancePage() {
             <PerformanceBySetupType data={bySetup} />
             <PerformanceByPrice     data={byPrice} />
           </div>
+        </TabsContent>
+
+        <TabsContent value="analysis" className="mt-4">
+          <AnalysisPanel trades={trades} isCollapsed={false} />
         </TabsContent>
       </Tabs>
     </div>

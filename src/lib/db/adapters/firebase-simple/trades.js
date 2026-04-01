@@ -11,6 +11,18 @@ import {
 } from 'firebase/firestore';
 import { broadcast, addCreateTimestamps, addUpdateTimestamp } from './utils.js';
 
+const FIRESTORE_INDEXED_SORT_FIELDS = Object.freeze({
+  entry_time: 'entry_time',
+  created_date: 'created_date',
+  updated_date: 'updated_date',
+  pnl: 'pnl',
+  symbol: 'symbol',
+  direction: 'direction',
+  account_tier: 'account_tier',
+  setup_type: 'setup_type',
+  r_multiple: 'r_multiple',
+});
+
 export function createTradesAdapter(db) {
   return {
     async list(options = {}) {
@@ -18,9 +30,11 @@ export function createTradesAdapter(db) {
         const tradesRef = collection(db, 'trades');
         let q = query(tradesRef);
         
-        // For now, fetch all trades and filter client-side to avoid index requirements
-        // TODO: Create Firebase index for better performance
-        q = query(q, orderBy('entry_time', 'desc'));
+        // For now, fetch all trades and filter client-side to avoid index requirements.
+        const requestedSortBy = options.sortBy || 'entry_time';
+        const sortBy = FIRESTORE_INDEXED_SORT_FIELDS[requestedSortBy] || 'entry_time';
+        const sortDir = options.sortDir === 'asc' ? 'asc' : 'desc';
+        q = query(q, orderBy(sortBy, sortDir));
         
         // Add limit if specified
         if (options.limit) {
@@ -29,8 +43,8 @@ export function createTradesAdapter(db) {
 
         const snap = await getDocs(q);
         let results = snap.docs.map((doc) => ({
+          ...doc.data(),
           id: doc.id,
-          ...doc.data()
         }));
         
         // Apply client-side filtering
@@ -72,7 +86,7 @@ export function createTradesAdapter(db) {
     async get(id) {
       const snap = await getDoc(doc(db, 'trades', id));
       if (!snap.exists()) return null;
-      return { id: snap.id, ...snap.data() };
+      return { ...snap.data(), id: snap.id };
     },
 
     async create(data) {
@@ -86,7 +100,7 @@ export function createTradesAdapter(db) {
         });
         
         const docRef = await addDoc(collection(db, 'trades'), clean);
-        const result = { id: docRef.id, ...clean };
+        const result = { ...clean, id: docRef.id };
         console.info('[FirebaseSimple][trades.create] write success', {
           id: result.id,
           symbol: result.symbol,
@@ -107,14 +121,21 @@ export function createTradesAdapter(db) {
     async update(id, changes) {
       const clean = addUpdateTimestamp(changes);
       await updateDoc(doc(db, 'trades', id), clean);
-      const result = { id, ...clean };
+      const snap = await getDoc(doc(db, 'trades', id));
+      const result = snap.exists() ? { ...snap.data(), id: snap.id } : { ...clean, id };
       broadcast('trades-updated', { action: 'update', trade: result });
       return result;
     },
 
     async delete(id) {
-      await deleteDoc(doc(db, 'trades', id));
+      const ref = doc(db, 'trades', id);
+      const snap = await getDoc(ref);
+      if (!snap.exists()) {
+        throw new Error(`Trade ${id} not found`);
+      }
+      await deleteDoc(ref);
       broadcast('trades-updated', { action: 'delete', tradeId: id });
+      return { id };
     },
 
     async bulkCreate(tradesArray) {

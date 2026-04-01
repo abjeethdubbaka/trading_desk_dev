@@ -102,6 +102,7 @@ export const SettingsSchema = {
     'max_positions',
     'max_daily_trades',
     'target_profit_dollars',
+    'exit_strategy',
     
     // Float-based Risk Management
     'float_categories',
@@ -152,6 +153,13 @@ export const SettingsSchema = {
     max_positions: 3,
     max_daily_trades: 5,
     target_profit_dollars: 500,
+    exit_strategy: {
+      levels: [
+        { r: 1, percent: 33, trailingStop: false },
+        { r: 2, percent: 33, trailingStop: false },
+        { r: 3, percent: 34, trailingStop: true },
+      ]
+    },
     
     // Float-based Risk Management
     float_categories: {

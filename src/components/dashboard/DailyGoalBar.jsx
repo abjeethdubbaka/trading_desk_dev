@@ -1,12 +1,16 @@
 import React from 'react';
 import { cn } from '@/lib/utils/general';
 
+const toFiniteNumber = (value, fallback = 0) => {
+  const numericValue = Number(value);
+  return Number.isFinite(numericValue) ? numericValue : fallback;
+};
+
 export default function DailyGoalBar({ todayPnL, targetProfit, maxDailyLoss }) {
-  // Handle undefined values with defaults
-  const safeTodayPnL = todayPnL || 0;
-  const safeTargetProfit = targetProfit || 100; // Default to $100 if not set
-  const safeMaxDailyLoss = maxDailyLoss || -100; // Default to -$100 if not set
-  
+  const safeTodayPnL = toFiniteNumber(todayPnL, 0);
+  const safeTargetProfit = Math.max(0, toFiniteNumber(targetProfit, 100));
+  const safeMaxDailyLoss = Math.min(0, toFiniteNumber(maxDailyLoss, -100));
+
   const pct = safeTargetProfit > 0 ? Math.min(100, Math.max(0, (safeTodayPnL / safeTargetProfit) * 100)) : 0;
   const hitTarget = safeTodayPnL >= safeTargetProfit;
   const hitMax = safeTodayPnL <= safeMaxDailyLoss;

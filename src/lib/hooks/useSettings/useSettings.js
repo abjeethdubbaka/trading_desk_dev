@@ -9,7 +9,6 @@ import { useCallback, useRef, useEffect } from 'react';
 import { createSettingsService } from '../../services/SettingsService.js';
 import { db } from '../../db/index.js';
 import { settingsKeys } from '../../utils/queryKeys';
-import { debounce } from 'lodash';
 import { detectTierFromSettings, getTierSettingsFields, saveTierCustomizations } from '../../config/accountTypes.js';
 
 // Create settings service instance
@@ -218,5 +217,4 @@ export function useSettings(options = {}) {
     validate: settingsService.validate.bind(settingsService)
   };
 }
-
 

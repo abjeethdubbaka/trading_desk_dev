@@ -16,8 +16,8 @@ export function createCalcHistoryAdapter(db) {
     async list() {
       const snap = await getDocs(collection(db, 'calcHistory'));
       return snap.docs.map(doc => ({
+        ...doc.data(),
         id: doc.id,
-        ...doc.data()
       }));
     },
     
@@ -27,13 +27,13 @@ export function createCalcHistoryAdapter(db) {
       clean.timestamp = clean.created_date;
       
       const docRef = await addDoc(collection(db, 'calcHistory'), clean);
-      return { id: docRef.id, ...clean };
+      return { ...clean, id: docRef.id };
     },
     
     async get(id) {
       const snap = await getDoc(doc(db, 'calcHistory', id));
       if (!snap.exists()) return null;
-      return { id: snap.id, ...snap.data() };
+      return { ...snap.data(), id: snap.id };
     },
     
     async delete(id) {
@@ -57,15 +57,15 @@ export function createWatchlistAdapter(db) {
     async list() {
       const snap = await getDocs(collection(db, 'watchlist'));
       return snap.docs.map(doc => ({
+        ...doc.data(),
         id: doc.id,
-        ...doc.data()
       }));
     },
     
     async create(data) {
       const clean = addCreateTimestamps(data);
       const docRef = await addDoc(collection(db, 'watchlist'), clean);
-      return { id: docRef.id, ...clean };
+      return { ...clean, id: docRef.id };
     }
   };
 }
@@ -76,8 +76,8 @@ export function createMediaAdapter(db) {
       const q = query(collection(db, 'media'), orderBy('created_at', 'desc'));
       const snapshot = await getDocs(q);
       const items = snapshot.docs.map(doc => ({
+        ...doc.data(),
         id: doc.id,
-        ...doc.data()
       }));
       
       // Apply filtering
@@ -97,13 +97,13 @@ export function createMediaAdapter(db) {
         updated_at: new Date().toISOString()
       }));
       const docRef = await addDoc(collection(db, 'media'), clean);
-      return { id: docRef.id, ...clean };
+      return { ...clean, id: docRef.id };
     },
     
     async get(id) {
       const snap = await getDoc(doc(db, 'media', id));
       if (!snap.exists()) return null;
-      return { id: snap.id, ...snap.data() };
+      return { ...snap.data(), id: snap.id };
     },
     
     async update(id, data) {

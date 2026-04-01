@@ -1,4 +1,5 @@
-import { useQuery } from '@tanstack/react-query';
+import { useTrades } from '@/lib/hooks/useTrades';
+import { useSettings } from '@/lib/context/SettingsContext';
 import { 
   calculatePerformanceByDayOfWeek,
   calculatePerformanceByPrice,
@@ -8,19 +9,10 @@ import {
 } from '../utils';
 
 export function usePerformanceData() {
-  const { data: trades = [], isLoading } = useQuery({
-    queryKey: ['journal-trades'],
-    queryFn: () => {
-      try {
-        if (typeof window !== 'undefined' && window.localStorage) {
-          const stored = window.localStorage.getItem('trades');
-          return stored ? JSON.parse(stored) : [];
-        }
-      } catch (e) {
-        
-        return [];
-      }
-    }
+  const { settings } = useSettings();
+  const currentTier = settings?.account_tier || 'custom';
+  const { data: trades = [], isLoading } = useTrades({
+    filters: { account_tier: currentTier },
   });
 
   const performanceByDayOfWeek = calculatePerformanceByDayOfWeek(trades);

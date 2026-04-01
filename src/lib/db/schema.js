@@ -47,6 +47,13 @@ export const SETTINGS_DEFAULTS = {
   target_profit_dollars: 500,
   max_dollars: 0,              // 0 = disabled
   risk_amount: 1000,
+  exit_strategy: {
+    levels: [
+      { r: 1, percent: 33, trailingStop: false },
+      { r: 2, percent: 33, trailingStop: false },
+      { r: 3, percent: 34, trailingStop: true },
+    ],
+  },
   float_categories: {
     micro: { min: 0,          max: 20_000_000,    label: 'Micro',  color: 'text-red-400',     positionMultiplier: 0.3, stopLossPercent: 3.0, maxFloatPercent: 0.1  },
     small: { min: 20_000_000, max: 50_000_000,    label: 'Small',  color: 'text-orange-400',  positionMultiplier: 0.5, stopLossPercent: 3.5, maxFloatPercent: 0.25 },

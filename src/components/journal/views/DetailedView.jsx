@@ -1,25 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { cn } from '@/lib/utils/general';
 import { formatDate, formatTime, formatCurrency } from '../utils/formatters';
-import { Image, Maximize2, AlertCircle } from 'lucide-react';
+import { AlertCircle } from 'lucide-react';
 import { createMediaService } from '@/lib/services/MediaService.js';
 import { db } from '@/lib/db/index.js';
 import { indexedDBAdapter } from '@/lib/db/adapters/IndexedDBAdapter.js';
-import { useSettings } from '@/lib/context/SettingsContext';
 
 // Create media service instance
 const mediaService = createMediaService(db, indexedDBAdapter);
 
 export default function DetailedView({ trades, onEdit }) {
-  const { settings } = useSettings();
   const [imageStates, setImageStates] = useState({});
   const [screenshotUrls, setScreenshotUrls] = useState({});
-
-  // Get current account tier settings
-  const journalPrefs = settings.journal_preferences || {};
-  const analysisSettings = settings.analysis_settings || {};
-  const screenshotSettings = settings.screenshot_settings || {};
-  const performanceGoals = settings.performance_goals || {};
 
   // Resolve screenshot URLs from IDs
   useEffect(() => {

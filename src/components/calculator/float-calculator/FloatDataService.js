@@ -1,5 +1,5 @@
 import { PolygonClient } from '@/api/polygonClient';
-import { SIMULATION_DATA, CACHE_CONFIG, FLOAT_CATEGORIES } from './constants';
+import { SIMULATION_DATA, CACHE_CONFIG } from './constants';
 
 export class FloatDataService {
   constructor() {

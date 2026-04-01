@@ -609,103 +609,83 @@ export function calcPosition({
   targetProfitDollars = 500,
   riskRewardRatio = 3,
 }) {
-
-  const entry  = Number(entryPrice);
-  const acct   = Number(accountSize);
+  const entry = Number(entryPrice);
+  const acct = Number(accountSize);
   if (!entry || !acct) throw new Error('Entry price and account size are required');
 
-  let stop, riskPerShare, shares, positionValue, actualRisk, mode;
+  const isLong = direction === 'long';
+  const maxSharesByBalance = Math.floor(acct / entry);
+  const accountPositionValue = (acct * positionPct) / 100;
 
-  // ── Mode 1: custom stop loss price provided ──────────────────────────────
+  let stop;
+  let riskPerShare;
+  let shares;
+  let mode;
+
+  // Mode 1: custom stop loss price provided
   if (stopLossPrice) {
-    stop        = Number(stopLossPrice);
-    riskPerShare = direction === 'long' ? entry - stop : stop - entry;
-    if (riskPerShare <= 0) throw new Error('Stop loss must be below entry for long, above for short');
+    stop = Number(stopLossPrice);
+    riskPerShare = isLong ? entry - stop : stop - entry;
+    if (riskPerShare <= 0) {
+      throw new Error('Stop loss must be below entry for long, above for short');
+    }
 
-    const risk = riskAmount ?? (acct * positionPct / 100);
-    
-    
-    // Calculate shares based on risk, but cap by account balance
+    const risk = riskAmount ?? accountPositionValue;
     const riskShares = Math.max(1, Math.round(risk / riskPerShare));
-    const maxSharesByBalance = Math.floor(acct / entry);
-    shares     = Math.min(riskShares, maxSharesByBalance);
-    positionValue = shares * entry;
-    actualRisk  = shares * riskPerShare;
-    mode        = 'custom-stop';
-    
-    
-  }
-
-  // ── Mode 2: float-aware ──────────────────────────────────────────────────
-  else if (shareFloat && floatCategory && floatCategories[floatCategory]) {
-    const cat   = floatCategories[floatCategory];
-    const pct   = (cat.stop_loss_percent ?? stopPct) / 100;
-    stop        = direction === 'long' ? entry * (1 - pct) : entry * (1 + pct);
+    shares = Math.min(riskShares, maxSharesByBalance);
+    mode = 'custom-stop';
+  } else {
+    const isFloatAware = shareFloat && floatCategory && floatCategories[floatCategory];
+    const cat = isFloatAware ? floatCategories[floatCategory] : null;
+    const stopPctValue = (isFloatAware ? (cat.stop_loss_percent ?? stopPct) : stopPct) / 100;
+    stop = isLong ? entry * (1 - stopPctValue) : entry * (1 + stopPctValue);
     riskPerShare = Math.abs(entry - stop);
 
-    // Use riskAmount instead of percentage-based calculation
     const riskShares = Math.floor((riskAmount || 1500) / riskPerShare);
-    const base        = Math.floor((acct * positionPct / 100) / entry);
-    const adjusted    = Math.floor(base * (cat.position_multiplier ?? 1));
-    const maxByFloat  = Math.floor(shareFloat * ((cat.max_float_percent ?? 0.5) / 100));
-    const maxByAcct   = maxDollars > 0 ? Math.floor(maxDollars / entry) : Infinity;
-    const maxSharesByBalance = Math.floor(acct / entry);
-    
-    shares        = Math.max(1, Math.min(riskShares, adjusted, maxByFloat, maxByAcct, maxSharesByBalance));
-    positionValue = shares * entry;
-    actualRisk    = shares * riskPerShare;
-    mode          = 'float-aware';
-    
-    
+
+    if (isFloatAware) {
+      const baseShares = Math.floor(accountPositionValue / entry);
+      const adjustedShares = Math.floor(baseShares * (cat.position_multiplier ?? 1));
+      const maxByFloat = Math.floor(shareFloat * ((cat.max_float_percent ?? 0.5) / 100));
+      const maxByAccountDollars = maxDollars > 0 ? Math.floor(maxDollars / entry) : Infinity;
+
+      shares = Math.max(
+        1,
+        Math.min(riskShares, adjustedShares, maxByFloat, maxByAccountDollars, maxSharesByBalance)
+      );
+      mode = 'float-aware';
+    } else {
+      const maxPositionValue = maxDollars > 0 ? Math.min(accountPositionValue, maxDollars) : accountPositionValue;
+      const maxSharesByPosition = Math.floor(maxPositionValue / entry);
+      shares = Math.max(1, Math.min(riskShares, maxSharesByPosition, maxSharesByBalance));
+      mode = 'entry-only';
+    }
   }
 
-  // ── Mode 3: entry-only (default) ─────────────────────────────────────────
-  else {
-    const pct    = stopPct / 100;
-    stop         = direction === 'long' ? entry * (1 - pct) : entry * (1 + pct);
-    riskPerShare = Math.abs(entry - stop);
-
-    // Use riskAmount instead of percentage-based calculation
-    const riskShares = Math.floor((riskAmount || 1500) / riskPerShare);
-    const maxPos   = maxDollars > 0
-      ? Math.min(acct * positionPct / 100, maxDollars)
-      : acct * positionPct / 100;
-    const maxSharesByBalance = Math.floor(acct / entry);
-    
-    shares        = Math.max(1, Math.min(riskShares, Math.floor(maxPos / entry), maxSharesByBalance));
-    positionValue = shares * entry;
-    actualRisk    = shares * riskPerShare;
-    mode          = 'entry-only';
-    
-    
-  }
-
-  const target       = direction === 'long'
-    ? entry + (riskPerShare * riskRewardRatio)
-    : entry - (riskPerShare * riskRewardRatio);
+  const positionValue = shares * entry;
+  const actualRisk = shares * riskPerShare;
+  const target = isLong ? entry + (riskPerShare * riskRewardRatio) : entry - (riskPerShare * riskRewardRatio);
   const targetProfit = shares * riskPerShare * riskRewardRatio;
-
   const actualRiskPct = acct > 0 ? (actualRisk / acct) * 100 : 0;
-  const riskLevel     = actualRiskPct >= 2 ? 'High' : actualRiskPct >= 1 ? 'Medium' : 'Low';
+  const riskLevel = actualRiskPct >= 2 ? 'High' : actualRiskPct >= 1 ? 'Medium' : 'Low';
 
   return {
-    entryPrice:      round(entry, 2),
-    stopLossPrice:   round(stop,   2),
-    targetPrice:     round(target, 2),
+    entryPrice: round(entry, 2),
+    stopLossPrice: round(stop, 2),
+    targetPrice: round(target, 2),
     direction,
     shares,
-    positionValue:   round(positionValue, 2),
-    actualRisk:      round(actualRisk,    2),
-    actualRiskPct:   round(actualRiskPct, 2),
+    positionValue: round(positionValue, 2),
+    actualRisk: round(actualRisk, 2),
+    actualRiskPct: round(actualRiskPct, 2),
     riskLevel,
-    targetProfit:    round(targetProfit, 2),
+    targetProfit: round(targetProfit, 2),
     riskRewardRatio,
-    floatCategory:   floatCategory ?? null,
+    floatCategory: floatCategory ?? null,
     mode,
-    calculatedAt:    new Date().toLocaleString(),
+    calculatedAt: new Date().toLocaleString(),
   };
 }
-
 // ---------------------------------------------------------------------------
 // Internal helpers
 // ---------------------------------------------------------------------------
@@ -752,5 +732,4 @@ function groupByDay(trades) {
   }
   return groups;
 }
-
 

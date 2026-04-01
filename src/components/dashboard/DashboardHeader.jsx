@@ -2,7 +2,6 @@ import React, { useMemo } from 'react';
 import {
   TrendingUp, TrendingDown, Activity,
   Target, BarChart2, DollarSign,
-  ArrowUpRight, ArrowDownRight,
 } from 'lucide-react';
 import { cn } from '@/lib/utils/general';
 import AnimatedStat, { TrendArrow, MiniSparkline } from '@/components/ui/AnimatedStat';
@@ -101,6 +100,10 @@ export default function DashboardHeader({
 
   // Derive sparkline buckets (last 8 days)
   const sparkBars = useMemo(() => recentDailyPnL.slice(-8), [recentDailyPnL]);
+  const avgRTrend = useMemo(() => {
+    if (prevAvgR == null || prevAvgR === 0) return null;
+    return ((avgR - prevAvgR) / Math.abs(prevAvgR)) * 100;
+  }, [avgR, prevAvgR]);
 
   return (
     <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5">
@@ -159,7 +162,7 @@ export default function DashboardHeader({
         rawValue={null}
         color={rColor}
         icon={BarChart2}
-        trend={prevAvgR != null ? ((avgR - prevAvgR) / Math.abs(prevAvgR)) * 100 : null}
+        trend={avgRTrend}
         delay={200}
       />
     </div>

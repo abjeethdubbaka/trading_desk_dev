@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Search, Filter, RefreshCw } from 'lucide-react';
+import { Plus, Search, /* Filter, */ RefreshCw } from 'lucide-react';  // Filter unused
 import WatchlistCard from '@/components/watchlist/WatchlistCard';
 import AddWatchlistModal from '@/components/watchlist/AddWatchlistModal';
 import PriceAlertModal from '@/components/watchlist/PriceAlertModal';

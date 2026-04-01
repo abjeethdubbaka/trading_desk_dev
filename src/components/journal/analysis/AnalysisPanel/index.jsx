@@ -121,7 +121,7 @@ export default function AnalysisPanel({ trades, isCollapsed }) {
   }
 
   return (
-    <div className="w-80 bg-[#1a1a24] border border-white/10 rounded overflow-hidden">
+    <div className="w-full bg-[#1a1a24] border border-white/10 rounded overflow-hidden">
       {/* Header */}
       <div className="p-4 border-b border-white/10">
         <div className="flex items-center justify-between">

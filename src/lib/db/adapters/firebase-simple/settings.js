@@ -13,7 +13,7 @@ export function createSettingsAdapter(db) {
       try {
         const snap = await getDoc(doc(db, 'settings', 'main'));
         if (!snap.exists()) return null;
-        return { id: snap.id, ...snap.data() };
+        return { ...snap.data(), id: snap.id };
       } catch (error) {
         
         throw error;
@@ -26,7 +26,7 @@ export function createSettingsAdapter(db) {
       try {
         await setDoc(doc(db, 'settings', 'main'), clean, { merge: true });
         
-        const result = { id: 'main', ...clean };
+        const result = { ...clean, id: 'main' };
         
         broadcast('settings-updated', { action: 'save', settings: result });
         return result;

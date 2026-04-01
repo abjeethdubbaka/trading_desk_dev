@@ -82,7 +82,7 @@ export const useTradeForm = (initialData, userId = 'user-123') => {
       entry_price: initialData.entry_price?.toString() || '',
       exit_price: initialData.exit_price?.toString() || '',
       stop_loss: initialData.stop_loss?.toString() || '',
-      position_size: initialData.position_size?.toString() || '',
+      position_size: (initialData.position_size ?? initialData.quantity)?.toString() || '',
       entry_time: entryTimeLocal || getCurrentLocalDateTime(),
       exit_time: exitTimeLocal || '',
       fee: initialData.fee?.toString() || '',
@@ -137,6 +137,7 @@ export const useTradeForm = (initialData, userId = 'user-123') => {
       direction: 'long',
       entry_price: '',
       exit_price: '',
+      stop_loss: '',
       position_size: '',
       entry_time: getCurrentLocalDateTime(),
       exit_time: '',
@@ -188,7 +189,8 @@ export const useTradeForm = (initialData, userId = 'user-123') => {
       entry_price: parseFloat(formData.entry_price) || 0,
       exit_price: formData.exit_price ? parseFloat(formData.exit_price) : null,
       stop_loss: formData.stop_loss ? parseFloat(formData.stop_loss) : null,
-      quantity: parseInt(formData.position_size) || 0, // Map position_size to quantity
+      position_size: parseInt(formData.position_size, 10) || 0,
+      quantity: parseInt(formData.position_size, 10) || 0, // Map position_size to quantity
       pnl,
       pnl_percent: pnlPercent,
       r_multiple: rMultiple,

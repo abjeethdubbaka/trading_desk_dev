@@ -13,10 +13,6 @@ export { default as TradeReviewPanel } from './analysis/TradeReviewPanel';
 
 // Toolbar Components
 export { default as JournalToolbar } from './toolbar/JournalToolbar';
-export { default as TradeSimulator } from './toolbar/TradeSimulator';
-
-// Shared Components
-export { default as TradeCard } from './shared/TradeCard';
 
 // Shared Hooks
 export { useJournalFilters } from './shared/hooks/useJournalFilters';
@@ -26,6 +22,5 @@ export { useJournalAnalytics } from './shared/hooks/useJournalAnalytics';
 // Utils
 export * from './utils/constants';
 export * from './utils/formatters';
-export * from './utils/imageUtils';
 
 

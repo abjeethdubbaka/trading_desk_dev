@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { cn } from '@/lib/utils/general';
-import { formatDate, formatTime, formatCurrency } from '../utils/formatters';
+import { formatDate, formatCurrency } from '../utils/formatters';
 import { Image, AlertCircle, ChevronDown, Edit2, Trash2 } from 'lucide-react';
 import { PnlBadge, DirectionBadge, RMultipleBadge, EmotionBadge, SetupBadge } from '@/components/ui/TradeBadge';
 import TradeReviewPanel from '../analysis/TradeReviewPanel';
@@ -11,7 +11,7 @@ import { indexedDBAdapter } from '@/lib/db/adapters/IndexedDBAdapter.js';
 const mediaService = createMediaService(db, indexedDBAdapter);
 
 /* ─── Thumbnail ────────────────────────────────────────────────────────── */
-function Thumb({ screenshotId, tradeId, index, onView }) {
+function Thumb({ screenshotId, index, onView }) {
   const [url,   setUrl]   = useState(null);
   const [state, setState] = useState('loading');
 
@@ -174,7 +174,6 @@ function TradeRow({
             <Thumb
               key={id ?? i}
               screenshotId={id}
-              tradeId={trade.id}
               index={i}
               onView={openLightbox}
             />

@@ -22,14 +22,16 @@ export function fromDoc(snap) {
     }
   }
   
-  return { id: snap.id, ...converted };
+  // Always prefer the Firestore document id over any stored `id` field.
+  return { ...converted, id: snap.id };
 }
 
 /** Strip undefined & convert Date → ISO string for consistency. */
 export function prepareWrite(data) {
   // Remove undefined keys entirely (Firestore rejects them)
+  // Also strip client-provided `id` so doc ids remain source-of-truth.
   const result = Object.fromEntries(
-    Object.entries(data).filter(([, v]) => v !== undefined)
+    Object.entries(data).filter(([k, v]) => k !== 'id' && v !== undefined)
   );
   return result;
 }

@@ -141,6 +141,7 @@ export const FieldValidations = {
   default_stop_loss_percent: [ValidationTypes.PERCENTAGE],
   target_profit_dollars: [ValidationTypes.CURRENCY],
   max_dollars: [ValidationTypes.CURRENCY],
+  exit_strategy: [ValidationTypes.OBJECT],
   
   // Media fields
   file_name: [ValidationTypes.REQUIRED, ValidationTypes.STRING],

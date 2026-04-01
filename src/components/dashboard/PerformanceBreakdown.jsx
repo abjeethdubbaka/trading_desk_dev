@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
-export default function PerformanceChart({ data }) {
+export default function PerformanceBreakdown({ data = [] }) {
   const containerRef = useRef(null);
   const [isChartReady, setIsChartReady] = useState(false);
   const [chartSize, setChartSize] = useState({ width: 0, height: 0 });
