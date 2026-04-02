@@ -31,6 +31,10 @@ export const TRADE_DEFAULTS = {
   trade_plan_id: null,
   strategy_preset_id: null,
   dos_donts_rule_ids: [],
+  float_category: null,
+  share_float: null,
+  share_float_range: null,
+  hold_duration_minutes: null,
 };
 
 /**

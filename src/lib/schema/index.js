@@ -37,6 +37,8 @@ export const TradeSchema = {
     // Market Context
     'market_condition',
     'float_category',
+    'share_float',
+    'share_float_range',
     'sector',
     'news_impact',
     

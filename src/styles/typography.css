@@ -1,3 +1,26 @@
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap');
+
+@layer base {
+  body {
+    font-family: 'Manrope', 'Segoe UI', 'Avenir Next', sans-serif;
+    letter-spacing: -0.01em;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    letter-spacing: -0.02em;
+  }
+
+  .font-mono,
+  [class*='font-mono'] {
+    font-family: 'JetBrains Mono', 'Cascadia Code', 'Fira Code', monospace;
+  }
+}
+
 .text-profit-gradient {
   background: linear-gradient(135deg, #34d399 0%, #10b981 100%);
   -webkit-background-clip: text;

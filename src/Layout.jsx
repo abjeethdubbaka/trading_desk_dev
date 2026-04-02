@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import React, { useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { createPageUrl } from './utils';
 import { useElectron } from '@/lib/hooks/useElectron';
 import {
@@ -17,107 +17,119 @@ import {
   Book,
   CheckCircle,
   BarChart3,
-  ScanSearch
+  ScanSearch,
 } from 'lucide-react';
-import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
+import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
+import { formatAnalysisTimer, useAnalysisTimer } from '@/lib/context/AnalysisTimerContext';
+
+const navItems = [
+  {
+    name: 'Dashboard',
+    description: 'Daily P&L pulse, streaks, and discipline context.',
+    icon: LayoutDashboard,
+    page: 'Dashboard',
+  },
+  {
+    name: 'Journal',
+    description: 'Review, tag, and refine execution trade by trade.',
+    icon: BookOpen,
+    page: 'Journal',
+  },
+  {
+    name: 'Calculator',
+    description: 'Build risk-sized entries with float-aware sizing.',
+    icon: Calculator,
+    page: 'Calculator',
+  },
+  {
+    name: 'Calc History',
+    description: 'Replay previous calculator outcomes and assumptions.',
+    icon: History,
+    page: 'CalcHistory',
+  },
+  {
+    name: 'Knowledge Base',
+    description: 'Reference playbooks, notes, and process docs.',
+    icon: Book,
+    page: 'Knowledge',
+  },
+  {
+    name: "Do's & Don'ts",
+    description: 'Track your personal execution rules and accountability.',
+    icon: CheckCircle,
+    page: 'DosAndDonts',
+  },
+  {
+    name: 'Performance',
+    description: 'Analyze edge quality across timing, setup, and behavior.',
+    icon: BarChart3,
+    page: 'Performance',
+  },
+  {
+    name: 'Screenshot Analysis',
+    description: 'Inspect chart captures and summarize missed edge.',
+    icon: ScanSearch,
+    page: 'ScreenshotAnalysis',
+  },
+  {
+    name: 'Settings',
+    description: 'Configure account, risk, and app preferences.',
+    icon: Settings,
+    page: 'Settings',
+  },
+];
 
 export default function Layout({ children, currentPageName }) {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
-  const location = useLocation();
-  const { isElectron, appVersion, closeApp } = useElectron();
 
-  const navItems = [
-    { name: 'Dashboard', icon: LayoutDashboard, page: 'Dashboard' },
-    { name: 'Journal', icon: BookOpen, page: 'Journal' },
-    { name: 'Calculator', icon: Calculator, page: 'Calculator' },
-    { name: 'Calc History', icon: History, page: 'CalcHistory' },
-    { name: 'Knowledge Base', icon: Book, page: 'Knowledge' },
-    { name: 'Do\'s & Don\'ts', icon: CheckCircle, page: 'DosAndDonts' },
-    { name: 'Performance', icon: BarChart3, page: 'Performance' },
-    { name: 'Screenshot Analysis', icon: ScanSearch, page: 'ScreenshotAnalysis' },
-    { name: 'Settings', icon: Settings, page: 'Settings' },
-  ];
+  const { isElectron, closeApp } = useElectron();
+  const {
+    isVisible: isTimerVisible,
+    remainingSeconds,
+    isTimerRunning,
+    isNearEnd,
+    isExpired,
+  } = useAnalysisTimer();
+
+  const activeNavItem = useMemo(
+    () => navItems.find((item) => item.page === currentPageName) ?? navItems[0],
+    [currentPageName]
+  );
 
   return (
-    <div className="min-h-screen bg-[#0a0a0f] text-white">
-      <style>{`
-        :root {
-          --background: 0 0% 4%;
-          --foreground: 0 0% 98%;
-          --card: 0 0% 7%;
-          --card-foreground: 0 0% 98%;
-          --popover: 0 0% 7%;
-          --popover-foreground: 0 0% 98%;
-          --primary: 142 76% 46%;
-          --primary-foreground: 0 0% 100%;
-          --secondary: 0 0% 12%;
-          --secondary-foreground: 0 0% 98%;
-          --muted: 0 0% 15%;
-          --muted-foreground: 0 0% 64%;
-          --accent: 142 76% 46%;
-          --accent-foreground: 0 0% 100%;
-          --destructive: 0 84% 60%;
-          --destructive-foreground: 0 0% 98%;
-          --border: 0 0% 14%;
-          --input: 0 0% 14%;
-          --ring: 142 76% 46%;
-        }
-        body {
-          background: #0a0a0f;
-        }
-        .glass-card {
-          background: rgba(255, 255, 255, 0.02);
-          border: 1px solid rgba(255, 255, 255, 0.06);
-          backdrop-filter: blur(20px);
-        }
-        .gradient-border {
-          position: relative;
-        }
-        .gradient-border::before {
-          content: '';
-          position: absolute;
-          inset: 0;
-          border-radius: inherit;
-          padding: 1px;
-          background: linear-gradient(135deg, rgba(34, 197, 94, 0.2), rgba(34, 197, 94, 0));
-          pointer-events: none;
-          -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-          mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-          -webkit-mask-composite: xor;
-          mask-composite: exclude;
-        }
-        .glow-green {
-          box-shadow: 0 0 40px rgba(34, 197, 94, 0.1);
-        }
-        .glow-red {
-          box-shadow: 0 0 40px rgba(239, 68, 68, 0.1);
-        }
-      `}</style>
+    <div className="app-shell relative isolate min-h-screen text-white">
+      <div className="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
+        <div className="absolute -left-20 top-0 h-80 w-80 rounded-full bg-emerald-500/15 blur-[110px]" />
+        <div className="absolute right-0 top-1/3 h-80 w-80 rounded-full bg-cyan-500/10 blur-[120px]" />
+        <div className="absolute bottom-[-60px] left-1/3 h-72 w-72 rounded-full bg-blue-500/10 blur-[120px]" />
+      </div>
 
-      {/* Mobile Header */}
-      <div className="lg:hidden fixed top-0 left-0 right-0 h-16 bg-[#0a0a0f]/95 backdrop-blur-xl border-b border-white/5 z-50 flex items-center justify-between px-4">
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center">
-            <TrendingUp className="w-4 h-4 text-white" />
+      <div className="fixed left-0 right-0 top-0 z-50 flex h-16 items-center justify-between border-b border-white/10 bg-[#090d15]/85 px-4 backdrop-blur-xl lg:hidden">
+        <div className="flex min-w-0 items-center gap-3">
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 to-cyan-500 shadow-[0_0_22px_rgba(16,185,129,0.45)]">
+            <TrendingUp className="h-4 w-4 text-white" />
           </div>
-          <span className="font-semibold tracking-tight">TradeDesk</span>
+          <div className="min-w-0">
+            <p className="truncate text-sm font-semibold tracking-tight text-white">{activeNavItem.name}</p>
+            <p className="truncate text-[10px] uppercase tracking-[0.18em] text-white/45">TradeDesk</p>
+          </div>
         </div>
+
         <Button
           variant="ghost"
           size="icon"
-          onClick={() => setMobileOpen(!mobileOpen)}
+          onClick={() => setMobileOpen((prev) => !prev)}
           className="text-white/70"
         >
-          {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+          {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
         </Button>
       </div>
 
-      {/* Mobile Nav Overlay */}
       {mobileOpen && (
-        <div className="lg:hidden fixed inset-0 bg-black/80 backdrop-blur-sm z-40 pt-16">
-          <nav className="p-4 space-y-1">
+        <div className="fixed inset-0 z-40 bg-black/80 pt-16 backdrop-blur-sm lg:hidden">
+          <nav className="space-y-1 p-4">
             {navItems.map((item) => {
               const isActive = currentPageName === item.page;
               return (
@@ -126,14 +138,17 @@ export default function Layout({ children, currentPageName }) {
                   to={createPageUrl(item.page)}
                   onClick={() => setMobileOpen(false)}
                   className={cn(
-                    "flex items-center gap-3 px-4 py-3 rounded-xl transition-all",
+                    'flex items-start gap-3 rounded-xl border px-3 py-3 transition-all',
                     isActive
-                      ? "bg-emerald-500/10 text-emerald-400"
-                      : "text-white/50 hover:text-white/80 hover:bg-white/5"
+                      ? 'border-emerald-400/25 bg-emerald-500/10 text-emerald-300'
+                      : 'border-white/10 bg-white/[0.03] text-white/65 hover:border-white/20 hover:bg-white/[0.05] hover:text-white'
                   )}
                 >
-                  <item.icon className="w-5 h-5" />
-                  <span className="font-medium">{item.name}</span>
+                  <item.icon className="mt-0.5 h-5 w-5 flex-shrink-0" />
+                  <div>
+                    <p className="text-sm font-semibold">{item.name}</p>
+                    <p className="text-xs text-white/45">{item.description}</p>
+                  </div>
                 </Link>
               );
             })}
@@ -141,38 +156,27 @@ export default function Layout({ children, currentPageName }) {
         </div>
       )}
 
-      {/* Desktop Sidebar */}
       <aside
         className={cn(
-          "hidden lg:flex fixed left-0 top-0 bottom-0 flex-col bg-[#0a0a0f] border-r border-white/5 z-40 transition-all duration-300",
-          collapsed ? "w-20" : "w-64"
+          'fixed bottom-0 left-0 top-0 z-40 hidden flex-col border-r border-white/10 bg-[#0b0f17]/75 backdrop-blur-xl transition-all duration-300 lg:flex',
+          collapsed ? 'w-[88px]' : 'w-[280px]'
         )}
-        onMouseEnter={() => {
-          // Auto-expand on hover
-          if (collapsed) setCollapsed(false);
-        }}
-        onMouseLeave={() => {
-          // Auto-collapse on hover leave
-          setCollapsed(true);
-        }}
       >
-        <div className={cn(
-          "h-20 flex items-center border-b border-white/5",
-          collapsed ? "justify-center px-4" : "px-6"
-        )}>
+        <div className={cn('flex h-20 items-center border-b border-white/10', collapsed ? 'justify-center px-3' : 'px-5')}>
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center glow-green">
-              <TrendingUp className="w-5 h-5 text-white" />
+            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-500 to-cyan-500 shadow-[0_0_26px_rgba(16,185,129,0.42)]">
+              <TrendingUp className="h-5 w-5 text-white" />
             </div>
             {!collapsed && (
               <div>
-                <h1 className="font-bold text-lg tracking-tight">TradeDesk</h1>
+                <h1 className="text-lg font-bold tracking-tight">TradeDesk</h1>
+                <p className="text-[10px] uppercase tracking-[0.2em] text-white/40">Execution OS</p>
               </div>
             )}
           </div>
         </div>
 
-        <nav className="flex-1 p-4 space-y-1">
+        <nav className="flex-1 space-y-1.5 p-3">
           {navItems.map((item) => {
             const isActive = currentPageName === item.page;
             return (
@@ -180,87 +184,126 @@ export default function Layout({ children, currentPageName }) {
                 key={item.page}
                 to={createPageUrl(item.page)}
                 className={cn(
-                  "flex items-center gap-3 px-4 py-3 rounded-xl transition-all relative group",
+                  'group relative flex items-center gap-3 rounded-xl border px-3 py-2.5 transition-all duration-200',
                   isActive
-                    ? "bg-emerald-500/10 text-emerald-400"
-                    : "text-white/50 hover:text-white/80 hover:bg-white/5",
-                  collapsed && "justify-center px-3"
+                    ? 'nav-item-active border-emerald-400/25 text-emerald-300 shadow-[0_0_20px_rgba(16,185,129,0.12)]'
+                    : 'border-transparent text-white/55 hover:border-white/10 hover:bg-white/[0.04] hover:text-white/85',
+                  collapsed && 'justify-center px-2'
                 )}
+                title={collapsed ? item.name : undefined}
               >
-                {isActive && (
-                  <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-emerald-500 rounded-r-full" />
-                )}
-                <item.icon className="w-5 h-5 flex-shrink-0" />
-                {!collapsed && (
-                  <span className="font-medium">{item.name}</span>
-                )}
+                <item.icon className="h-5 w-5 flex-shrink-0" />
+                {!collapsed && <span className="truncate text-sm font-medium">{item.name}</span>}
               </Link>
             );
           })}
+
+          {isTimerVisible && (
+            <div
+              className={cn(
+                'mt-4 rounded-2xl border px-3 py-3 transition-all duration-300',
+                collapsed ? 'space-y-2 text-center' : 'space-y-2',
+                isExpired
+                  ? 'border-rose-400/40 bg-rose-500/15'
+                  : isNearEnd
+                    ? 'timer-alert-blink border-amber-300/55 bg-amber-300/15'
+                    : isTimerRunning
+                      ? 'border-emerald-400/30 bg-emerald-500/10'
+                      : 'border-white/12 bg-white/[0.04]'
+              )}
+            >
+              <div className={cn('flex items-center gap-2', collapsed ? 'justify-center' : 'justify-between')}>
+                <div className="flex items-center gap-2">
+                  <div
+                    className={cn(
+                      'flex h-8 w-8 items-center justify-center rounded-lg',
+                      isExpired
+                        ? 'bg-rose-500/25 text-rose-200'
+                        : isNearEnd
+                          ? 'bg-amber-300/20 text-amber-100'
+                          : isTimerRunning
+                            ? 'bg-emerald-500/20 text-emerald-300'
+                            : 'bg-white/10 text-white/75'
+                    )}
+                  >
+                    <History className="h-4 w-4" />
+                  </div>
+                  {!collapsed && (
+                    <div>
+                      <p className="text-[10px] uppercase tracking-[0.2em] text-white/45">Analysis Timer</p>
+                      <p className="text-xs text-white/70">
+                        {isExpired ? 'Time up' : isTimerRunning ? 'Running' : 'Paused'}
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                {!collapsed && (
+                  <p className="font-mono text-sm font-semibold tracking-[0.18em] text-white/90">
+                    {formatAnalysisTimer(remainingSeconds)}
+                  </p>
+                )}
+              </div>
+
+              {collapsed && (
+                <>
+                  <p className="font-mono text-[11px] font-semibold tracking-[0.16em] text-white/90">
+                    {formatAnalysisTimer(remainingSeconds)}
+                  </p>
+                  <p className="text-[8px] uppercase tracking-[0.2em] text-white/45">
+                    {isExpired ? 'Done' : isTimerRunning ? 'Run' : 'Pause'}
+                  </p>
+                </>
+              )}
+            </div>
+          )}
         </nav>
 
-        <div className="p-4 border-t border-white/5 space-y-2">
-          {/* Collapse Button */}
+        <div className="space-y-2 border-t border-white/10 p-3">
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => setCollapsed(!collapsed)}
-            className={cn(
-              "w-full text-white/40 hover:text-white/80 hover:bg-white/5 transition-all duration-200",
-              collapsed && "px-3"
-            )}
+            onClick={() => setCollapsed((prev) => !prev)}
+            className={cn('w-full justify-center text-white/55 hover:text-white', !collapsed && 'justify-start px-3')}
           >
             {collapsed ? (
-              <ChevronRight className="w-4 h-4" />
+              <ChevronRight className="h-4 w-4" />
             ) : (
               <>
-                <ChevronLeft className="w-4 h-4 mr-2" />
-                <span>Collapse</span>
+                <ChevronLeft className="mr-2 h-4 w-4" />
+                Collapse
               </>
             )}
           </Button>
-          
-          {/* Shutdown Button - Only show when expanded */}
-          {!collapsed && isElectron && (
+
+          {isElectron && (
             <Button
               variant="ghost"
               size="sm"
               onClick={closeApp}
-              className="w-full text-red-400/60 hover:text-red-400 hover:bg-red-500/10 transition-all duration-200"
+              className={cn(
+                'w-full text-red-300/80 hover:bg-red-500/10 hover:text-red-200',
+                collapsed ? 'justify-center' : 'justify-start px-3'
+              )}
+              title={collapsed ? 'Shutdown App' : undefined}
             >
-              <Power className="w-4 h-4 mr-2" />
-              <span>Shutdown</span>
-            </Button>
-          )}
-          
-          {/* Shutdown Button - Collapsed state */}
-          {collapsed && isElectron && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={closeApp}
-              className="w-full text-red-400/60 hover:text-red-400 hover:bg-red-500/10 transition-all duration-200 px-3"
-              title="Shutdown App"
-            >
-              <Power className="w-4 h-4" />
+              <Power className={cn('h-4 w-4', !collapsed && 'mr-2')} />
+              {!collapsed && 'Shutdown'}
             </Button>
           )}
         </div>
       </aside>
 
-      {/* Main Content */}
       <main
         className={cn(
-          "min-h-screen transition-all duration-300 pt-16 lg:pt-0",
-          collapsed ? "lg:pl-20" : "lg:pl-64"
+          'min-h-screen pt-16 transition-[padding] duration-300 lg:pt-0',
+          collapsed ? 'lg:pl-[88px]' : 'lg:pl-[280px]'
         )}
       >
-        <div className="p-4 lg:p-8">
-          {children}
+        <div className="px-4 pb-8 pt-4 lg:px-8 lg:pt-7">
+          <div className="animate-fade-up">{children}</div>
         </div>
       </main>
     </div>
   );
 }
-
-

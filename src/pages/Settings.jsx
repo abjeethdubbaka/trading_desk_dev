@@ -37,6 +37,7 @@ export default function SettingsPage() {
   const { user, signOut } = useAuth();
 
   const [draftValues, setDraftValues] = useState({});
+  const [isReEnrichingTrades, setIsReEnrichingTrades] = useState(false);
   const [exitDraft, setExitDraft] = useState(
     DEFAULT_EXIT_LEVELS.map((level) => ({
       r: String(level.r),
@@ -200,18 +201,63 @@ export default function SettingsPage() {
     }
   }, [hasLocalDraftChanges, commitDraftFields, savePending]);
 
-  const handleMigrateTrades = useCallback(async () => {
-    if (window.confirm('This will migrate all existing trades to the 25K account tier. Are you sure?')) {
-      try {
-        const { createTradeService } = await import('@/lib/services/TradeService.js');
-        const tradeService = createTradeService(db);
-        await tradeService.migrateTradesToAccountTier();
-        toast.success('Trade migration completed successfully!');
-      } catch (error) {
-        toast.error('Failed to migrate trades');
+  const handleReEnrichTrades = useCallback(async () => {
+    if (isReEnrichingTrades) return;
+
+    const confirmed = window.confirm(
+      'Re-enrich all existing trades with share float and float range? This may take a moment for larger journals.'
+    );
+    if (!confirmed) return;
+
+    setIsReEnrichingTrades(true);
+    try {
+      const { createTradeService } = await import('@/lib/services/TradeService.js');
+      const tradeService = createTradeService(db);
+      const result = await tradeService.backfillShareFloatEnrichment();
+      const debugRows = Array.isArray(result?.debugRows) ? result.debugRows : [];
+      const maxConsoleRows = 200;
+
+      console.groupCollapsed('[Settings] Re-enrich Trades Debug');
+      console.info('Summary:', {
+        scanned: result?.scanned,
+        eligible: result?.eligible,
+        updated: result?.updated,
+        skipped: result?.skipped,
+        failed: result?.failed,
+        debugMeta: result?.debugMeta,
+      });
+      if (debugRows.length > 0) {
+        console.table(debugRows.slice(0, maxConsoleRows));
+        if (debugRows.length > maxConsoleRows) {
+          console.info(
+            `Showing first ${maxConsoleRows} debug rows of ${debugRows.length}.`
+          );
+        }
+      } else {
+        console.info('No debug rows returned.');
       }
+      console.groupEnd();
+
+      if (result.updated > 0) {
+        toast.success(
+          `Re-enrich complete: updated ${result.updated} of ${result.eligible} eligible trades (${result.scanned} scanned).`
+        );
+      } else {
+        toast.info(
+          `Re-enrich complete: no updates needed (${result.scanned} scanned, ${result.eligible} eligible).`
+        );
+      }
+
+      if (result.failed > 0) {
+        toast.warning(`${result.failed} trades failed during re-enrich. Check console for details.`);
+        console.warn('[Settings] backfillShareFloatEnrichment failures', result.failures);
+      }
+    } catch (error) {
+      toast.error(`Failed to re-enrich trades: ${error?.message || 'Unknown error'}`);
+    } finally {
+      setIsReEnrichingTrades(false);
     }
-  }, []);
+  }, [isReEnrichingTrades]);
 
   const handleClearAndReinit = useCallback(async () => {
     if (window.confirm('This will reset all settings to defaults. Are you sure?')) {
@@ -238,26 +284,6 @@ export default function SettingsPage() {
         toast.success('Local cache cleared');
       }
     }
-  }, []);
-
-  const exportCSV = useCallback(() => {
-    const trades = JSON.parse(localStorage.getItem('trades') || '[]');
-    const rows = [
-      ['date', 'symbol', 'direction', 'entry', 'exit', 'size', 'pnl', 'r_multiple', 'setup', 'emotions', 'followed_plan'],
-      ...trades.map((t) => [
-        (t.entry_time || t.created_date || '').slice(0, 10),
-        t.symbol || '', t.direction || '', t.entry_price || '', t.exit_price || '',
-        t.position_size || '', t.pnl || '', t.r_multiple || '',
-        t.setup_type || '', t.emotions || '', t.followed_plan || '',
-      ]),
-    ];
-
-    const blob = new Blob([rows.map((r) => r.join(',')).join('\n')], { type: 'text/csv' });
-    const a = Object.assign(document.createElement('a'), {
-      href: URL.createObjectURL(blob),
-      download: `trades_${new Date().toISOString().slice(0, 10)}.csv`,
-    });
-    a.click();
   }, []);
 
   const riskMeterSettings = useMemo(() => ({
@@ -317,10 +343,10 @@ export default function SettingsPage() {
 
         <TabsContent value="data" className="mt-5">
           <DataManagementTab
-            exportCSV={exportCSV}
-            handleMigrateTrades={handleMigrateTrades}
+            handleReEnrichTrades={handleReEnrichTrades}
             handleClearAndReinit={handleClearAndReinit}
             handleClearLocalCache={handleClearLocalCache}
+            isReEnriching={isReEnrichingTrades}
           />
         </TabsContent>
       </Tabs>

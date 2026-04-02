@@ -16,7 +16,7 @@ const tradeService = createTradeService(db);
 export function useTradesMutation(options = {}) {
   const queryClient = useQueryClient();
   const { settings } = useSettings();
-  const currentTier = settings.account_tier || 'custom';
+  const currentTier = settings?.account_tier || 'custom';
 
   const createMutation = useMutation({
     mutationFn: (tradeData) => {

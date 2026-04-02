@@ -4,8 +4,11 @@
  * Trade enrichment logic - calculates derived fields.
  */
 
-export function enrichTrade(trade) {
+import { getTradeHoldDurationMinutes, resolveShareFloatRange } from '../../calculations/trades.js';
+
+export function enrichTrade(trade, options = {}) {
   const enriched = { ...trade };
+  const floatCategories = options?.floatCategories || null;
 
   // Calculate P&L if not present
   if (trade.entry_price && trade.exit_price && trade.quantity) {
@@ -34,6 +37,27 @@ export function enrichTrade(trade) {
     enriched.risk_amount = riskPerShare * trade.quantity;
     enriched.risk_percent = (riskPerShare / trade.entry_price) * 100;
   }
+
+  const parsedShareFloat = Number(trade.share_float);
+  if (Number.isFinite(parsedShareFloat) && parsedShareFloat >= 0) {
+    enriched.share_float = Math.round(parsedShareFloat);
+  }
+
+  const resolvedShareFloatRange = resolveShareFloatRange(
+    enriched.share_float,
+    trade.float_category,
+    trade.share_float_range,
+    floatCategories
+  );
+
+  if (resolvedShareFloatRange?.key && (enriched.share_float != null || trade.float_category || trade.share_float_range)) {
+    enriched.share_float_range = resolvedShareFloatRange.key;
+  } else if (!trade.float_category && !trade.share_float && !trade.share_float_range) {
+    enriched.share_float_range = null;
+  }
+
+  const holdDurationMinutes = getTradeHoldDurationMinutes(trade);
+  enriched.hold_duration_minutes = holdDurationMinutes == null ? null : holdDurationMinutes;
 
   // Add timestamps if missing
   if (!enriched.created_date) {

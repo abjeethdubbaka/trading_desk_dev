@@ -1,3 +1,5 @@
+import { resolveShareFloatRange } from '@/lib/calculations/trades';
+
 export class TradeCreator {
   static async createTrade(params) {
     const {
@@ -8,12 +10,28 @@ export class TradeCreator {
       shares,
       floatData,
       floatCategory,
+      floatCategories,
       stopLoss // Add stopLoss parameter
     } = params;
 
     if (!symbol || !entryPrice) {
       throw new Error('Symbol and entry price are required');
     }
+
+    const parsedShareFloat = Number(floatData?.share_float);
+    const shareFloat = Number.isFinite(parsedShareFloat) && parsedShareFloat > 0
+      ? Math.round(parsedShareFloat)
+      : null;
+    const normalizedFloatCategory = floatCategory ? String(floatCategory).toLowerCase() : null;
+    const resolvedShareFloatRange = resolveShareFloatRange(
+      shareFloat,
+      normalizedFloatCategory,
+      null,
+      floatCategories
+    );
+    const shareFloatRange = shareFloat != null || normalizedFloatCategory
+      ? resolvedShareFloatRange.key
+      : null;
 
     const newTrade = {
       symbol: symbol.toUpperCase(),
@@ -27,6 +45,9 @@ export class TradeCreator {
       pnl: 0,
       r_multiple: this.calculateRMultiple(entryPrice, stopLoss, calculation?.targetPrice),
       stop_loss: stopLoss ? parseFloat(stopLoss) : (calculation?.stopLossPrice || null),
+      share_float: shareFloat,
+      float_category: normalizedFloatCategory,
+      share_float_range: shareFloatRange,
       fee: 0,
       setup_type: 'Calculator Entry',
       notes: this.buildNotes(params),

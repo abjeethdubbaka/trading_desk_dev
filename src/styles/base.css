@@ -7,6 +7,19 @@
     @apply bg-background text-foreground;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    line-height: 1.45;
+    min-height: 100vh;
+    background-color: var(--surface-0);
+    color: rgba(255, 255, 255, 0.95);
+  }
+
+  #root {
+    min-height: 100vh;
+  }
+
+  ::selection {
+    background: rgba(16, 185, 129, 0.28);
+    color: #f8fffd;
   }
 
   .font-mono,

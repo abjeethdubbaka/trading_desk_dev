@@ -1,30 +1,15 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Pause, Play, RotateCcw, Target } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { toast } from 'sonner';
+import { useAnalysisTimer } from '@/lib/context/AnalysisTimerContext';
 
 const DEFAULT_EXIT_LEVELS = [
   { r: 1, percent: 33, trailingStop: false },
   { r: 2, percent: 33, trailingStop: false },
   { r: 3, percent: 34, trailingStop: true },
 ];
-const DEFAULT_TIMER_SECONDS = 180;
-
-const toTimerSeconds = (value) => {
-  const numeric = Number(value);
-  if (!Number.isFinite(numeric) || numeric <= 0) return DEFAULT_TIMER_SECONDS;
-  return Math.round(numeric);
-};
-
-const formatTimer = (totalSeconds) => {
-  const safeSeconds = Math.max(0, Math.round(Number(totalSeconds) || 0));
-  const minutes = Math.floor(safeSeconds / 60);
-  const seconds = safeSeconds % 60;
-  return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
-};
-
 const asMoney = (value, digits = 2) => {
   const numeric = Number(value);
   if (!Number.isFinite(numeric)) return '-';
@@ -98,50 +83,14 @@ export default function ResultsDisplay({
   direction,
   mode,
   exitStrategy,
-  analysisTimerSeconds,
 }) {
-  const timerDurationSeconds = useMemo(
-    () => toTimerSeconds(analysisTimerSeconds),
-    [analysisTimerSeconds]
-  );
-  const [remainingSeconds, setRemainingSeconds] = useState(timerDurationSeconds);
-  const [isTimerRunning, setIsTimerRunning] = useState(false);
-
-  useEffect(() => {
-    setRemainingSeconds(timerDurationSeconds);
-    setIsTimerRunning(false);
-  }, [timerDurationSeconds]);
-
-  useEffect(() => {
-    if (!isTimerRunning) return undefined;
-    if (remainingSeconds <= 0) return undefined;
-
-    const intervalId = window.setInterval(() => {
-      setRemainingSeconds((previous) => Math.max(0, previous - 1));
-    }, 1000);
-
-    return () => window.clearInterval(intervalId);
-  }, [isTimerRunning, remainingSeconds]);
-
-  useEffect(() => {
-    if (remainingSeconds !== 0 || !isTimerRunning) return;
-    setIsTimerRunning(false);
-    toast.success('Position analysis timer finished.');
-  }, [remainingSeconds, isTimerRunning]);
-
-  const handleStartPauseTimer = () => {
-    if (remainingSeconds <= 0) {
-      setRemainingSeconds(timerDurationSeconds);
-      setIsTimerRunning(true);
-      return;
-    }
-    setIsTimerRunning((previous) => !previous);
-  };
-
-  const handleResetTimer = () => {
-    setIsTimerRunning(false);
-    setRemainingSeconds(timerDurationSeconds);
-  };
+  const {
+    hasStarted,
+    isTimerRunning,
+    isExpired,
+    toggleTimer,
+    resetTimer,
+  } = useAnalysisTimer();
 
   const targets = useMemo(() => {
     const shareCount = Math.floor(Number(shares));
@@ -203,6 +152,13 @@ export default function ResultsDisplay({
   const riskLevelPct = Number.isFinite(Number(actualRisk)) && Number.isFinite(Number(positionValue)) && Number(positionValue) > 0
     ? ((Number(actualRisk) / Number(positionValue)) * 100).toFixed(1)
     : null;
+  const timerButtonLabel = isTimerRunning
+    ? 'Pause Timer'
+    : isExpired
+      ? 'Restart Timer'
+      : hasStarted
+        ? 'Resume Timer'
+        : 'Start Timer';
 
   return (
     <div className="bg-gradient-to-br from-emerald-500/10 to-blue-500/10 rounded-xl p-5 border border-emerald-500/20">
@@ -215,7 +171,7 @@ export default function ResultsDisplay({
                 type="button"
                 size="sm"
                 variant="outline"
-                onClick={handleStartPauseTimer}
+                onClick={toggleTimer}
                 className="h-8 px-2.5 border-white/20 bg-white/5 hover:bg-white/10 text-white"
               >
                 {isTimerRunning ? (
@@ -223,28 +179,18 @@ export default function ResultsDisplay({
                 ) : (
                   <Play className="w-3.5 h-3.5 mr-1.5" />
                 )}
-                {isTimerRunning ? 'Pause Timer' : 'Start Timer'}
+                {timerButtonLabel}
               </Button>
               <Button
                 type="button"
                 size="sm"
                 variant="ghost"
-                onClick={handleResetTimer}
+                onClick={resetTimer}
                 className="h-8 px-2 text-white/60 hover:text-white hover:bg-white/10"
               >
                 <RotateCcw className="w-3.5 h-3.5 mr-1.5" />
                 Reset
               </Button>
-              <Badge className={cn(
-                'h-8 px-2.5 text-sm border-0',
-                remainingSeconds === 0
-                  ? 'bg-rose-500/20 text-rose-300'
-                  : isTimerRunning
-                    ? 'bg-emerald-500/20 text-emerald-300'
-                    : 'bg-blue-500/20 text-blue-300'
-              )}>
-                {formatTimer(remainingSeconds)}
-              </Badge>
             </div>
             <p className="text-xs text-white/60 mt-1">
               Entry <span className="text-emerald-400">{asMoney(entryPrice)}</span>

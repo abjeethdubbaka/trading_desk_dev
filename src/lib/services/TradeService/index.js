@@ -16,5 +16,6 @@ export * from './analytics.js';
 export * from './search.js';
 export * from './calculations.js';
 export * from './enrichment.js';
+export * from './shareFloatEnrichment.js';
 
 

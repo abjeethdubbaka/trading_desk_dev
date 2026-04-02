@@ -86,6 +86,9 @@ export default function Journal() {
     handleClose,
     handleSave,
     handleDelete,
+    handleDuplicateTrade,
+    handleCopyNotes,
+    handleInlineUpdateTrade,
   } = useJournalTradeManagement({
     createTrade,
     updateTrade,
@@ -143,6 +146,9 @@ export default function Journal() {
               trades={paginatedItems}
               onEdit={handleEdit}
               onDelete={handleDelete}
+              onDuplicateTrade={handleDuplicateTrade}
+              onCopyNotes={handleCopyNotes}
+              onInlineUpdateTrade={handleInlineUpdateTrade}
               reviews={reviews}
               reviewLoading={reviewLoading}
               onReviewTrade={reviewTrade}
@@ -152,6 +158,9 @@ export default function Journal() {
             <DetailedView
               trades={paginatedItems}
               onEdit={handleEdit}
+              onDuplicateTrade={handleDuplicateTrade}
+              onCopyNotes={handleCopyNotes}
+              onInlineUpdateTrade={handleInlineUpdateTrade}
             />
           )}
         </div>

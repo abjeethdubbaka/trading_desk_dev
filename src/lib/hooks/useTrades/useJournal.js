@@ -11,7 +11,7 @@ import { useTradePerformance } from './useTradePerformance.js';
 
 export function useJournal(options = {}) {
   const { settings } = useSettings();
-  const currentTier = settings.account_tier || 'custom';
+  const currentTier = settings?.account_tier || 'custom';
   const { filters = {}, ...queryOptions } = options;
 
   // Add account tier filter for trades list (show only current tier trades)
@@ -42,5 +42,4 @@ export function useJournal(options = {}) {
     currentTier
   };
 }
-
 

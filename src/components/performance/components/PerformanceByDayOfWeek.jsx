@@ -4,48 +4,55 @@ import {
   formatCurrency,
   formatPercentage
 } from '../utils';
-import { CHART_COLORS } from '../constants';
 
 export function PerformanceByDayOfWeek({ data, trades = [] }) {
   const resolvedData = Array.isArray(data)
     ? data
     : calculatePerformanceByDayOfWeek(Array.isArray(trades) ? trades : []);
+  const activeRows = resolvedData.filter((row) => row.trades > 0);
+  const maxAbsPnL = activeRows.length > 0
+    ? Math.max(...activeRows.map((row) => Math.abs(row.totalPnL || 0)), 1)
+    : 1;
 
   return (
-    <div className="glass-card rounded-xl p-6">
-      <h3 className="text-lg font-semibold text-white mb-4">Day of Week</h3>
-      
-      {resolvedData.length === 0 || resolvedData.every(d => d.trades === 0) ? (
+    <div className="glass-card rounded-2xl border border-white/10 bg-gradient-to-br from-[#151522] to-[#10131b] p-6">
+      <div className="mb-4">
+        <h3 className="text-lg font-semibold text-white">Day of Week</h3>
+        <p className="text-xs text-white/45 mt-1">Consistency snapshot across your trading week</p>
+      </div>
+
+      {resolvedData.length === 0 || resolvedData.every((day) => day.trades === 0) ? (
         <div className="text-center py-8">
           <p className="text-gray-400">No trade data available</p>
         </div>
       ) : (
-        <div className="space-y-3">
-          {resolvedData.map((day, index) => (
-            <div key={index} className="bg-white/5 rounded-lg p-3">
-              <div className="flex justify-between items-center mb-2">
-                <div className="font-medium text-white">{day.day}</div>
-                <div className="text-sm">
-                  <span className={day.totalPnL >= 0 ? 'text-emerald-400' : 'text-red-400'}>
+        <div className="space-y-2.5">
+          {activeRows.map((day) => (
+            <div key={day.day} className="rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2.5">
+              <div className="flex justify-between items-center mb-2 gap-3">
+                <div>
+                  <p className="font-medium text-white">{day.day}</p>
+                  <p className="text-[11px] text-white/45">{day.trades} trade{day.trades === 1 ? '' : 's'}</p>
+                </div>
+                <div className="text-sm text-right">
+                  <p className={day.totalPnL >= 0 ? 'text-emerald-300' : 'text-red-300'}>
                     {formatCurrency(day.totalPnL)}
-                  </span>
-                  <span className="text-gray-400 ml-2">
-                    <span className={day.winRate >= 50 ? 'text-emerald-400 font-bold' : 'text-red-400'}>
-                      {formatPercentage(day.winRate)}
-                    </span>
-                    <span className="font-bold ml-2">{day.trades}</span>
-                  </span>
+                  </p>
+                  <p className={day.winRate >= 50 ? 'text-emerald-300 text-[11px] font-semibold' : 'text-red-300 text-[11px] font-semibold'}>
+                    {formatPercentage(day.winRate)}
+                  </p>
                 </div>
               </div>
-              
-              {/* P&L Bar */}
+
               <div className="w-full bg-white/10 rounded-full h-2">
-                <div 
+                <div
                   className={`h-2 rounded-full ${
-                    day.totalPnL >= 0 ? 'bg-emerald-500' : 'bg-red-500'
+                    day.totalPnL >= 0
+                      ? 'bg-gradient-to-r from-emerald-500 to-cyan-400'
+                      : 'bg-gradient-to-r from-rose-500 to-orange-400'
                   }`}
                   style={{
-                    width: `${Math.min(Math.abs(day.totalPnL) / 1000 * 100, 100)}%`
+                    width: `${Math.max(4, (Math.abs(day.totalPnL || 0) / maxAbsPnL) * 100)}%`
                   }}
                 />
               </div>

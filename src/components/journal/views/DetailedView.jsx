@@ -1,17 +1,28 @@
 import React, { useState, useEffect } from 'react';
 import { cn } from '@/lib/utils/general';
 import { formatDate, formatTime, formatCurrency } from '../utils/formatters';
-import { AlertCircle } from 'lucide-react';
+import { AlertCircle, Copy, CopyPlus, Pencil, Check, X } from 'lucide-react';
 import { createMediaService } from '@/lib/services/MediaService.js';
 import { db } from '@/lib/db/index.js';
 import { indexedDBAdapter } from '@/lib/db/adapters/IndexedDBAdapter.js';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 
 // Create media service instance
 const mediaService = createMediaService(db, indexedDBAdapter);
 
-export default function DetailedView({ trades, onEdit }) {
+export default function DetailedView({
+  trades,
+  onEdit,
+  onDuplicateTrade,
+  onCopyNotes,
+  onInlineUpdateTrade,
+}) {
   const [imageStates, setImageStates] = useState({});
   const [screenshotUrls, setScreenshotUrls] = useState({});
+  const [inlineDrafts, setInlineDrafts] = useState({});
+  const [inlineEditingId, setInlineEditingId] = useState(null);
+  const [inlineSavingId, setInlineSavingId] = useState(null);
 
   // Resolve screenshot URLs from IDs
   useEffect(() => {
@@ -165,13 +176,73 @@ export default function DetailedView({ trades, onEdit }) {
     applyScale();
   };
 
+  const startInlineEdit = (trade) => {
+    setInlineDrafts((prev) => ({
+      ...prev,
+      [trade.id]: {
+        setup_type: String(trade?.setup_type || ''),
+        notes: String(trade?.notes || ''),
+      },
+    }));
+    setInlineEditingId(trade.id);
+  };
+
+  const cancelInlineEdit = (trade) => {
+    setInlineDrafts((prev) => ({
+      ...prev,
+      [trade.id]: {
+        setup_type: String(trade?.setup_type || ''),
+        notes: String(trade?.notes || ''),
+      },
+    }));
+    setInlineEditingId((current) => (current === trade.id ? null : current));
+  };
+
+  const updateInlineDraftField = (tradeId, field, value) => {
+    setInlineDrafts((prev) => ({
+      ...prev,
+      [tradeId]: {
+        setup_type: String(prev?.[tradeId]?.setup_type || ''),
+        notes: String(prev?.[tradeId]?.notes || ''),
+        [field]: value,
+      },
+    }));
+  };
+
+  const saveInlineEdit = async (trade) => {
+    if (!onInlineUpdateTrade) return;
+
+    const draft = inlineDrafts?.[trade.id] || {
+      setup_type: String(trade?.setup_type || ''),
+      notes: String(trade?.notes || ''),
+    };
+
+    setInlineSavingId(trade.id);
+    try {
+      await onInlineUpdateTrade(trade, {
+        setup_type: String(draft.setup_type || '').trim(),
+        notes: String(draft.notes || ''),
+      });
+      setInlineEditingId((current) => (current === trade.id ? null : current));
+    } finally {
+      setInlineSavingId(null);
+    }
+  };
+
   return (
     <div className="grid grid-cols-2 gap-3 p-3 max-h-[600px] overflow-y-auto">
       {trades.map((trade) => {
+        const isInlineEditing = inlineEditingId === trade.id;
+        const inlineDraft = inlineDrafts?.[trade.id] || {
+          setup_type: String(trade?.setup_type || ''),
+          notes: String(trade?.notes || ''),
+        };
+        const isInlineSaving = inlineSavingId === trade.id;
+
         return (
         <div
           key={trade.id}
-          className="bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg p-3 transition-colors cursor-pointer"
+          className="group bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg p-3 transition-colors cursor-pointer"
           onClick={() => onEdit(trade)}
         >
           <div className="flex justify-between items-start mb-2">
@@ -194,11 +265,39 @@ export default function DetailedView({ trades, onEdit }) {
                 Entry: {trade.entry_time ? formatTime(trade.entry_time) : '-'} | Exit: {trade.exit_time ? formatTime(trade.exit_time) : '-'}
               </div>
             </div>
-            <div className={cn(
-              "text-sm font-semibold",
-              (trade.pnl || 0) >= 0 ? "text-emerald-400" : "text-red-400"
-            )}>
-              {formatCurrency(trade.pnl)}
+            <div className="flex items-start gap-2">
+              <div className={cn(
+                "text-sm font-semibold",
+                (trade.pnl || 0) >= 0 ? "text-emerald-400" : "text-red-400"
+              )}>
+                {formatCurrency(trade.pnl)}
+              </div>
+              <div
+                className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <button
+                  onClick={() => startInlineEdit(trade)}
+                  className="p-1.5 rounded text-white/35 hover:text-cyan-300 hover:bg-cyan-500/10 transition-colors"
+                  title="Inline edit"
+                >
+                  <Pencil className="w-3 h-3" />
+                </button>
+                <button
+                  onClick={() => onDuplicateTrade?.(trade)}
+                  className="p-1.5 rounded text-white/35 hover:text-sky-300 hover:bg-sky-500/10 transition-colors"
+                  title="Duplicate trade"
+                >
+                  <CopyPlus className="w-3 h-3" />
+                </button>
+                <button
+                  onClick={() => onCopyNotes?.(trade)}
+                  className="p-1.5 rounded text-white/35 hover:text-emerald-300 hover:bg-emerald-500/10 transition-colors"
+                  title="Copy notes"
+                >
+                  <Copy className="w-3 h-3" />
+                </button>
+              </div>
             </div>
           </div>
 
@@ -246,20 +345,68 @@ export default function DetailedView({ trades, onEdit }) {
             </div>
           </div>
 
-          {trade.setup_type && (
-            <div className="flex items-center gap-2 mb-2">
-              <span className="text-xs px-2 py-1 bg-white/10 rounded text-white/80">
-                {trade.setup_type}
-              </span>
-              <span
-                className={cn(
-                  'text-xs px-2 py-1 rounded',
-                  trade.setup_grade ? 'bg-blue-500/20 text-blue-300' : 'bg-white/10 text-white/60'
-                )}
-              >
-                Setup Quality: {trade.setup_grade || 'No Grade'}
-              </span>
+          {isInlineEditing ? (
+            <div
+              className="mb-2 space-y-2 rounded-lg border border-cyan-500/20 bg-cyan-500/[0.06] p-2"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div>
+                <p className="mb-1 text-[10px] uppercase tracking-[0.16em] text-white/50">Setup Type</p>
+                <Input
+                  value={inlineDraft.setup_type}
+                  onChange={(e) => updateInlineDraftField(trade.id, 'setup_type', e.target.value)}
+                  placeholder="Setup type"
+                  className="h-9 text-xs"
+                />
+              </div>
+              <div>
+                <p className="mb-1 text-[10px] uppercase tracking-[0.16em] text-white/50">Notes</p>
+                <Textarea
+                  value={inlineDraft.notes}
+                  onChange={(e) => updateInlineDraftField(trade.id, 'notes', e.target.value)}
+                  placeholder="Quick notes"
+                  className="min-h-[84px] text-xs leading-relaxed"
+                />
+              </div>
+              <div className="flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => cancelInlineEdit(trade)}
+                  disabled={isInlineSaving}
+                  className="inline-flex items-center gap-1 rounded-md border border-white/15 bg-white/[0.03] px-2 py-1 text-[11px] text-white/75 hover:bg-white/[0.07] disabled:opacity-50"
+                >
+                  <X className="w-3 h-3" />
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={() => saveInlineEdit(trade)}
+                  disabled={isInlineSaving}
+                  className="inline-flex items-center gap-1 rounded-md border border-emerald-400/25 bg-emerald-500/15 px-2 py-1 text-[11px] text-emerald-200 hover:bg-emerald-500/25 disabled:opacity-50"
+                >
+                  <Check className="w-3 h-3" />
+                  Save
+                </button>
+              </div>
             </div>
+          ) : (
+            <>
+              {trade.setup_type && (
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-xs px-2 py-1 bg-white/10 rounded text-white/80">
+                    {trade.setup_type}
+                  </span>
+                  <span
+                    className={cn(
+                      'text-xs px-2 py-1 rounded',
+                      trade.setup_grade ? 'bg-blue-500/20 text-blue-300' : 'bg-white/10 text-white/60'
+                    )}
+                  >
+                    Setup Quality: {trade.setup_grade || 'No Grade'}
+                  </span>
+                </div>
+              )}
+            </>
           )}
 
           {isVWAPPullback(trade.setup_type) && trade.breakout_checklist && (
@@ -315,9 +462,11 @@ export default function DetailedView({ trades, onEdit }) {
             </div>
           )}
 
-          <div className="text-xs text-white/60 border-t border-white/10 pt-2 mt-1 whitespace-pre-wrap break-words">
-            {trade.notes ? trade.notes : 'No notes added.'}
-          </div>
+          {!isInlineEditing && (
+            <div className="text-xs text-white/60 border-t border-white/10 pt-2 mt-1 whitespace-pre-wrap break-words">
+              {trade.notes ? trade.notes : 'No notes added.'}
+            </div>
+          )}
 
           {/* Images Section */}
           {trade.screenshots && trade.screenshots.length > 0 && (

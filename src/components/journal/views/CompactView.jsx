@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { cn } from '@/lib/utils/general';
 import { formatDate, formatTime, formatCurrency } from '../utils/formatters';
-import { Image, AlertCircle, ChevronDown, Edit2, Trash2 } from 'lucide-react';
+import { Image, AlertCircle, ChevronDown, Edit2, Trash2, Copy, CopyPlus, Pencil, Check, X } from 'lucide-react';
 import { PnlBadge, DirectionBadge, RMultipleBadge, EmotionBadge, SetupBadge } from '@/components/ui/TradeBadge';
 import TradeReviewPanel from '../analysis/TradeReviewPanel';
 import { createMediaService } from '@/lib/services/MediaService.js';
 import { db } from '@/lib/db/index.js';
 import { indexedDBAdapter } from '@/lib/db/adapters/IndexedDBAdapter.js';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 
 const mediaService = createMediaService(db, indexedDBAdapter);
 
@@ -81,6 +83,9 @@ function TradeRow({
   trade,
   onEdit,
   onDelete,
+  onDuplicateTrade,
+  onCopyNotes,
+  onInlineUpdateTrade,
   review,
   reviewLoading,
   onReviewTrade,
@@ -89,6 +94,12 @@ function TradeRow({
 }) {
   const [expanded, setExpanded] = useState(false);
   const [reviewOpen, setReviewOpen] = useState(false);
+  const [isInlineEditing, setIsInlineEditing] = useState(false);
+  const [isInlineSaving, setIsInlineSaving] = useState(false);
+  const [inlineDraft, setInlineDraft] = useState({
+    setup_type: String(trade?.setup_type || ''),
+    notes: String(trade?.notes || ''),
+  });
 
   const pnl = trade.pnl || 0;
   const entryPrice   = trade.entry_price    || 0;
@@ -106,6 +117,46 @@ function TradeRow({
   const pnlPct = entryPrice && positionSize
     ? ((pnl / (entryPrice * positionSize)) * 100).toFixed(1)
     : null;
+
+  useEffect(() => {
+    setInlineDraft({
+      setup_type: String(trade?.setup_type || ''),
+      notes: String(trade?.notes || ''),
+    });
+    setIsInlineEditing(false);
+    setIsInlineSaving(false);
+  }, [trade?.id, trade?.setup_type, trade?.notes]);
+
+  const startInlineEdit = () => {
+    setInlineDraft({
+      setup_type: String(trade?.setup_type || ''),
+      notes: String(trade?.notes || ''),
+    });
+    setExpanded(true);
+    setIsInlineEditing(true);
+  };
+
+  const cancelInlineEdit = () => {
+    setInlineDraft({
+      setup_type: String(trade?.setup_type || ''),
+      notes: String(trade?.notes || ''),
+    });
+    setIsInlineEditing(false);
+  };
+
+  const saveInlineEdit = async () => {
+    if (!onInlineUpdateTrade) return;
+    setIsInlineSaving(true);
+    try {
+      await onInlineUpdateTrade(trade, {
+        setup_type: String(inlineDraft.setup_type || '').trim(),
+        notes: String(inlineDraft.notes || ''),
+      });
+      setIsInlineEditing(false);
+    } finally {
+      setIsInlineSaving(false);
+    }
+  };
 
   return (
     <div
@@ -225,6 +276,27 @@ function TradeRow({
           onClick={e => e.stopPropagation()}
         >
           <button
+            onClick={startInlineEdit}
+            className="p-1.5 rounded text-white/30 hover:text-cyan-300 hover:bg-cyan-500/10 transition-colors"
+            title="Inline edit"
+          >
+            <Pencil className="w-3 h-3" />
+          </button>
+          <button
+            onClick={() => onDuplicateTrade?.(trade)}
+            className="p-1.5 rounded text-white/30 hover:text-sky-300 hover:bg-sky-500/10 transition-colors"
+            title="Duplicate trade"
+          >
+            <CopyPlus className="w-3 h-3" />
+          </button>
+          <button
+            onClick={() => onCopyNotes?.(trade)}
+            className="p-1.5 rounded text-white/30 hover:text-emerald-300 hover:bg-emerald-500/10 transition-colors"
+            title="Copy notes"
+          >
+            <Copy className="w-3 h-3" />
+          </button>
+          <button
             onClick={() => onEdit(trade)}
             className="p-1.5 rounded text-white/30 hover:text-white/70 hover:bg-white/8 transition-colors"
             title="Edit"
@@ -272,10 +344,55 @@ function TradeRow({
             <span>Exit Time: {exitTimeLabel}</span>
           </div>
 
-          {/* Notes */}
-          <p className="text-[11px] text-white/40 leading-relaxed max-w-xl whitespace-pre-wrap break-words">
-            {trade.notes ? trade.notes : 'No notes added.'}
-          </p>
+          {isInlineEditing ? (
+            <div className="space-y-2.5 rounded-lg border border-cyan-500/20 bg-cyan-500/[0.06] p-2.5">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 items-end">
+                <div className="sm:col-span-2">
+                  <p className="text-[10px] uppercase tracking-[0.16em] text-white/50 mb-1">Setup Type</p>
+                  <Input
+                    value={inlineDraft.setup_type}
+                    onChange={(e) => setInlineDraft((prev) => ({ ...prev, setup_type: e.target.value }))}
+                    placeholder="Setup type"
+                    className="h-9 text-xs"
+                  />
+                </div>
+                <div className="flex gap-2 justify-end sm:justify-start">
+                  <button
+                    type="button"
+                    onClick={cancelInlineEdit}
+                    disabled={isInlineSaving}
+                    className="inline-flex items-center gap-1 rounded-md border border-white/15 bg-white/[0.02] px-2 py-1 text-[11px] text-white/75 hover:bg-white/[0.06] disabled:opacity-50"
+                  >
+                    <X className="w-3 h-3" />
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={saveInlineEdit}
+                    disabled={isInlineSaving}
+                    className="inline-flex items-center gap-1 rounded-md border border-emerald-400/25 bg-emerald-500/15 px-2 py-1 text-[11px] text-emerald-200 hover:bg-emerald-500/25 disabled:opacity-50"
+                  >
+                    <Check className="w-3 h-3" />
+                    Save
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <p className="text-[10px] uppercase tracking-[0.16em] text-white/50 mb-1">Notes</p>
+                <Textarea
+                  value={inlineDraft.notes}
+                  onChange={(e) => setInlineDraft((prev) => ({ ...prev, notes: e.target.value }))}
+                  placeholder="Quick notes"
+                  className="min-h-[84px] text-xs leading-relaxed"
+                />
+              </div>
+            </div>
+          ) : (
+            <p className="text-[11px] text-white/40 leading-relaxed max-w-xl whitespace-pre-wrap break-words">
+              {trade.notes ? trade.notes : 'No notes added.'}
+            </p>
+          )}
 
           {/* Mistakes */}
           {trade.mistakes?.length > 0 && (
@@ -345,7 +462,18 @@ function Header() {
 }
 
 /* ─── Main export ──────────────────────────────────────────────────────── */
-export default function CompactView({ trades, onEdit, onDelete, reviews, reviewLoading, onReviewTrade, onClearReview }) {
+export default function CompactView({
+  trades,
+  onEdit,
+  onDelete,
+  onDuplicateTrade,
+  onCopyNotes,
+  onInlineUpdateTrade,
+  reviews,
+  reviewLoading,
+  onReviewTrade,
+  onClearReview,
+}) {
   return (
     <div className="overflow-x-auto">
       <Header />
@@ -357,6 +485,9 @@ export default function CompactView({ trades, onEdit, onDelete, reviews, reviewL
             index={i}
             onEdit={onEdit}
             onDelete={onDelete}
+            onDuplicateTrade={onDuplicateTrade}
+            onCopyNotes={onCopyNotes}
+            onInlineUpdateTrade={onInlineUpdateTrade}
             review={reviews?.[trade.id]}
             reviewLoading={reviewLoading?.[trade.id]}
             onReviewTrade={onReviewTrade}

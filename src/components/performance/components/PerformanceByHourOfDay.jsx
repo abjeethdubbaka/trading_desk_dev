@@ -4,16 +4,22 @@ import {
   formatCurrency,
   formatPercentage
 } from '../utils';
-import { CHART_COLORS } from '../constants';
 
 export function PerformanceByHourOfDay({ data, trades = [] }) {
   const resolvedData = Array.isArray(data)
     ? data
     : calculatePerformanceByHourOfDay(Array.isArray(trades) ? trades : []);
+  const activeRows = resolvedData.filter((row) => row.trades > 0);
+  const maxAbsPnL = activeRows.length > 0
+    ? Math.max(...activeRows.map((row) => Math.abs(row.totalPnL || 0)), 1)
+    : 1;
 
   return (
-    <div className="glass-card rounded-xl p-6">
-      <h3 className="text-lg font-semibold text-white mb-4">Hour of Day</h3>
+    <div className="glass-card rounded-2xl border border-white/10 bg-gradient-to-br from-[#151522] to-[#10131b] p-6">
+      <div className="mb-4">
+        <h3 className="text-lg font-semibold text-white">Hour of Day</h3>
+        <p className="text-xs text-white/45 mt-1">Best trade windows by net outcome and win rate</p>
+      </div>
       
       {resolvedData.length === 0 || resolvedData.every(d => d.trades === 0) ? (
         <div className="h-64 mb-4">
@@ -22,31 +28,33 @@ export function PerformanceByHourOfDay({ data, trades = [] }) {
           </div>
         </div>
       ) : (
-        <div className="space-y-3">
-          {resolvedData.filter(d => d.trades > 0).map((hour, index) => (
-            <div key={index} className="bg-white/5 rounded-lg p-3">
-              <div className="flex justify-between items-center mb-2">
-                <div className="font-medium text-white">{hour.hour}</div>
-                <div className="text-sm">
-                  <span className={hour.totalPnL >= 0 ? 'text-emerald-400' : 'text-red-400'}>
+        <div className="space-y-2.5">
+          {activeRows.map((hour) => (
+            <div key={hour.hour24} className="rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2.5">
+              <div className="flex justify-between items-center mb-2 gap-3">
+                <div>
+                  <p className="font-medium text-white">{hour.hour}</p>
+                  <p className="text-[11px] text-white/45">{hour.trades} trade{hour.trades === 1 ? '' : 's'}</p>
+                </div>
+                <div className="text-sm text-right">
+                  <p className={hour.totalPnL >= 0 ? 'text-emerald-300' : 'text-red-300'}>
                     {formatCurrency(hour.totalPnL)}
-                  </span>
-                  <span className="text-gray-400 ml-2">
-                    <span className={hour.winRate >= 50 ? 'text-emerald-400 font-bold' : 'text-red-400'}>
-                      {formatPercentage(hour.winRate)}
-                    </span>
-                    <span className="font-bold ml-2">{hour.trades}</span>
-                  </span>
+                  </p>
+                  <p className={hour.winRate >= 50 ? 'text-emerald-300 text-[11px] font-semibold' : 'text-red-300 text-[11px] font-semibold'}>
+                    {formatPercentage(hour.winRate)}
+                  </p>
                 </div>
               </div>
               
               <div className="w-full bg-white/10 rounded-full h-2">
                 <div 
                   className={`h-2 rounded-full ${
-                    hour.totalPnL >= 0 ? 'bg-emerald-500' : 'bg-red-500'
+                    hour.totalPnL >= 0
+                      ? 'bg-gradient-to-r from-emerald-500 to-cyan-400'
+                      : 'bg-gradient-to-r from-rose-500 to-orange-400'
                   }`}
                   style={{
-                    width: `${Math.min(Math.abs(hour.totalPnL) / 1000 * 100, 100)}%`
+                    width: `${Math.max(4, (Math.abs(hour.totalPnL || 0) / maxAbsPnL) * 100)}%`
                   }}
                 />
               </div>

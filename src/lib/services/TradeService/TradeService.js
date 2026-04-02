@@ -13,6 +13,30 @@ import { createTradeAnalytics } from './analytics.js';
 import { createTradeSearch } from './search.js';
 import { createTradeCalculations } from './calculations.js';
 import { enrichTrade } from './enrichment.js';
+import { hydrateTradeShareFloat } from './shareFloatEnrichment.js';
+
+const BACKFILL_DEBUG_ROW_LIMIT = 1000;
+
+function normalizeFloatCategoriesForLog(floatCategories) {
+  if (!floatCategories || typeof floatCategories !== 'object') return null;
+
+  const normalized = {};
+  for (const [key, category] of Object.entries(floatCategories)) {
+    normalized[key] = {
+      min: category?.min ?? null,
+      max: category?.max ?? null,
+      label: category?.label ?? null,
+    };
+  }
+
+  return normalized;
+}
+
+function pushBackfillDebugRow(summary, row) {
+  if (!Array.isArray(summary?.debugRows)) return;
+  if (summary.debugRows.length >= BACKFILL_DEBUG_ROW_LIMIT) return;
+  summary.debugRows.push(row);
+}
 
 export class TradeService {
   constructor(dbAdapter) {
@@ -21,6 +45,17 @@ export class TradeService {
     this.analytics = createTradeAnalytics(this);
     this.search = createTradeSearch(this);
     this.calculations = createTradeCalculations(this);
+  }
+
+  async getFloatCategories() {
+    try {
+      const settingsGetter = this.db?.settings?.get;
+      if (typeof settingsGetter !== 'function') return null;
+      const settings = await settingsGetter.call(this.db.settings);
+      return settings?.float_categories || null;
+    } catch {
+      return null;
+    }
   }
 
   // Validation
@@ -45,6 +80,133 @@ export class TradeService {
       
       throw error;
     }
+  }
+
+  /**
+   * Backfill share-float fields on existing trades so performance analytics can
+   * rely on complete float segmentation.
+   *
+   * @returns {Promise<{scanned:number, eligible:number, updated:number, skipped:number, failed:number, failures:Array<{id:string, symbol:string, message:string}>, debugRows:Array<object>, debugMeta:object}>}
+   */
+  async backfillShareFloatEnrichment() {
+    const summary = {
+      scanned: 0,
+      eligible: 0,
+      updated: 0,
+      skipped: 0,
+      failed: 0,
+      failures: [],
+      debugRows: [],
+      debugMeta: {
+        startedAt: new Date().toISOString(),
+        floatCategories: null,
+        debugRowLimit: BACKFILL_DEBUG_ROW_LIMIT,
+      },
+    };
+
+    const allTrades = await this.db.trades.list();
+    const floatCategories = await this.getFloatCategories();
+    summary.debugMeta.floatCategories = normalizeFloatCategoriesForLog(floatCategories);
+
+    for (const trade of allTrades) {
+      summary.scanned += 1;
+
+      const parsedShareFloat = Number(trade?.share_float);
+      const hasShareFloat = Number.isFinite(parsedShareFloat) && parsedShareFloat > 0;
+      const hasSymbol = Boolean(String(trade?.symbol ?? '').trim());
+      const tradeDebugBase = {
+        id: trade?.id ?? 'unknown',
+        symbol: trade?.symbol ?? null,
+        existingShareFloat: hasShareFloat ? Math.round(parsedShareFloat) : null,
+        existingShareFloatRange: trade?.share_float_range ?? null,
+        existingFloatCategory: trade?.float_category ?? null,
+      };
+
+      // Skip only trades we cannot enrich at all.
+      if (!hasShareFloat && !hasSymbol) {
+        summary.skipped += 1;
+        pushBackfillDebugRow(summary, {
+          ...tradeDebugBase,
+          action: 'skipped',
+          reason: 'missing_symbol_and_share_float',
+          hydratedShareFloat: null,
+          hydratedShareFloatRange: null,
+          updates: null,
+        });
+        continue;
+      }
+
+      summary.eligible += 1;
+
+      try {
+        const hydratedTrade = await hydrateTradeShareFloat(trade);
+        const enrichedTrade = enrichTrade(hydratedTrade, { floatCategories });
+
+        const updates = {};
+        const normalizedExistingShareFloat = hasShareFloat ? Math.round(parsedShareFloat) : null;
+        const normalizedEnrichedShareFloat = Number.isFinite(Number(enrichedTrade?.share_float))
+          ? Math.round(Number(enrichedTrade.share_float))
+          : null;
+        const normalizedExistingShareFloatRange = trade?.share_float_range ?? null;
+        const normalizedEnrichedShareFloatRange = enrichedTrade?.share_float_range ?? null;
+
+        if (normalizedExistingShareFloat !== normalizedEnrichedShareFloat) {
+          updates.share_float = normalizedEnrichedShareFloat;
+        }
+
+        if (normalizedExistingShareFloatRange !== normalizedEnrichedShareFloatRange) {
+          updates.share_float_range = normalizedEnrichedShareFloatRange;
+        }
+
+        if (Object.keys(updates).length === 0) {
+          summary.skipped += 1;
+          pushBackfillDebugRow(summary, {
+            ...tradeDebugBase,
+            action: 'skipped',
+            reason: 'no_changes_after_enrichment',
+            hydratedShareFloat: Number.isFinite(Number(hydratedTrade?.share_float))
+              ? Math.round(Number(hydratedTrade?.share_float))
+              : null,
+            hydratedShareFloatRange: enrichedTrade?.share_float_range ?? null,
+            updates: null,
+          });
+          continue;
+        }
+
+        await this.db.trades.update(trade.id, updates);
+        summary.updated += 1;
+        pushBackfillDebugRow(summary, {
+          ...tradeDebugBase,
+          action: 'updated',
+          reason: Object.keys(updates).join('+'),
+          hydratedShareFloat: Number.isFinite(Number(hydratedTrade?.share_float))
+            ? Math.round(Number(hydratedTrade?.share_float))
+            : null,
+          hydratedShareFloatRange: enrichedTrade?.share_float_range ?? null,
+          updates,
+        });
+      } catch (error) {
+        summary.failed += 1;
+        summary.failures.push({
+          id: trade?.id ?? 'unknown',
+          symbol: trade?.symbol ?? 'unknown',
+          message: error?.message ?? 'Unknown error',
+        });
+        pushBackfillDebugRow(summary, {
+          ...tradeDebugBase,
+          action: 'failed',
+          reason: error?.message ?? 'Unknown error',
+          hydratedShareFloat: null,
+          hydratedShareFloatRange: null,
+          updates: null,
+        });
+      }
+    }
+
+    summary.debugMeta.finishedAt = new Date().toISOString();
+    summary.debugMeta.loggedRows = summary.debugRows.length;
+
+    return summary;
   }
 
   // CRUD operations - delegate to CRUD module
@@ -108,8 +270,8 @@ export class TradeService {
   }
 
   // Private helper method
-  _enrichTrade(trade) {
-    return enrichTrade(trade);
+  _enrichTrade(trade, options = {}) {
+    return enrichTrade(trade, options);
   }
 
   async saveCalculation(calcData) {

@@ -7,6 +7,10 @@
 import { TradeSchema } from '../../schema/index.js';
 import { ValidationError } from '../ValidationError.js';
 import { enrichTrade } from './enrichment.js';
+import {
+  hydrateTradeShareFloat,
+  shouldResetShareFloatForSymbolChange,
+} from './shareFloatEnrichment.js';
 
 export function createTradeCRUD(service) {
   return {
@@ -29,8 +33,17 @@ export function createTradeCRUD(service) {
         ...tradeData
       };
 
+      const tradeWithShareFloat = await hydrateTradeShareFloat(tradeWithDefaults);
+      const floatCategories = await service.getFloatCategories();
+
       // Calculate derived fields
-      const enrichedTrade = enrichTrade(tradeWithDefaults);
+      const enrichedTrade = enrichTrade(tradeWithShareFloat, { floatCategories });
+      console.info('[TradeService] create share-float enrichment', {
+        symbol: enrichedTrade.symbol,
+        share_float: enrichedTrade.share_float ?? null,
+        float_category: enrichedTrade.float_category ?? null,
+        share_float_range: enrichedTrade.share_float_range ?? null,
+      });
       console.info('[TradeService] create validation passed', {
         symbol: enrichedTrade.symbol,
         quantity: enrichedTrade.quantity,
@@ -62,12 +75,31 @@ export function createTradeCRUD(service) {
         throw new Error(`Trade ${id} not found`);
       }
 
-      const updatedTrade = {
+      let updatedTrade = {
         ...existingTrade,
         ...changes
       };
 
-      const enrichedTrade = enrichTrade(updatedTrade);
+      if (shouldResetShareFloatForSymbolChange(existingTrade, changes, updatedTrade)) {
+        updatedTrade = {
+          ...updatedTrade,
+          share_float: null,
+          float_category: null,
+          share_float_range: null,
+        };
+      }
+
+      updatedTrade = await hydrateTradeShareFloat(updatedTrade);
+      const floatCategories = await service.getFloatCategories();
+
+      const enrichedTrade = enrichTrade(updatedTrade, { floatCategories });
+      console.info('[TradeService] update share-float enrichment', {
+        id,
+        symbol: enrichedTrade.symbol,
+        share_float: enrichedTrade.share_float ?? null,
+        float_category: enrichedTrade.float_category ?? null,
+        share_float_range: enrichedTrade.share_float_range ?? null,
+      });
 
       return await service.db.trades.update(id, enrichedTrade);
     },

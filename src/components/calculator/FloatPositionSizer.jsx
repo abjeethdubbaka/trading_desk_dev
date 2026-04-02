@@ -79,7 +79,6 @@ export default function FloatPositionSizer({ historyData, onCalculationSaved = (
   const positionSizingPct = settings?.position_sizing_percent;
   const defaultStopLossPct = settings?.default_stop_loss_percent;
   const targetProfitDollars = settings?.target_profit_dollars;
-  const analysisTimerSeconds = settings?.analysis_timer_seconds;
   const maxDollars = settings?.max_dollars;
   const floatCategories = settings?.float_categories;
   const exitStrategy = settings?.exit_strategy;
@@ -383,6 +382,7 @@ export default function FloatPositionSizer({ historyData, onCalculationSaved = (
         calculation,
         floatData,
         floatCategory,
+        floatCategories,
         stopLoss: calculation?.stopLossPrice,
       });
 
@@ -397,7 +397,7 @@ export default function FloatPositionSizer({ historyData, onCalculationSaved = (
     } catch (e) {
       toast.error(`Failed: ${e.message}`);
     }
-  }, [symbol, entryPrice, direction, calculation, floatData, floatCategory, createTrade]);
+  }, [symbol, entryPrice, direction, calculation, floatData, floatCategory, floatCategories, createTrade]);
 
   const handleReset = () => {
     setSymbol('');
@@ -530,7 +530,6 @@ export default function FloatPositionSizer({ historyData, onCalculationSaved = (
         <MemoizedResultsDisplay
           {...calculation}
           exitStrategy={exitStrategy}
-          analysisTimerSeconds={analysisTimerSeconds}
         />
       )}
 

@@ -7,6 +7,7 @@ import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
 import PageNotFound from './lib/components/PageNotFound';
 import { TradingProvider } from './lib/context/TradingContext';
 import { SettingsProvider } from './lib/context/SettingsContext';
+import { AnalysisTimerProvider } from './lib/context/AnalysisTimerContext';
 import { AuthProvider } from './lib/context/AuthContext';
 import { Suspense } from 'react';
 import LimitNotificationsWatcher from '@/components/notifications/LimitNotificationsWatcher';
@@ -22,10 +23,16 @@ const LayoutWrapper = ({ children, currentPageName }) => Layout ?
 const App = () => {
   // Loading fallback for lazy loaded components
   const LoadingFallback = () => (
-    <div className="flex items-center justify-center min-h-screen bg-gray-900">
-      <div className="text-white text-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white mx-auto mb-4"></div>
-        <p>Loading...</p>
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#090d15] text-white">
+      <div className="pointer-events-none absolute -left-16 top-0 h-72 w-72 rounded-full bg-emerald-500/20 blur-[100px]" />
+      <div className="pointer-events-none absolute right-0 top-1/3 h-72 w-72 rounded-full bg-cyan-500/15 blur-[110px]" />
+
+      <div className="rounded-2xl border border-white/10 bg-[#111827]/70 px-8 py-7 text-center backdrop-blur-xl">
+        <div className="mx-auto mb-4 flex h-10 w-10 items-center justify-center rounded-xl border border-emerald-400/30 bg-emerald-500/15">
+          <div className="h-5 w-5 animate-spin rounded-full border-2 border-emerald-300/40 border-t-emerald-200" />
+        </div>
+        <p className="text-sm font-semibold tracking-wide text-white/90">Preparing Workspace</p>
+        <p className="mt-1 text-xs text-white/55">Loading modules and data...</p>
       </div>
     </div>
   );
@@ -60,17 +67,19 @@ function RootApp() {
     <QueryClientProvider client={queryClientInstance}>
       <AuthProvider>
         <SettingsProvider>
-          <TradingProvider>
-            <Router future={{
-              v7_startTransition: true,
-              v7_relativeSplatPath: true
-            }}>
-              <NavigationTracker />
-              <LimitNotificationsWatcher />
-              <App />
-            </Router>
-            <Toaster />
-          </TradingProvider>
+          <AnalysisTimerProvider>
+            <TradingProvider>
+              <Router future={{
+                v7_startTransition: true,
+                v7_relativeSplatPath: true
+              }}>
+                <NavigationTracker />
+                <LimitNotificationsWatcher />
+                <App />
+              </Router>
+              <Toaster />
+            </TradingProvider>
+          </AnalysisTimerProvider>
         </SettingsProvider>
       </AuthProvider>
     </QueryClientProvider>
