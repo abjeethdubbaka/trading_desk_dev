@@ -74,7 +74,7 @@ export class TradeCreator {
     return risk > 0 ? (reward / risk).toFixed(2) : null;
   }
 
-  static async saveTrade(tradeData) {
+  static async saveTrade(_tradeData) {
     throw new Error('TradeCreator.saveTrade is deprecated. Use useTradesMutation().createTrade instead.');
   }
 }

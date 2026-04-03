@@ -25,7 +25,7 @@ export class FloatDataService {
         }
         
         return data;
-      } catch (error) {
+      } catch {
         this.clearCache();
       }
     }

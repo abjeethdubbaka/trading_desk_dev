@@ -12,7 +12,6 @@ export function calcPosition({
   floatCategory,
   floatCategories = {},
   maxDollars = 0,
-  targetProfitDollars = 500,
   riskRewardRatio = 3,
 }) {
   const entry = Number(entryPrice);

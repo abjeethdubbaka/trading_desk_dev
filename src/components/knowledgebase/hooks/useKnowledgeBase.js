@@ -29,7 +29,7 @@ export function useKnowledgeBase() {
       
       setEntries(migrateDataStructure(data));
       setIsInitialized(true);
-    } catch (error) {
+    } catch {
       
       // On error, initialize with default content
       const defaultLearningContent = getDefaultLearningContent();
@@ -43,7 +43,7 @@ export function useKnowledgeBase() {
     if (isInitialized) {
       try {
         localStorage.setItem(CONSTANTS.LOCAL_STORAGE_KEY, JSON.stringify(entries));
-      } catch (error) {
+      } catch {
         
       }
     }

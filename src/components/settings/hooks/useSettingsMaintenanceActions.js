@@ -72,7 +72,7 @@ export function useSettingsMaintenanceActions({ signOut, refetch }) {
         await settingsService.clearAndReinit();
         toast.success('Settings cleared and reinitialized!');
         refetch();
-      } catch (error) {
+      } catch {
         toast.error('Failed to clear settings');
       }
     }
@@ -101,4 +101,3 @@ export function useSettingsMaintenanceActions({ signOut, refetch }) {
     handleClearLocalCache,
   };
 }
-

@@ -17,7 +17,7 @@ export class CalcHistoryService {
     try {
       const data = localStorage.getItem(this.storageKey);
       return data ? JSON.parse(data) : [];
-    } catch (error) {
+    } catch {
       return [];
     }
   }
@@ -27,7 +27,7 @@ export class CalcHistoryService {
     try {
       localStorage.setItem(this.storageKey, JSON.stringify(data));
       return true;
-    } catch (error) {
+    } catch {
       return false;
     }
   }
@@ -266,7 +266,7 @@ export class CalcHistoryService {
         try {
           const result = await this.create(calc);
           results.push(result);
-        } catch (error) {
+        } catch {
           // Continue with other calculations
           results.push({ error: 'Failed to import calculation' });
         }

@@ -1,4 +1,4 @@
-import { FiCheckCircle, FiXCircle, FiAlertTriangle, FiTrendingUp, FiTrendingDown, FiDollarSign, FiClock, FiTarget, FiShield, FiZap, FiBarChart2, FiActivity, FiEye, FiSearch } from 'react-icons/fi';
+import { FiAlertTriangle, FiTrendingUp, FiTrendingDown, FiClock, FiTarget, FiShield, FiZap, FiBarChart2, FiActivity, FiEye, FiSearch } from 'react-icons/fi';
 
 export const getDefaultItems = () => [
   // DO's

@@ -12,7 +12,7 @@ export function useLearningProgress() {
       const progress = stored ? JSON.parse(stored) : {};
       setLearningProgress(progress);
       setEnrolledCourses(Object.keys(progress));
-    } catch (error) {
+    } catch {
       
       setLearningProgress({});
       setEnrolledCourses([]);

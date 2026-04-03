@@ -1,7 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { calculatePnL } from '../utils/calculationUtils';
 import { getCurrentLocalDateTime, utcToLocalDateTime } from '../utils/dateUtils';
-import { formatCurrency } from '../../utils/formatters';
 import { buildTradeNotes, stripCalculatorAutoNote } from '../../utils/notes';
 
 const normalizeStrategyStepFollowed = (value) => {

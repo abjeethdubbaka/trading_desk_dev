@@ -1,11 +1,9 @@
 import React from 'react';
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { TrendingUp, TrendingDown, Shield } from 'lucide-react';
 import { calculatePnL } from '../utils/calculationUtils';
 
-const MetricBadge = ({ icon: Icon, label, value, trend }) => {
+const MetricBadge = ({ icon: Icon, label, value }) => {
   const isPositive = parseFloat(value) > 0;
   const isNegative = parseFloat(value) < 0;
   
@@ -37,7 +35,7 @@ const MetricBadge = ({ icon: Icon, label, value, trend }) => {
 
 const TradeMetrics = ({ entry_price, exit_price, stop_loss, position_size, direction, fee }) => {
   // Calculate values internally
-  const { pnl, pnlPercent, rMultiple } = calculatePnL({
+  const { pnl, rMultiple } = calculatePnL({
     entryPrice: entry_price,
     exitPrice: exit_price,
     stopLoss: stop_loss,

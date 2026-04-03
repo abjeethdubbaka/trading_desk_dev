@@ -4,9 +4,6 @@
  * Main TradeService class.
  */
 
-import { validateSchema } from '../../schema/validation.js';
-import { TradeSchema } from '../../schema/index.js';
-import { ValidationError } from '../ValidationError.js';
 import { validateTrade } from './validation.js';
 import { createTradeCRUD } from './crud.js';
 import { createTradeAnalytics } from './analytics.js';
@@ -289,7 +286,7 @@ export class TradeService {
   async saveCalculation(calcData) {
     try {
       return await this.db.calcHistory.create(calcData);
-    } catch (error) {
+    } catch {
       
       // Don't throw - calculation saving is not critical
     }

@@ -13,7 +13,7 @@ import { calcCoreStats }                             from '@/lib/calculations/tr
 const CACHE_KEY = 'morningBrief';
 const todayKey  = () => new Date().toISOString().slice(0, 10);
 
-async function fetchBrief(trades) {
+async function fetchBrief(_trades) {
   // DISABLED: Direct API calls from browser are blocked by CORS and expose API keys
   // This should be moved to a backend API endpoint
   
@@ -76,7 +76,7 @@ export default function MorningBrief({ trades = [] }) {
       const result = await fetchBrief(trades);
       setBrief(result);
       localStorage.setItem(CACHE_KEY, JSON.stringify({ date: todayKey(), items: result }));
-    } catch (err) {
+    } catch {
       
       // Show placeholder insights based on basic stats
       const stats = calcCoreStats(trades.slice(0, 10));

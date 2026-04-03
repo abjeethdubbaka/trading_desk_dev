@@ -2,7 +2,7 @@
  * All validation rules and schemas
  */
 
-import { TradeSchema, SettingsSchema, CalcHistorySchema, MediaSchema } from './index.js';
+import { TradeSchema, SettingsSchema, CalcHistorySchema } from './index.js';
 
 // Validation rule types
 export const ValidationTypes = {

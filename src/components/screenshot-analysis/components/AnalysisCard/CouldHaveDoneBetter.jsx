@@ -13,7 +13,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 export function CouldHaveDoneBetter({
   shot,
   row,
-  isLoading,
   entryTimingOptions,
   exitTimingOptions,
   onFieldChange,

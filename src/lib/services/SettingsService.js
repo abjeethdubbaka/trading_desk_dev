@@ -35,7 +35,7 @@ export class SettingsService {
       // Return saved settings as-is, don't merge with defaults
       this._updateCache(settings);
       return settings;
-    } catch (error) {
+    } catch {
       
       // Return defaults only on error, not as regular behavior
       const defaults = this._getDefaults();
@@ -243,7 +243,7 @@ export class SettingsService {
 
   async removeFloatCategory(name) {
     const current = await this.getFloatCategories();
-    const { [name]: removed, ...rest } = current;
+    const { [name]: _removed, ...rest } = current;
     
     return await this.setFloatCategories(rest);
   }

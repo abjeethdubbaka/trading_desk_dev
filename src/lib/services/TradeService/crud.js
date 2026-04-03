@@ -127,7 +127,7 @@ export function createTradeCRUD(service) {
         try {
           const result = await this.create(tradeData);
           results.push(result);
-        } catch (error) {
+        } catch {
           
           // Continue with other trades
         }

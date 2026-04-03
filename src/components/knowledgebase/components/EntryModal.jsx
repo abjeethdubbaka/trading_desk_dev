@@ -46,7 +46,7 @@ export function EntryModal({ entry, onSave, onCancel }) {
             size: compressed.size
           }]
         }));
-      } catch (error) {
+      } catch {
         
       }
     }
@@ -225,7 +225,7 @@ export function EntryModal({ entry, onSave, onCancel }) {
               {formData.type === CONSTANTS.ENTRY_TYPES.COURSE && (
                 <div>
                   <label className="block text-sm font-medium text-gray-300 mb-1">Course Modules</label>
-                  {formData.modules.map((module, index) => (
+                  {formData.modules.map((module) => (
                     <div key={module.id} className="flex items-center gap-2 mb-2 p-3 bg-white/5 rounded-lg border border-white/10">
                       <div className="flex-1">
                         <p className="font-medium text-white">{module.title}</p>

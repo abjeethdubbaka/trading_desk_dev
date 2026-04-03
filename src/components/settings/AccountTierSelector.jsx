@@ -104,7 +104,7 @@ export default function AccountTierSelector() {
       await saveImmediately(nextSettings);
 
       setIsOpen(false);
-    } catch (error) {
+    } catch {
       // Handle error silently
     }
   }, [currentTierId, settings, updateFields, saveImmediately]);

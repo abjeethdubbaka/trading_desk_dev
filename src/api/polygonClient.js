@@ -102,7 +102,7 @@ class PolygonClient {
       }
       
       return null;
-    } catch (error) {
+    } catch {
       
       return null;
     }

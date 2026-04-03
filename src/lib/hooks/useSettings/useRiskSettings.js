@@ -8,7 +8,7 @@ import { useCallback } from 'react';
 import { useSettings } from './useSettings.js';
 
 export function useRiskSettings() {
-  const { settings, updateField, updateFields, isSaving } = useSettings();
+  const { settings, updateFields, isSaving } = useSettings();
   
   const riskSettings = {
     riskAmount: settings.risk_amount,

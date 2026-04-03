@@ -349,7 +349,7 @@ class IndexedDBAdapter {
           usage: estimate.usage,
           usageDetails: estimate.usageDetails
         };
-      } catch (error) {
+      } catch {
         
       }
     }

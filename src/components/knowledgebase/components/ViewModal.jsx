@@ -67,7 +67,7 @@ export function ViewModal({ entry, onClose, onEdit, onDelete, onEnroll, onModule
             <div className="mb-6">
               <h3 className="text-lg font-semibold text-white mb-3">Course Modules</h3>
               <div className="space-y-3">
-                {entry.modules.map((module, index) => {
+                {entry.modules.map((module) => {
                   const isCompleted = progress?.completedModules?.includes(module.id);
                   return (
                     <div key={module.id} className="flex items-center justify-between p-4 bg-white/5 rounded-lg border border-white/10">

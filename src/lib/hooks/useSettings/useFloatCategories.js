@@ -23,7 +23,7 @@ export function useFloatCategories() {
   }, [floatCategories, updateField]);
 
   const removeFloatCategory = useCallback((name) => {
-    const { [name]: removed, ...rest } = floatCategories;
+    const { [name]: _removed, ...rest } = floatCategories;
     return updateField('float_categories', rest);
   }, [floatCategories, updateField]);
 

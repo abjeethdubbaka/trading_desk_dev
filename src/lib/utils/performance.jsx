@@ -26,7 +26,7 @@ export function initPerformanceMonitoring() {
       setInterval(() => {
         const memory = performance.memory;
         const usedMB = (memory.usedJSHeapSize / 1024 / 1024).toFixed(2);
-        const totalMB = (memory.totalJSHeapSize / 1024 / 1024).toFixed(2);
+        const _totalMB = (memory.totalJSHeapSize / 1024 / 1024).toFixed(2);
         
         if (usedMB > 50) { // Alert if using more than 50MB
           // Silently monitor high memory usage
@@ -37,7 +37,7 @@ export function initPerformanceMonitoring() {
 }
 
 // Component performance wrapper
-export function withPerformanceTracking(WrappedComponent, componentName) {
+export function withPerformanceTracking(WrappedComponent, _componentName) {
   return function TrackedComponent(props) {
     const startTime = performance.now();
     

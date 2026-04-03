@@ -112,7 +112,7 @@ export function useCalcHistory(options = {}) {
       queryClient.invalidateQueries({ queryKey: calcHistoryKeys.lists() });
       queryClient.removeQueries({ queryKey: calcHistoryKeys.detail(deletedId) });
     },
-    onError: (error) => {
+    onError: (_error) => {
       
     }
   });
@@ -124,7 +124,7 @@ export function useCalcHistory(options = {}) {
       queryClient.invalidateQueries({ queryKey: calcHistoryKeys.lists() });
       queryClient.removeQueries({ queryKey: calcHistoryKeys.details() });
     },
-    onError: (error) => {
+    onError: (_error) => {
       
     }
   });
@@ -136,7 +136,7 @@ export function useCalcHistory(options = {}) {
       queryClient.invalidateQueries({ queryKey: calcHistoryKeys.lists() });
       queryClient.setQueryData(calcHistoryKeys.detail(newCalc.id), newCalc);
     },
-    onError: (error) => {
+    onError: (_error) => {
       
     }
   });
@@ -371,7 +371,7 @@ export function useStorageManagement() {
       queryClient.invalidateQueries({ queryKey: mediaKeys.lists() });
       queryClient.invalidateQueries({ queryKey: ['storage', 'usage'] });
     },
-    onError: (error) => {
+    onError: (_error) => {
       
     }
   });
@@ -383,7 +383,7 @@ export function useStorageManagement() {
       queryClient.invalidateQueries({ queryKey: mediaKeys.lists() });
       queryClient.invalidateQueries({ queryKey: ['storage', 'usage'] });
     },
-    onError: (error) => {
+    onError: (_error) => {
       
     }
   });
@@ -450,7 +450,7 @@ export function useCalcHistoryFilters() {
 
   const removeFilter = useCallback((key) => {
     setFilters(prev => {
-      const { [key]: removed, ...rest } = prev;
+      const { [key]: _removed, ...rest } = prev;
       return rest;
     });
   }, []);
@@ -477,7 +477,7 @@ export function useMediaFilters() {
 
   const removeFilter = useCallback((key) => {
     setFilters(prev => {
-      const { [key]: removed, ...rest } = prev;
+      const { [key]: _removed, ...rest } = prev;
       return rest;
     });
   }, []);

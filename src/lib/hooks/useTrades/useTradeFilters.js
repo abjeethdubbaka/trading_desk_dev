@@ -4,7 +4,7 @@
  * Hook for trade filters.
  */
 
-import React, { useCallback, useState } from 'react';
+import { useCallback, useState } from 'react';
 
 export function useTradeFilters() {
   const [filters, setFilters] = useState({});
@@ -19,7 +19,7 @@ export function useTradeFilters() {
 
   const removeFilter = useCallback((key) => {
     setFilters(prev => {
-      const { [key]: removed, ...rest } = prev;
+      const { [key]: _removed, ...rest } = prev;
       return rest;
     });
   }, []);

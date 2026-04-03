@@ -92,7 +92,7 @@ export function useTradeReview() {
 
       setReviews((p) => ({ ...p, [id]: parsed }));
       writeCache(id, parsed);
-    } catch (e) {
+    } catch {
       setReviews((p) => ({ ...p, [id]: { error: 'Review failed. Check API connection.' } }));
     } finally {
       setLoading((p) => ({ ...p, [id]: false }));

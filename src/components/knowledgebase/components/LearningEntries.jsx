@@ -1,5 +1,5 @@
 import React from 'react';
-import { FiClock, FiPlay } from 'react-icons/fi';
+import { FiClock } from 'react-icons/fi';
 import { CONSTANTS } from '../constants';
 
 export function LearningEntries({ entries, onViewEntry, onEnrollCourse, getCourseProgress, viewMode = 'grid' }) {

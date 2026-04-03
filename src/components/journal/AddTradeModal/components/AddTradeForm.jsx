@@ -24,37 +24,41 @@ import { SETUP_TYPE_OPTIONS as DEFAULT_SETUP_TYPE_OPTIONS } from '../constants/t
 
 export default function AddTradeForm({
   initialData,
-  formData,
-  symbolError,
-  presets,
-  screenshotIds,
-  uploading,
-  selectedRuleIds,
-  suggestionTrade,
-  preTradeAlert,
-  setupTypeOptions = DEFAULT_SETUP_TYPE_OPTIONS,
-  strategySteps = [],
-  strategyStepResults = [],
-  loading,
+  controller,
   onClose,
-  onSubmit,
-  onUpdateField,
-  onUploadFiles,
-  onRemoveById,
-  onReflectionChange,
-  onStrategyStepResultChange = () => {},
-  onBreakoutChecklistChange,
-  onBreakoutMetaChange,
 }) {
+  const {
+    formData,
+    symbolError,
+    presets,
+    screenshotIds,
+    uploading,
+    selectedRuleIds,
+    suggestionTrade,
+    preTradeAlert,
+    setupTypeOptions = DEFAULT_SETUP_TYPE_OPTIONS,
+    strategyStepsForSetup = [],
+    strategyStepResults = [],
+    loading,
+    handleSubmit,
+    updateField,
+    handleUploadFiles,
+    handleRemoveById,
+    handleReflectionChange,
+    handleStrategyStepResultChange = () => {},
+    handleBreakoutChecklistChange,
+    handleBreakoutMetaChange,
+  } = controller;
+
   return (
-    <form onSubmit={onSubmit} className="space-y-6 mt-4">
+    <form onSubmit={handleSubmit} className="space-y-6 mt-4">
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
           <Label htmlFor="symbol">Symbol *</Label>
           <Input
             id="symbol"
             value={formData.symbol}
-            onChange={(event) => onUpdateField('symbol', event.target.value.toUpperCase())}
+            onChange={(event) => updateField('symbol', event.target.value.toUpperCase())}
             placeholder="AAPL"
             className={cn(
               "bg-white/5 border-white/10 uppercase font-mono",
@@ -70,7 +74,7 @@ export default function AddTradeForm({
 
         <DirectionToggle
           value={formData.direction}
-          onChange={(value) => onUpdateField('direction', value)}
+          onChange={(value) => updateField('direction', value)}
         />
       </div>
 
@@ -82,7 +86,7 @@ export default function AddTradeForm({
           position_size: formData.position_size,
           fee: formData.fee,
         }}
-        onChange={onUpdateField}
+        onChange={updateField}
       />
 
       <TradeMetrics
@@ -97,8 +101,8 @@ export default function AddTradeForm({
       <TimeFields
         entryTime={formData.entry_time}
         exitTime={formData.exit_time}
-        onEntryChange={(value) => onUpdateField('entry_time', value)}
-        onExitChange={(value) => onUpdateField('exit_time', value)}
+        onEntryChange={(value) => updateField('entry_time', value)}
+        onExitChange={(value) => updateField('exit_time', value)}
       />
 
       <div className="grid grid-cols-2 gap-4">
@@ -106,7 +110,7 @@ export default function AddTradeForm({
           <Label>Setup Type</Label>
           <Select
             value={formData.setup_type}
-            onValueChange={(value) => onUpdateField('setup_type', value)}
+            onValueChange={(value) => updateField('setup_type', value)}
           >
             <SelectTrigger className="bg-white/5 border-white/10">
               <SelectValue placeholder="Select setup" />
@@ -124,8 +128,8 @@ export default function AddTradeForm({
         <ScreenshotUpload
           screenshotIds={screenshotIds}
           uploading={uploading}
-          onUpload={onUploadFiles}
-          onRemove={onRemoveById}
+          onUpload={handleUploadFiles}
+          onRemove={handleRemoveById}
         />
       </div>
 
@@ -134,7 +138,7 @@ export default function AddTradeForm({
           <Label>Strategy Preset</Label>
           <Select
             value={formData.strategy_preset_id || ''}
-            onValueChange={(value) => onUpdateField('strategy_preset_id', value || null)}
+            onValueChange={(value) => updateField('strategy_preset_id', value || null)}
           >
             <SelectTrigger className="bg-white/5 border-white/10">
               <SelectValue placeholder="Select preset" />
@@ -154,7 +158,7 @@ export default function AddTradeForm({
       <div className="grid grid-cols-2 gap-4">
         <EmotionsSelect
           value={formData.emotions}
-          onChange={(value) => onUpdateField('emotions', value)}
+          onChange={(value) => updateField('emotions', value)}
         />
         <div className="space-y-2">
           <Label>Followed Plan?</Label>
@@ -162,7 +166,7 @@ export default function AddTradeForm({
             <Checkbox
               id="followed-plan"
               checked={formData.followed_plan}
-              onCheckedChange={(checked) => onUpdateField('followed_plan', checked)}
+              onCheckedChange={(checked) => updateField('followed_plan', checked)}
               className="border-white/20 data-[state=checked]:bg-emerald-600 data-[state=checked]:border-emerald-600"
             />
             <Label htmlFor="followed-plan" className="text-sm cursor-pointer">
@@ -178,18 +182,18 @@ export default function AddTradeForm({
         setupQualityScore={formData.setup_quality_score}
         breakoutChecklist={formData.breakout_checklist}
         reflectionAnswers={formData.reflection_answers}
-        strategySteps={strategySteps}
+        strategySteps={strategyStepsForSetup}
         strategyStepResults={strategyStepResults}
-        onReflectionChange={onReflectionChange}
-        onStrategyStepResultChange={onStrategyStepResultChange}
-        onBreakoutChecklistChange={onBreakoutChecklistChange}
-        onBreakoutMetaChange={onBreakoutMetaChange}
+        onReflectionChange={handleReflectionChange}
+        onStrategyStepResultChange={handleStrategyStepResultChange}
+        onBreakoutChecklistChange={handleBreakoutChecklistChange}
+        onBreakoutMetaChange={handleBreakoutMetaChange}
       />
 
       <DosAndDontsSelector
         tradeDraft={suggestionTrade}
         selectedRuleIds={selectedRuleIds}
-        onSelectionChange={(ids) => onUpdateField('dos_donts_rule_ids', ids)}
+        onSelectionChange={(ids) => updateField('dos_donts_rule_ids', ids)}
       />
 
       {preTradeAlert && (

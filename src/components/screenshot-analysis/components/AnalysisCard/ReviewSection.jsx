@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input.jsx';
 import { Label } from '@/components/ui/label.jsx';
 import { Textarea } from '@/components/ui/textarea.jsx';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select.jsx';
-import { SignalPills, Skeleton } from './index.js';
+import { Skeleton } from './index.js';
 
 export function ReviewSection({
   shot,

@@ -6,7 +6,6 @@
 
 import { validateSchema } from '../../schema/validation.js';
 import { TradeSchema } from '../../schema/index.js';
-import { ValidationError } from '../ValidationError.js';
 
 export function validateTrade(tradeData) {
   return validateSchema(TradeSchema, tradeData);

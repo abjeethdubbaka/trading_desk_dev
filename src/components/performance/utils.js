@@ -1,4 +1,3 @@
-import { format } from 'date-fns';
 import { DAYS_OF_WEEK, MONTHS_OF_YEAR, HOURS_OF_DAY } from './constants';
 
 export const calculatePerformanceByDayOfWeek = (trades) => {

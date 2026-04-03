@@ -158,13 +158,13 @@ export class MediaService {
 
   // Get media by trade
   async getByTrade(tradeId) {
-    return await this.list({ trade_id });
+    return await this.list({ trade_id: tradeId });
   }
 
   // Get screenshots by trade
   async getScreenshotsByTrade(tradeId) {
     return await this.list({ 
-      trade_id, 
+      trade_id: tradeId, 
       media_type: 'screenshot' 
     });
   }
@@ -368,7 +368,7 @@ export class MediaService {
               optimizedCount++;
             }
           }
-        } catch (error) {
+        } catch {
           
         }
       }
