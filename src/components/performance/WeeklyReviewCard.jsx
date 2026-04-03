@@ -1,4 +1,5 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
+import { ChevronDown, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils/general';
 import InfoHint from '@/components/ui/InfoHint';
 import { buildEquityCurve, calcCoreStats, calcMaxDrawdown } from '@/lib/calculations/trades';
@@ -52,6 +53,7 @@ const isValidTradeDate = (value) => {
 };
 
 export default function WeeklyReviewCard({ reviews = [], trades = [], initialBalance = 50000 }) {
+  const [isOpen, setIsOpen] = useState(false);
   const normalized = Array.isArray(reviews) ? reviews : [];
   const monthReview = useMemo(() => {
     const sourceTrades = Array.isArray(trades) ? trades : [];
@@ -102,116 +104,131 @@ export default function WeeklyReviewCard({ reviews = [], trades = [], initialBal
 
   return (
     <div className="space-y-3 rounded-2xl border border-white/8 bg-[#13131e] p-5">
-      <div className="flex items-center gap-2">
-        <p className="text-sm font-semibold text-white">Review</p>
+      <div className="flex items-center justify-between gap-3">
+        <button
+          type="button"
+          onClick={() => setIsOpen((prev) => !prev)}
+          className="flex items-center gap-2 rounded-md px-1 py-0.5 text-left transition-colors hover:bg-white/5"
+        >
+          <p className="text-sm font-semibold text-white">Review</p>
+          {isOpen ? (
+            <ChevronDown className="h-4 w-4 text-white/55" />
+          ) : (
+            <ChevronRight className="h-4 w-4 text-white/55" />
+          )}
+        </button>
         <InfoHint text="This month vs last month plus 7D/14D performance versus prior matching periods." />
       </div>
 
-      {monthReview ? (
-        <div className="rounded-xl border border-white/10 bg-black/20 p-3">
-          <div className="mb-2.5 flex items-center justify-between gap-3">
-            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-white/70">
-              This month vs last month
-            </p>
-            <p className="text-[10px] text-white/40">
-              {monthReview.currentTrades} trades now | {monthReview.priorTrades} prior
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 gap-2 sm:grid-cols-4">
-            <Metric
-              label="Win rate"
-              value={`${Number(monthReview?.currentStats?.winRate ?? 0).toFixed(1)}%`}
-              valueClassName={
-                Number(monthReview?.currentStats?.winRate ?? 0) >= 50 ? 'text-emerald-300' : 'text-amber-300'
-              }
-              delta={monthReview?.deltas?.winRate}
-              deltaFormat={(value) => `${value >= 0 ? '+' : ''}${value.toFixed(1)}%`}
-            />
-            <Metric
-              label="Avg R"
-              value={`${Number(monthReview?.currentStats?.avgR ?? 0).toFixed(2)}R`}
-              valueClassName={Number(monthReview?.currentStats?.avgR ?? 0) >= 1 ? 'text-cyan-300' : 'text-amber-300'}
-              delta={monthReview?.deltas?.avgR}
-              deltaFormat={(value) => `${value >= 0 ? '+' : ''}${value.toFixed(2)}R`}
-            />
-            <Metric
-              label="P&L"
-              value={formatMoney(monthReview?.currentStats?.totalPnL)}
-              valueClassName={(monthReview?.currentStats?.totalPnL ?? 0) >= 0 ? 'text-emerald-300' : 'text-rose-300'}
-              delta={monthReview?.deltas?.pnl}
-              deltaFormat={formatDeltaMoney}
-            />
-            <Metric
-              label="Max drawdown"
-              value={`-$${Math.abs(monthReview?.currentDD ?? 0).toFixed(0)}`}
-              valueClassName="text-amber-300"
-              delta={monthReview?.deltas?.drawdown}
-              deltaFormat={(value) => `${value >= 0 ? '+' : ''}$${Math.abs(value).toFixed(0)}`}
-              higherIsBetter={false}
-            />
-          </div>
-        </div>
-      ) : null}
-
-      <div className="space-y-2.5">
-        {normalized.map((review) => {
-          const currentTop = review?.topSetup?.current;
-          const priorTop = review?.topSetup?.prior;
-          return (
-            <div key={`weekly-review-${review.days}`} className="rounded-xl border border-white/10 bg-black/20 p-3">
+      {isOpen ? (
+        <>
+          {monthReview ? (
+            <div className="rounded-xl border border-white/10 bg-black/20 p-3">
               <div className="mb-2.5 flex items-center justify-between gap-3">
                 <p className="text-xs font-semibold uppercase tracking-[0.16em] text-white/70">
-                  {review.days}D vs prior {review.days}D
+                  This month vs last month
                 </p>
                 <p className="text-[10px] text-white/40">
-                  {review.currentTrades} trades now | {review.priorTrades} prior
+                  {monthReview.currentTrades} trades now | {monthReview.priorTrades} prior
                 </p>
               </div>
 
-              <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-                <Metric
-                  label="P&L"
-                  value={formatMoney(review?.currentStats?.totalPnL)}
-                  valueClassName={(review?.currentStats?.totalPnL ?? 0) >= 0 ? 'text-emerald-300' : 'text-rose-300'}
-                  delta={review?.deltas?.pnl}
-                  deltaFormat={formatDeltaMoney}
-                />
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-4">
                 <Metric
                   label="Win rate"
-                  value={`${Number(review?.currentStats?.winRate ?? 0).toFixed(1)}%`}
-                  valueClassName={Number(review?.currentStats?.winRate ?? 0) >= 50 ? 'text-emerald-300' : 'text-amber-300'}
-                  delta={review?.deltas?.winRate}
+                  value={`${Number(monthReview?.currentStats?.winRate ?? 0).toFixed(1)}%`}
+                  valueClassName={
+                    Number(monthReview?.currentStats?.winRate ?? 0) >= 50 ? 'text-emerald-300' : 'text-amber-300'
+                  }
+                  delta={monthReview?.deltas?.winRate}
                   deltaFormat={(value) => `${value >= 0 ? '+' : ''}${value.toFixed(1)}%`}
                 />
                 <Metric
                   label="Avg R"
-                  value={`${Number(review?.currentStats?.avgR ?? 0).toFixed(2)}R`}
-                  valueClassName={Number(review?.currentStats?.avgR ?? 0) >= 1 ? 'text-cyan-300' : 'text-amber-300'}
-                  delta={review?.deltas?.avgR}
+                  value={`${Number(monthReview?.currentStats?.avgR ?? 0).toFixed(2)}R`}
+                  valueClassName={Number(monthReview?.currentStats?.avgR ?? 0) >= 1 ? 'text-cyan-300' : 'text-amber-300'}
+                  delta={monthReview?.deltas?.avgR}
                   deltaFormat={(value) => `${value >= 0 ? '+' : ''}${value.toFixed(2)}R`}
                 />
-              </div>
-
-              <div className="mt-2.5 rounded-lg border border-white/10 bg-white/[0.03] px-2.5 py-2">
-                <p className="text-[10px] uppercase tracking-[0.14em] text-white/40">Top setup</p>
-                <p className="mt-1 text-xs text-white/80">
-                  {currentTop?.setup ? (
-                    <>
-                      <span className="font-semibold text-white">{currentTop.setup}</span>
-                      <span className="text-white/55"> ({formatMoney(currentTop.totalPnL)})</span>
-                    </>
-                  ) : 'No setup data in current window'}
-                </p>
-                <p className="mt-1 text-[11px] text-white/50">
-                  Prior: {priorTop?.setup ? `${priorTop.setup} (${formatMoney(priorTop.totalPnL)})` : 'n/a'}
-                  {review?.topSetup?.changed ? ' | setup leadership changed' : ''}
-                </p>
+                <Metric
+                  label="P&L"
+                  value={formatMoney(monthReview?.currentStats?.totalPnL)}
+                  valueClassName={(monthReview?.currentStats?.totalPnL ?? 0) >= 0 ? 'text-emerald-300' : 'text-rose-300'}
+                  delta={monthReview?.deltas?.pnl}
+                  deltaFormat={formatDeltaMoney}
+                />
+                <Metric
+                  label="Max drawdown"
+                  value={`-$${Math.abs(monthReview?.currentDD ?? 0).toFixed(0)}`}
+                  valueClassName="text-amber-300"
+                  delta={monthReview?.deltas?.drawdown}
+                  deltaFormat={(value) => `${value >= 0 ? '+' : ''}$${Math.abs(value).toFixed(0)}`}
+                  higherIsBetter={false}
+                />
               </div>
             </div>
-          );
-        })}
-      </div>
+          ) : null}
+
+          <div className="space-y-2.5">
+            {normalized.map((review) => {
+              const currentTop = review?.topSetup?.current;
+              const priorTop = review?.topSetup?.prior;
+              return (
+                <div key={`weekly-review-${review.days}`} className="rounded-xl border border-white/10 bg-black/20 p-3">
+                  <div className="mb-2.5 flex items-center justify-between gap-3">
+                    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-white/70">
+                      {review.days}D vs prior {review.days}D
+                    </p>
+                    <p className="text-[10px] text-white/40">
+                      {review.currentTrades} trades now | {review.priorTrades} prior
+                    </p>
+                  </div>
+
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+                    <Metric
+                      label="P&L"
+                      value={formatMoney(review?.currentStats?.totalPnL)}
+                      valueClassName={(review?.currentStats?.totalPnL ?? 0) >= 0 ? 'text-emerald-300' : 'text-rose-300'}
+                      delta={review?.deltas?.pnl}
+                      deltaFormat={formatDeltaMoney}
+                    />
+                    <Metric
+                      label="Win rate"
+                      value={`${Number(review?.currentStats?.winRate ?? 0).toFixed(1)}%`}
+                      valueClassName={Number(review?.currentStats?.winRate ?? 0) >= 50 ? 'text-emerald-300' : 'text-amber-300'}
+                      delta={review?.deltas?.winRate}
+                      deltaFormat={(value) => `${value >= 0 ? '+' : ''}${value.toFixed(1)}%`}
+                    />
+                    <Metric
+                      label="Avg R"
+                      value={`${Number(review?.currentStats?.avgR ?? 0).toFixed(2)}R`}
+                      valueClassName={Number(review?.currentStats?.avgR ?? 0) >= 1 ? 'text-cyan-300' : 'text-amber-300'}
+                      delta={review?.deltas?.avgR}
+                      deltaFormat={(value) => `${value >= 0 ? '+' : ''}${value.toFixed(2)}R`}
+                    />
+                  </div>
+
+                  <div className="mt-2.5 rounded-lg border border-white/10 bg-white/[0.03] px-2.5 py-2">
+                    <p className="text-[10px] uppercase tracking-[0.14em] text-white/40">Top setup</p>
+                    <p className="mt-1 text-xs text-white/80">
+                      {currentTop?.setup ? (
+                        <>
+                          <span className="font-semibold text-white">{currentTop.setup}</span>
+                          <span className="text-white/55"> ({formatMoney(currentTop.totalPnL)})</span>
+                        </>
+                      ) : 'No setup data in current window'}
+                    </p>
+                    <p className="mt-1 text-[11px] text-white/50">
+                      Prior: {priorTop?.setup ? `${priorTop.setup} (${formatMoney(priorTop.totalPnL)})` : 'n/a'}
+                      {review?.topSetup?.changed ? ' | setup leadership changed' : ''}
+                    </p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </>
+      ) : null}
     </div>
   );
 }

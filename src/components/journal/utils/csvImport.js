@@ -33,6 +33,20 @@ const DIRECTION_MAP = Object.freeze({
   bearish: 'short',
 });
 
+const PASTED_TABLE_HEADERS = Object.freeze([
+  'ID',
+  'Open Date',
+  'Close Date',
+  'Symbol',
+  'Side',
+  'Entry',
+  'Exit',
+  'Qty',
+  'Fee',
+  'P&L',
+  'Status',
+]);
+
 const normalizeKey = (value = '') =>
   String(value)
     .replace(/^\uFEFF/, '')
@@ -141,7 +155,35 @@ const parseNumber = (value) => {
   return Number.isFinite(parsed) ? parsed : null;
 };
 
-const parseDateToIso = (value) => {
+const toIntegerSet = (values = []) => {
+  const result = new Set();
+  if (!Array.isArray(values)) return result;
+
+  values.forEach((value) => {
+    const parsed = Number(value);
+    if (Number.isInteger(parsed)) {
+      result.add(parsed);
+    }
+  });
+
+  return result;
+};
+
+const resolveMissingYear = (dayOfMonth, options = {}) => {
+  const parsedBaseYear = Number(options?.missingYearBase);
+  if (!Number.isFinite(parsedBaseYear)) {
+    return new Date().getFullYear();
+  }
+
+  const rolloverDays = toIntegerSet(options?.missingYearRolloverDays);
+  if (rolloverDays.has(dayOfMonth)) {
+    return parsedBaseYear + 1;
+  }
+
+  return parsedBaseYear;
+};
+
+const parseDateToIso = (value, options = {}) => {
   if (value === null || value === undefined) return null;
   const raw = String(value).trim();
   if (!raw) return null;
@@ -159,10 +201,23 @@ const parseDateToIso = (value) => {
   }
 
   let normalized = raw;
-  const monthDayWithTime =
-    /^[A-Za-z]{3,9}\s+\d{1,2}\s+\d{1,2}:\d{2}(\s*[AaPp][Mm])?$/;
-  if (monthDayWithTime.test(raw)) {
-    normalized = `${raw} ${new Date().getFullYear()}`;
+  const monthDayWithTimeMatch = raw.match(
+    /^([A-Za-z]{3,9})\s+(\d{1,2})(?:,)?\s+(\d{1,2}:\d{2}(?:\s*[AaPp][Mm])?)$/
+  );
+  const monthDayOnlyMatch = raw.match(
+    /^([A-Za-z]{3,9})\s+(\d{1,2})(?:,)?$/
+  );
+
+  if (monthDayWithTimeMatch) {
+    const [, monthText, dayText, timeText] = monthDayWithTimeMatch;
+    const parsedDay = Number(dayText);
+    const resolvedYear = resolveMissingYear(parsedDay, options);
+    normalized = `${monthText} ${parsedDay} ${resolvedYear} ${timeText}`;
+  } else if (monthDayOnlyMatch) {
+    const [, monthText, dayText] = monthDayOnlyMatch;
+    const parsedDay = Number(dayText);
+    const resolvedYear = resolveMissingYear(parsedDay, options);
+    normalized = `${monthText} ${parsedDay} ${resolvedYear}`;
   }
 
   const parsed = new Date(normalized);
@@ -201,28 +256,34 @@ const normalizeDirection = (value, entryPrice, exitPrice) => {
   return 'long';
 };
 
-const mapRowToTrade = (row, defaultAccountTier) => {
+const mapRowToTrade = (row, options = {}) => {
+  const defaultAccountTier = options?.defaultAccountTier || 'custom';
+  const dateParseOptions = {
+    missingYearBase: options?.missingYearBase,
+    missingYearRolloverDays: options?.missingYearRolloverDays,
+  };
+
   const symbol = getFirstValue(row, FIELD_ALIASES.symbol).toUpperCase().trim();
   const entryPrice = parseNumber(getFirstValue(row, FIELD_ALIASES.entry_price));
   const exitPrice = parseNumber(getFirstValue(row, FIELD_ALIASES.exit_price));
   const rawQuantity = parseNumber(getFirstValue(row, FIELD_ALIASES.quantity));
   const quantity = rawQuantity === null ? null : Math.trunc(rawQuantity);
 
-  let entryTime = parseDateToIso(getFirstValue(row, FIELD_ALIASES.entry_time));
-  let exitTime = parseDateToIso(getFirstValue(row, FIELD_ALIASES.exit_time));
+  let entryTime = parseDateToIso(getFirstValue(row, FIELD_ALIASES.entry_time), dateParseOptions);
+  let exitTime = parseDateToIso(getFirstValue(row, FIELD_ALIASES.exit_time), dateParseOptions);
 
   const tradeDate = getFirstValue(row, FIELD_ALIASES.trade_date);
   const entryClock = getFirstValue(row, FIELD_ALIASES.entry_clock);
   const exitClock = getFirstValue(row, FIELD_ALIASES.exit_clock);
 
   if (!entryTime && tradeDate && entryClock) {
-    entryTime = parseDateToIso(`${tradeDate} ${entryClock}`);
+    entryTime = parseDateToIso(`${tradeDate} ${entryClock}`, dateParseOptions);
   }
   if (!entryTime && tradeDate) {
-    entryTime = parseDateToIso(tradeDate);
+    entryTime = parseDateToIso(tradeDate, dateParseOptions);
   }
   if (!exitTime && tradeDate && exitClock) {
-    exitTime = parseDateToIso(`${tradeDate} ${exitClock}`);
+    exitTime = parseDateToIso(`${tradeDate} ${exitClock}`, dateParseOptions);
   }
 
   const missing = [];
@@ -281,34 +342,33 @@ const mapRowToTrade = (row, defaultAccountTier) => {
   return { trade, error: null };
 };
 
-export function parseTradesCsv(csvText, options = {}) {
-  const { defaultAccountTier = 'custom' } = options;
-  const rows = parseCsvRows(csvText);
+const parseTradesFromRows = (headers = [], dataRows = [], options = {}) => {
+  const {
+    defaultAccountTier = 'custom',
+    rowNumberOffset = 2,
+    missingYearBase,
+    missingYearRolloverDays,
+  } = options;
 
-  if (rows.length <= 1) {
-    return {
-      trades: [],
-      errors: [],
-      totalRows: 0,
-    };
-  }
-
-  const [headerRow, ...dataRows] = rows;
-  const headers = headerRow.map((header) => String(header || ''));
+  const normalizedHeaders = headers.map((header) => String(header || ''));
 
   const trades = [];
   const errors = [];
   let totalRows = 0;
 
   dataRows.forEach((rawRow, index) => {
-    const rowNumber = index + 2;
-    const row = toRowObject(headers, rawRow);
+    const rowNumber = index + rowNumberOffset;
+    const row = toRowObject(normalizedHeaders, rawRow);
     const hasValues = Object.values(row).some((value) => String(value || '').trim() !== '');
 
     if (!hasValues) return;
 
     totalRows += 1;
-    const { trade, error } = mapRowToTrade(row, defaultAccountTier);
+    const { trade, error } = mapRowToTrade(row, {
+      defaultAccountTier,
+      missingYearBase,
+      missingYearRolloverDays,
+    });
 
     if (!trade) {
       errors.push({ row: rowNumber, error });
@@ -323,4 +383,69 @@ export function parseTradesCsv(csvText, options = {}) {
     errors,
     totalRows,
   };
+};
+
+const parsePastedTableRows = (rawText = '') => {
+  const tokens = String(rawText || '')
+    .split(/[\t\r\n]+/)
+    .map((token) => String(token || '').trim())
+    .filter(Boolean);
+
+  if (tokens.length < PASTED_TABLE_HEADERS.length * 2) {
+    return null;
+  }
+
+  const headers = tokens.slice(0, PASTED_TABLE_HEADERS.length);
+  const headerMatches = headers.every((header, index) => (
+    normalizeKey(header) === normalizeKey(PASTED_TABLE_HEADERS[index])
+  ));
+
+  if (!headerMatches) {
+    return null;
+  }
+
+  const rowWidth = headers.length;
+  const dataTokens = tokens.slice(rowWidth);
+  const rows = [];
+
+  for (let index = 0; index < dataTokens.length; index += rowWidth) {
+    const chunk = dataTokens.slice(index, index + rowWidth);
+    if (chunk.length < rowWidth) break;
+    rows.push(chunk);
+  }
+
+  return {
+    headers,
+    rows,
+  };
+};
+
+export function parseTradesCsv(csvText, options = {}) {
+  const rows = parseCsvRows(csvText);
+
+  if (rows.length <= 1) {
+    return {
+      trades: [],
+      errors: [],
+      totalRows: 0,
+    };
+  }
+
+  const [headerRow, ...dataRows] = rows;
+  return parseTradesFromRows(headerRow, dataRows, {
+    ...options,
+    rowNumberOffset: 2,
+  });
+}
+
+export function parseTradesPastedText(rawText, options = {}) {
+  const pastedRows = parsePastedTableRows(rawText);
+  if (!pastedRows) {
+    return parseTradesCsv(rawText, options);
+  }
+
+  return parseTradesFromRows(pastedRows.headers, pastedRows.rows, {
+    ...options,
+    rowNumberOffset: 2,
+  });
 }

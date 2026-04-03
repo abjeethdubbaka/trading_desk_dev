@@ -9,7 +9,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Check, Plus } from 'lucide-react';
+import { Check, ChevronDown, ChevronRight, Plus } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from "@/lib/utils";
 import {
@@ -81,6 +81,7 @@ export default function DosAndDontsSelector({ tradeDraft, selectedRuleIds = [], 
   const [items, setItems] = useState(() => loadDosAndDontsItems());
   const [newRuleType, setNewRuleType] = useState('do');
   const [newRuleText, setNewRuleText] = useState('');
+  const [isCreateRuleOpen, setIsCreateRuleOpen] = useState(false);
 
   useEffect(() => {
     if (typeof window === 'undefined') return undefined;
@@ -230,64 +231,75 @@ export default function DosAndDontsSelector({ tradeDraft, selectedRuleIds = [], 
       </div>
 
       <div className="space-y-2">
-        <p className="text-[11px] uppercase tracking-wide text-white/55">Create New Rule</p>
-        <div className="grid md:grid-cols-[120px_1fr_auto] gap-2">
-          <Select value={newRuleType} onValueChange={(value) => setNewRuleType(value === 'dont' ? 'dont' : 'do')}>
-            <SelectTrigger className="bg-white/5 border-white/10">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent className="bg-[#1a1a24] border-white/10">
-              <SelectItem value="do">Do</SelectItem>
-              <SelectItem value="dont">Don&apos;t</SelectItem>
-            </SelectContent>
-          </Select>
-          <Input
-            value={newRuleText}
-            onChange={(event) => setNewRuleText(event.target.value)}
-            placeholder="Add a focused rule from this trade..."
-            className="bg-white/5 border-white/10"
-          />
-          <Button
-            type="button"
-            onClick={handleCreateCustomRule}
-            disabled={!canAddCustomRule}
-            className="bg-emerald-600 hover:bg-emerald-700"
-          >
-            <Plus className="w-4 h-4 mr-1" />
-            Add
-          </Button>
-        </div>
-      </div>
+        <button
+          type="button"
+          onClick={() => setIsCreateRuleOpen((prev) => !prev)}
+          className="flex items-center gap-1.5 rounded px-1 py-0.5 text-[11px] uppercase tracking-wide text-white/55 transition-colors hover:bg-white/5"
+        >
+          {isCreateRuleOpen ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
+          Create New Rule
+        </button>
 
-      <div className="grid md:grid-cols-2 gap-2.5">
-        <div className="rounded border border-emerald-500/20 bg-emerald-500/5 p-2 space-y-1.5">
-          <p className="text-[10px] uppercase tracking-wide text-emerald-300/90">Suggestions: Repeat (Do)</p>
-          {suggestionLists.dos.map((suggestion, index) => (
-            <button
-              key={`suggest-do-${index}`}
-              type="button"
-              onClick={() => createRuleFromText(suggestion, 'do')}
-              className="w-full text-left text-[10px] text-emerald-100/85 border border-emerald-500/25 rounded px-2 py-1 hover:bg-emerald-500/15 transition-colors"
-            >
-              {suggestion}
-            </button>
-          ))}
-        </div>
-        <div className="rounded border border-rose-500/20 bg-rose-500/5 p-2 space-y-1.5">
-          <p className="text-[10px] uppercase tracking-wide text-rose-300/90">Suggestions: What Went Wrong (Don&apos;t)</p>
-          {suggestionLists.donts.map((suggestion, index) => (
-            <button
-              key={`suggest-dont-${index}`}
-              type="button"
-              onClick={() => createRuleFromText(suggestion, 'dont')}
-              className="w-full text-left text-[10px] text-rose-100/85 border border-rose-500/25 rounded px-2 py-1 hover:bg-rose-500/15 transition-colors"
-            >
-              {suggestion}
-            </button>
-          ))}
-        </div>
+        {isCreateRuleOpen ? (
+          <>
+            <div className="grid md:grid-cols-[120px_1fr_auto] gap-2">
+              <Select value={newRuleType} onValueChange={(value) => setNewRuleType(value === 'dont' ? 'dont' : 'do')}>
+                <SelectTrigger className="bg-white/5 border-white/10">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="bg-[#1a1a24] border-white/10">
+                  <SelectItem value="do">Do</SelectItem>
+                  <SelectItem value="dont">Don&apos;t</SelectItem>
+                </SelectContent>
+              </Select>
+              <Input
+                value={newRuleText}
+                onChange={(event) => setNewRuleText(event.target.value)}
+                placeholder="Add a focused rule from this trade..."
+                className="bg-white/5 border-white/10"
+              />
+              <Button
+                type="button"
+                onClick={handleCreateCustomRule}
+                disabled={!canAddCustomRule}
+                className="bg-emerald-600 hover:bg-emerald-700"
+              >
+                <Plus className="w-4 h-4 mr-1" />
+                Add
+              </Button>
+            </div>
+
+            <div className="grid md:grid-cols-2 gap-2.5">
+              <div className="rounded border border-emerald-500/20 bg-emerald-500/5 p-2 space-y-1.5">
+                <p className="text-[10px] uppercase tracking-wide text-emerald-300/90">Suggestions: Repeat (Do)</p>
+                {suggestionLists.dos.map((suggestion, index) => (
+                  <button
+                    key={`suggest-do-${index}`}
+                    type="button"
+                    onClick={() => createRuleFromText(suggestion, 'do')}
+                    className="w-full text-left text-[10px] text-emerald-100/85 border border-emerald-500/25 rounded px-2 py-1 hover:bg-emerald-500/15 transition-colors"
+                  >
+                    {suggestion}
+                  </button>
+                ))}
+              </div>
+              <div className="rounded border border-rose-500/20 bg-rose-500/5 p-2 space-y-1.5">
+                <p className="text-[10px] uppercase tracking-wide text-rose-300/90">Suggestions: What Went Wrong (Don&apos;t)</p>
+                {suggestionLists.donts.map((suggestion, index) => (
+                  <button
+                    key={`suggest-dont-${index}`}
+                    type="button"
+                    onClick={() => createRuleFromText(suggestion, 'dont')}
+                    className="w-full text-left text-[10px] text-rose-100/85 border border-rose-500/25 rounded px-2 py-1 hover:bg-rose-500/15 transition-colors"
+                  >
+                    {suggestion}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </>
+        ) : null}
       </div>
     </div>
   );
 }
-

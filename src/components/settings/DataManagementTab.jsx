@@ -1,14 +1,25 @@
 import React from 'react';
+import PasteTradesCard from '@/components/settings/PasteTradesCard';
 
 export default function DataManagementTab({
   handleReEnrichTrades,
   handleClearAndReinit,
   handleClearLocalCache,
   isReEnriching = false,
+  accountTier = 'custom',
+  onImportPastedTrades,
+  isImportingPastedTrades = false,
 }) {
   return (
     <div className="space-y-4">
       <h2 className="text-sm font-semibold text-white/70">Data management</h2>
+
+      <PasteTradesCard
+        accountTier={accountTier}
+        onImportTrades={onImportPastedTrades}
+        isImporting={isImportingPastedTrades}
+      />
+
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <button
           onClick={handleReEnrichTrades}

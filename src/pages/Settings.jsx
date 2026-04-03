@@ -14,6 +14,7 @@ import SettingsHeader from '@/components/settings/SettingsHeader';
 import AccountSettingsTab from '@/components/settings/AccountSettingsTab';
 import RiskSettingsTab from '@/components/settings/RiskSettingsTab';
 import DataManagementTab from '@/components/settings/DataManagementTab';
+import { useTradesMutation } from '@/lib/hooks/useTrades';
 import {
   SETTINGS_INPUT_FIELDS,
   useSettingsFieldDrafts,
@@ -25,7 +26,9 @@ import { toast } from 'sonner';
 
 export default function SettingsPage() {
   const { settings, isLoading, isSaving, hasPendingChanges, updateFields, savePending, refetch } = useSettings();
+  const currentTier = settings?.account_tier || 'custom';
   const { user, signOut } = useAuth();
+  const { bulkCreateTrades, isBulkCreating } = useTradesMutation();
   const fieldDrafts = useSettingsFieldDrafts({ settings, updateFields });
   const exitStrategyDraft = useExitStrategyDraft({ settings, updateFields });
   const strategyDraft = useStrategySettingsDraft({ settings, updateFields });
@@ -110,6 +113,9 @@ export default function SettingsPage() {
 
         <TabsContent value="data" className="mt-5 max-w-[860px]">
           <DataManagementTab
+            accountTier={currentTier}
+            onImportPastedTrades={bulkCreateTrades}
+            isImportingPastedTrades={isBulkCreating}
             handleReEnrichTrades={maintenanceActions.handleReEnrichTrades}
             handleClearAndReinit={maintenanceActions.handleClearAndReinit}
             handleClearLocalCache={maintenanceActions.handleClearLocalCache}
