@@ -18,13 +18,31 @@ export function useAccountTier() {
   
   // Apply tier settings
   const applyTier = useCallback(async (tierId) => {
-    const updates = tierId === 'custom'
+    const globalSetupTypes = Array.isArray(settings?.journal_preferences?.default_setup_types)
+      ? [...new Set(
+          settings.journal_preferences.default_setup_types
+            .map((setup) => String(setup || '').trim())
+            .filter(Boolean)
+        )]
+      : [];
+
+    const updatesBase = tierId === 'custom'
       ? { account_tier: 'custom' }
       : getTierSettingsWithCustomizations(tierId);
+    const shouldCarryJournalPrefs = Boolean(updatesBase?.journal_preferences) || globalSetupTypes.length > 0;
+    const updates = shouldCarryJournalPrefs
+      ? {
+          ...updatesBase,
+          journal_preferences: {
+            ...(updatesBase?.journal_preferences || {}),
+            ...(globalSetupTypes.length > 0 ? { default_setup_types: globalSetupTypes } : {}),
+          },
+        }
+      : updatesBase;
 
     updateFields(updates);
     return saveImmediately(updates);
-  }, [updateFields, saveImmediately]);
+  }, [settings?.journal_preferences?.default_setup_types, updateFields, saveImmediately]);
   
   // Check if settings match a tier
   const isTierMatched = currentTierId !== 'custom';
@@ -41,4 +59,3 @@ export function useAccountTier() {
     isSaving
   };
 }
-

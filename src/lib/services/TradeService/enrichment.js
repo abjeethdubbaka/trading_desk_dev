@@ -4,11 +4,23 @@
  * Trade enrichment logic - calculates derived fields.
  */
 
-import { getTradeHoldDurationMinutes, resolveShareFloatRange } from '../../calculations/trades.js';
+import {
+  computeTradeSetupQuality,
+  getTradeHoldDurationMinutes,
+  resolveShareFloatRange,
+} from '../../calculations/trades.js';
 
 export function enrichTrade(trade, options = {}) {
   const enriched = { ...trade };
   const floatCategories = options?.floatCategories || null;
+  const riskLimit = options?.riskLimit ?? null;
+  const rawCommission = trade?.commission ?? trade?.fee;
+  const parsedCommission = Number(rawCommission);
+  const commission = Number.isFinite(parsedCommission) ? parsedCommission : 0;
+
+  // Keep both field names aligned for backward compatibility across older/newer views.
+  enriched.commission = commission;
+  enriched.fee = commission;
 
   // Calculate P&L if not present
   if (trade.entry_price && trade.exit_price && trade.quantity) {
@@ -17,7 +29,6 @@ export function enrichTrade(trade, options = {}) {
       trade.exit_price - trade.entry_price;
     
     const grossPnL = priceDiff * trade.quantity;
-    const commission = trade.commission || 0;
     const netPnL = grossPnL - commission;
     
     enriched.pnl = netPnL;  // Changed from total_pnl to pnl
@@ -58,6 +69,17 @@ export function enrichTrade(trade, options = {}) {
 
   const holdDurationMinutes = getTradeHoldDurationMinutes(trade);
   enriched.hold_duration_minutes = holdDurationMinutes == null ? null : holdDurationMinutes;
+
+  const setupQuality = computeTradeSetupQuality(enriched, { riskLimit });
+  if (Number.isFinite(setupQuality?.score)) {
+    enriched.setup_quality_score = Math.round(setupQuality.score);
+  } else {
+    enriched.setup_quality_score = null;
+  }
+
+  if (setupQuality?.grade) {
+    enriched.setup_grade = setupQuality.grade;
+  }
 
   // Add timestamps if missing
   if (!enriched.created_date) {

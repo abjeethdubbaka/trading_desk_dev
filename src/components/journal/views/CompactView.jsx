@@ -114,6 +114,9 @@ function TradeRow({
   const primaryEmotion = emotionList[0] || null;
   const entryTimeLabel = trade.entry_time ? formatTime(trade.entry_time) : '--';
   const exitTimeLabel = trade.exit_time ? formatTime(trade.exit_time) : '--';
+  const setupQualityScore = Number(trade?.setup_quality_score);
+  const hasSetupQualityScore = Number.isFinite(setupQualityScore);
+  const normalizedSetupGrade = String(trade?.setup_grade || '').trim();
   const followedPlanLabel = trade.followed_plan === true
     ? 'Followed plan'
     : trade.followed_plan === false
@@ -253,9 +256,11 @@ function TradeRow({
 
         {/* Grade */}
         <div className="w-[90px] flex-shrink-0 hidden xl:block">
-          {trade.setup_grade ? (
+          {hasSetupQualityScore || normalizedSetupGrade ? (
             <span className="text-[10px] px-1.5 py-0.5 rounded border border-blue-500/20 bg-blue-500/10 text-blue-300/70 whitespace-nowrap">
-              Grade: {trade.setup_grade}
+              {hasSetupQualityScore
+                ? `${Math.round(setupQualityScore)}${normalizedSetupGrade ? ` ${normalizedSetupGrade}` : ''}`
+                : `Grade ${normalizedSetupGrade}`}
             </span>
           ) : (
             <span className="text-[10px] text-white/25">-</span>
@@ -452,7 +457,7 @@ function Header() {
         <span className="text-[9px] font-semibold uppercase tracking-widest text-white/25">Emotions</span>
       </div>
       <div className="w-[90px] flex-shrink-0 hidden xl:block">
-        <span className="text-[9px] font-semibold uppercase tracking-widest text-white/25">Grade</span>
+        <span className="text-[9px] font-semibold uppercase tracking-widest text-white/25">Quality</span>
       </div>
       <div className="w-[120px] flex-shrink-0 hidden xl:block">
         <span className="text-[9px] font-semibold uppercase tracking-widest text-white/25">Plan</span>

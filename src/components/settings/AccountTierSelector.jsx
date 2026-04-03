@@ -1,5 +1,13 @@
 import React, { useState, useCallback } from 'react';
-import { ACCOUNT_TIERS, ACCOUNT_TIER_IDS, getTierSettingsWithCustomizations, detectTierFromSettings, getTierSettingsFields, saveTierCustomizations } from '@/lib/config/accountTypes';
+import {
+  ACCOUNT_TIERS,
+  ACCOUNT_TIER_IDS,
+  getTierSettingsWithCustomizations,
+  detectTierFromSettings,
+  getTierSettingsFields,
+  saveTierCustomizations,
+  sanitizeTierSettingsPayload,
+} from '@/lib/config/accountTypes';
 import { useSettings } from '@/lib/context/SettingsContext';
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -11,6 +19,40 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+
+const isPlainObject = (value) => value && typeof value === 'object' && !Array.isArray(value);
+
+const areValuesEqual = (left, right) => {
+  if (left === right) return true;
+
+  if (Array.isArray(left) && Array.isArray(right)) {
+    if (left.length !== right.length) return false;
+    for (let index = 0; index < left.length; index += 1) {
+      if (!areValuesEqual(left[index], right[index])) return false;
+    }
+    return true;
+  }
+
+  if (isPlainObject(left) && isPlainObject(right)) {
+    const leftKeys = Object.keys(left);
+    const rightKeys = Object.keys(right);
+    if (leftKeys.length !== rightKeys.length) return false;
+
+    for (const key of leftKeys) {
+      if (!Object.prototype.hasOwnProperty.call(right, key)) return false;
+      if (!areValuesEqual(left[key], right[key])) return false;
+    }
+    return true;
+  }
+
+  return false;
+};
+
+const toGlobalSetupTypes = (setupTypes) => (
+  Array.isArray(setupTypes)
+    ? [...new Set(setupTypes.map((setup) => String(setup || '').trim()).filter(Boolean))]
+    : []
+);
 
 export default function AccountTierSelector() {
   const [isOpen, setIsOpen] = useState(false);
@@ -27,21 +69,33 @@ export default function AccountTierSelector() {
       // Preserve current tier customizations before switching away
       if (currentTierId && currentTierId !== 'custom') {
         const baseTier = getTierSettingsFields(currentTierId);
+        const normalizedCurrentSettings = sanitizeTierSettingsPayload(settings || {});
         const customizations = {};
 
         Object.keys(baseTier).forEach((key) => {
           if (key === 'account_tier') return;
-          if (settings?.[key] !== undefined && settings[key] !== baseTier[key]) {
-            customizations[key] = settings[key];
+          if (normalizedCurrentSettings?.[key] !== undefined && !areValuesEqual(normalizedCurrentSettings[key], baseTier[key])) {
+            customizations[key] = normalizedCurrentSettings[key];
           }
         });
 
         saveTierCustomizations(currentTierId, customizations);
       }
 
-      const nextSettings = tierId === 'custom'
+      const globalSetupTypes = toGlobalSetupTypes(settings?.journal_preferences?.default_setup_types);
+      const nextSettingsBase = tierId === 'custom'
         ? { account_tier: 'custom' }
         : getTierSettingsWithCustomizations(tierId);
+      const shouldCarryJournalPrefs = Boolean(nextSettingsBase?.journal_preferences) || globalSetupTypes.length > 0;
+      const nextSettings = shouldCarryJournalPrefs
+        ? {
+            ...nextSettingsBase,
+            journal_preferences: {
+              ...(nextSettingsBase?.journal_preferences || {}),
+              ...(globalSetupTypes.length > 0 ? { default_setup_types: globalSetupTypes } : {}),
+            },
+          }
+        : nextSettingsBase;
 
       // Keep UI responsive immediately.
       updateFields(nextSettings);

@@ -20,6 +20,7 @@ export const TRADE_DEFAULTS = {
   fee: null,
   setup_type: null,
   setup_grade: null,
+  setup_quality_score: null,
   emotions: 'neutral',         // 'confident'|'nervous'|'fomo'|'revenge'|'disciplined'|'neutral'
   followed_plan: true,
   mistakes: [],

@@ -14,6 +14,8 @@ export const TradeSchema = {
     // Basic Trade Info
     'direction',
     'setup_type',
+    'setup_grade',
+    'setup_quality_score',
     'custom_setup_type',
     'account_tier', // Track which account tier was used for this trade
     

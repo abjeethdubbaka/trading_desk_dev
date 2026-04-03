@@ -35,9 +35,10 @@ export function createTradeCRUD(service) {
 
       const tradeWithShareFloat = await hydrateTradeShareFloat(tradeWithDefaults);
       const floatCategories = await service.getFloatCategories();
+      const riskLimit = await service.getRiskLimit();
 
       // Calculate derived fields
-      const enrichedTrade = enrichTrade(tradeWithShareFloat, { floatCategories });
+      const enrichedTrade = enrichTrade(tradeWithShareFloat, { floatCategories, riskLimit });
       console.info('[TradeService] create share-float enrichment', {
         symbol: enrichedTrade.symbol,
         share_float: enrichedTrade.share_float ?? null,
@@ -54,11 +55,21 @@ export function createTradeCRUD(service) {
     },
 
     async get(id) {
-      return await service.db.trades.get(id);
+      const trade = await service.db.trades.get(id);
+      if (!trade) return trade;
+
+      const floatCategories = await service.getFloatCategories();
+      const riskLimit = await service.getRiskLimit();
+      return enrichTrade(trade, { floatCategories, riskLimit });
     },
 
     async list(options = {}) {
-      return await service.db.trades.list(options);
+      const trades = await service.db.trades.list(options);
+      if (!Array.isArray(trades) || trades.length === 0) return [];
+
+      const floatCategories = await service.getFloatCategories();
+      const riskLimit = await service.getRiskLimit();
+      return trades.map((trade) => enrichTrade(trade, { floatCategories, riskLimit }));
     },
 
     async update(id, changes) {
@@ -91,8 +102,9 @@ export function createTradeCRUD(service) {
 
       updatedTrade = await hydrateTradeShareFloat(updatedTrade);
       const floatCategories = await service.getFloatCategories();
+      const riskLimit = await service.getRiskLimit();
 
-      const enrichedTrade = enrichTrade(updatedTrade, { floatCategories });
+      const enrichedTrade = enrichTrade(updatedTrade, { floatCategories, riskLimit });
       console.info('[TradeService] update share-float enrichment', {
         id,
         symbol: enrichedTrade.symbol,

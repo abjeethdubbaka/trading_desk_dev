@@ -175,6 +175,7 @@ export default function AddTradeForm({
       <NotesFields
         setupType={formData.setup_type}
         setupGrade={formData.setup_grade}
+        setupQualityScore={formData.setup_quality_score}
         breakoutChecklist={formData.breakout_checklist}
         reflectionAnswers={formData.reflection_answers}
         strategySteps={strategySteps}

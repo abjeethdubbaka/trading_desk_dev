@@ -109,6 +109,7 @@ const ChecklistStep = ({
 const NotesFields = ({
   setupType,
   setupGrade,
+  setupQualityScore,
   breakoutChecklist,
   reflectionAnswers,
   strategySteps,
@@ -122,6 +123,8 @@ const NotesFields = ({
   const normalizedStrategySteps = Array.isArray(strategySteps)
     ? strategySteps.map((step) => String(step ?? '').trim()).filter(Boolean)
     : [];
+  const numericQualityScore = Number(setupQualityScore);
+  const hasQualityScore = Number.isFinite(numericQualityScore);
   const showGenericStrategyChecklist = normalizedStrategySteps.length > 0;
   const showLegacyVWAPChecklist = isVWAPPullback && normalizedStrategySteps.length === 0;
 
@@ -151,6 +154,17 @@ const NotesFields = ({
             placeholder="Example: Wait for full setup confirmation and keep risk fixed."
             className="bg-white/5 border-white/10 min-h-[72px] resize-y"
           />
+        </div>
+
+        <div className="rounded-md border border-cyan-500/20 bg-cyan-500/10 px-3 py-2">
+          <p className="text-[10px] uppercase tracking-[0.16em] text-cyan-200/80">Setup Quality</p>
+          <p className="mt-1 text-sm font-mono font-semibold text-cyan-200">
+            {hasQualityScore ? `${Math.round(numericQualityScore)}/100` : '--'}
+            {setupGrade ? <span className="ml-1.5 text-cyan-100/90">({setupGrade})</span> : null}
+          </p>
+          <p className="mt-1 text-[10px] text-cyan-100/70">
+            Auto-score from steps followed, plan adherence, and risk compliance.
+          </p>
         </div>
       </div>
 

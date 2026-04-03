@@ -16,18 +16,23 @@ import PerformanceByPrice from '@/components/performance/PerformanceByPrice';
 import PerformanceBySetupType from '@/components/performance/PerformanceBySetupType';
 import PerformanceByShareFloatRange from '@/components/performance/PerformanceByShareFloatRange';
 import SetupTimeFloatHeatmap from '@/components/performance/SetupTimeFloatHeatmap';
-import PeriodComparison from '@/components/performance/PeriodComparison';
 import PlanAdherenceCard from '@/components/performance/PlanAdherenceCard';
+import WeeklyReviewCard from '@/components/performance/WeeklyReviewCard';
+import SetupQualityPerTradeCard from '@/components/performance/SetupQualityPerTradeCard';
+import MistakePatternInsights from '@/components/performance/MistakePatternInsights';
 import AnalysisPanel from '@/components/journal/analysis/AnalysisPanel';
 import InfoHint from '@/components/ui/InfoHint';
 import { useSettings } from '@/lib/context/SettingsContext';
 import { useTrades } from '@/lib/hooks/useTrades';
 import {
+  analyzeMistakePatterns,
   buildEquityCurve,
+  buildWeeklyReview,
   calcCoreStats,
   calcHoldTimeStats,
   calcMaxDrawdown,
   calcSharpeRatio,
+  computeTradeSetupQuality,
   formatHoldDuration,
   perfByDayOfWeek,
   perfByHoldDurationBuckets,
@@ -105,33 +110,62 @@ export default function PerformancePage() {
   const { settings } = useSettings();
   const currentTier = settings?.account_tier || 'custom';
   const accountSize = toFiniteNumber(settings?.account_size, 50000);
+  const riskLimit = toFiniteNumber(settings?.risk_amount, 0);
   const { data: trades = [], isLoading } = useTrades({
     filters: { account_tier: currentTier },
   });
 
-  const stats = useMemo(() => calcCoreStats(trades), [trades]);
-  const curve = useMemo(() => buildEquityCurve(trades, accountSize), [trades, accountSize]);
-  const maxDD = useMemo(() => calcMaxDrawdown(curve), [curve]);
-  const sharpe = useMemo(() => calcSharpeRatio(trades), [trades]);
-  const holdStats = useMemo(() => calcHoldTimeStats(trades), [trades]);
+  const tradesWithQuality = useMemo(() => {
+    if (!Array.isArray(trades)) return [];
 
-  const byHour = useMemo(() => perfByHourOfDay(trades), [trades]);
-  const byDay = useMemo(() => perfByDayOfWeek(trades), [trades]);
-  const bySetup = useMemo(() => perfBySetupType(trades), [trades]);
-  const byPrice = useMemo(() => perfByPriceRange(trades), [trades]);
+    return trades.map((trade) => {
+      const quality = computeTradeSetupQuality(trade, { riskLimit });
+      if (!Number.isFinite(quality?.score)) return trade;
+
+      const normalizedScore = Math.round(quality.score);
+      const currentScore = Number.isFinite(Number(trade?.setup_quality_score))
+        ? Math.round(Number(trade.setup_quality_score))
+        : null;
+      const currentGrade = String(trade?.setup_grade || '').trim();
+      const nextGrade = String(quality?.grade || '').trim();
+
+      if (currentScore === normalizedScore && currentGrade === nextGrade) {
+        return trade;
+      }
+
+      return {
+        ...trade,
+        setup_quality_score: normalizedScore,
+        setup_grade: nextGrade || trade?.setup_grade || '',
+      };
+    });
+  }, [riskLimit, trades]);
+
+  const stats = useMemo(() => calcCoreStats(tradesWithQuality), [tradesWithQuality]);
+  const curve = useMemo(() => buildEquityCurve(tradesWithQuality, accountSize), [tradesWithQuality, accountSize]);
+  const maxDD = useMemo(() => calcMaxDrawdown(curve), [curve]);
+  const sharpe = useMemo(() => calcSharpeRatio(tradesWithQuality), [tradesWithQuality]);
+  const holdStats = useMemo(() => calcHoldTimeStats(tradesWithQuality), [tradesWithQuality]);
+
+  const byHour = useMemo(() => perfByHourOfDay(tradesWithQuality), [tradesWithQuality]);
+  const byDay = useMemo(() => perfByDayOfWeek(tradesWithQuality), [tradesWithQuality]);
+  const bySetup = useMemo(() => perfBySetupType(tradesWithQuality), [tradesWithQuality]);
+  const byPrice = useMemo(() => perfByPriceRange(tradesWithQuality), [tradesWithQuality]);
   const byFloat = useMemo(
-    () => perfByShareFloatRange(trades, { floatCategories: settings?.float_categories }),
-    [trades, settings?.float_categories]
+    () => perfByShareFloatRange(tradesWithQuality, { floatCategories: settings?.float_categories }),
+    [tradesWithQuality, settings?.float_categories]
   );
   const setupTimeFloatHeatmap = useMemo(
-    () => perfBySetupTimeFloatHeatmap(trades, {
+    () => perfBySetupTimeFloatHeatmap(tradesWithQuality, {
       setupLimit: 8,
       hourLimit: 8,
       floatCategories: settings?.float_categories,
     }),
-    [trades, settings?.float_categories]
+    [tradesWithQuality, settings?.float_categories]
   );
-  const byHoldBucket = useMemo(() => perfByHoldDurationBuckets(trades, 5), [trades]);
+  const byHoldBucket = useMemo(() => perfByHoldDurationBuckets(tradesWithQuality, 5), [tradesWithQuality]);
+  const weeklyReview = useMemo(() => buildWeeklyReview(tradesWithQuality, [7, 14]), [tradesWithQuality]);
+  const mistakeInsights = useMemo(() => analyzeMistakePatterns(tradesWithQuality, 4), [tradesWithQuality]);
 
   const timingTopHour = useMemo(
     () => [...byHour].filter((row) => row.trades > 0).sort((a, b) => b.totalPnL - a.totalPnL)[0] ?? null,
@@ -211,7 +245,7 @@ export default function PerformancePage() {
         />
       </div>
 
-      <PeriodComparison trades={trades} initialBalance={accountSize} />
+      <WeeklyReviewCard reviews={weeklyReview} trades={tradesWithQuality} initialBalance={accountSize} />
 
       <Tabs defaultValue="behavior">
         <TabsList className="grid w-full grid-cols-2 gap-1.5 rounded-2xl border border-white/10 bg-[#13131e]/90 p-1.5 sm:grid-cols-4">
@@ -243,8 +277,8 @@ export default function PerformancePage() {
 
         <TabsContent value="behavior" className="mt-4 space-y-4">
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-            <EmotionMatrix trades={trades} />
-            <PlanAdherenceCard trades={trades} />
+            <EmotionMatrix trades={tradesWithQuality} />
+            <PlanAdherenceCard trades={tradesWithQuality} />
           </div>
         </TabsContent>
 
@@ -347,8 +381,13 @@ export default function PerformancePage() {
             <InsightChip label="Max Drawdown" value={`-$${Math.abs(maxDD).toFixed(0)}`} tone="text-red-300" />
           </TabHero>
 
+          <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+            <SetupQualityPerTradeCard trades={tradesWithQuality} riskLimit={riskLimit} />
+            <MistakePatternInsights insights={mistakeInsights} />
+          </div>
+
           <div className="rounded-2xl border border-white/10 bg-gradient-to-br from-[#141423] to-[#101016] p-1">
-            <AnalysisPanel trades={trades} isCollapsed={false} />
+            <AnalysisPanel trades={tradesWithQuality} isCollapsed={false} />
           </div>
         </TabsContent>
       </Tabs>

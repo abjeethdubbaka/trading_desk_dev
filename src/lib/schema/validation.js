@@ -127,6 +127,8 @@ export const FieldValidations = {
   hold_duration_minutes: [ValidationTypes.NON_NEGATIVE_NUMBER],
   direction: [ValidationTypes.STRING],
   setup_type: [ValidationTypes.STRING],
+  setup_grade: [ValidationTypes.STRING],
+  setup_quality_score: [ValidationTypes.NON_NEGATIVE_NUMBER],
   float_category: [ValidationTypes.STRING],
   share_float: [ValidationTypes.NON_NEGATIVE_NUMBER],
   share_float_range: [ValidationTypes.STRING],

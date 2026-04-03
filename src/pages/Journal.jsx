@@ -9,6 +9,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useJournal, useTradesMutation } from '@/lib/hooks/useTrades';
 import { useTradeReview } from '@/lib/hooks/useTradeReview';
 import { useSettings } from '@/lib/context/SettingsContext';
+import { computeTradeSetupQuality } from '@/lib/calculations/trades';
 import {
   AddTradeModal,
   CompactView,
@@ -42,6 +43,33 @@ export default function Journal() {
   } = useTradesMutation();
   const accountTier = settings?.account_tier || 'custom';
   const isSaving = isCreating || isUpdating || isBulkCreating;
+  const riskLimit = Number(settings?.risk_amount);
+
+  const tradesWithQuality = useMemo(() => {
+    if (!Array.isArray(trades)) return [];
+
+    return trades.map((trade) => {
+      const quality = computeTradeSetupQuality(trade, { riskLimit });
+      if (!Number.isFinite(quality?.score)) return trade;
+
+      const normalizedScore = Math.round(quality.score);
+      const currentScore = Number.isFinite(Number(trade?.setup_quality_score))
+        ? Math.round(Number(trade.setup_quality_score))
+        : null;
+      const currentGrade = String(trade?.setup_grade || '').trim();
+      const nextGrade = String(quality.grade || '').trim();
+
+      if (currentScore === normalizedScore && currentGrade === nextGrade) {
+        return trade;
+      }
+
+      return {
+        ...trade,
+        setup_quality_score: normalizedScore,
+        setup_grade: nextGrade || trade?.setup_grade || '',
+      };
+    });
+  }, [riskLimit, trades]);
 
   const {
     searchTerm,
@@ -51,7 +79,7 @@ export default function Journal() {
     dateRange,
     setDateRange,
     filteredTrades,
-  } = useJournalFilters(trades);
+  } = useJournalFilters(tradesWithQuality);
 
   const resetSignal = useMemo(() => `${searchTerm}|${filter}|${dateRange}`, [searchTerm, filter, dateRange]);
 

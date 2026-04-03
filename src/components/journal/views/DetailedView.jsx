@@ -234,6 +234,12 @@ export default function DetailedView({
     <div className="grid grid-cols-2 gap-3 p-3 max-h-[600px] overflow-y-auto">
       {trades.map((trade) => {
         const cleanedTradeNotes = getTradeNotesText(trade);
+        const setupQualityScore = Number(trade?.setup_quality_score);
+        const hasSetupQualityScore = Number.isFinite(setupQualityScore);
+        const normalizedSetupGrade = String(trade?.setup_grade || '').trim();
+        const setupQualityLabel = hasSetupQualityScore
+          ? `${Math.round(setupQualityScore)}/100${normalizedSetupGrade ? ` (${normalizedSetupGrade})` : ''}`
+          : (normalizedSetupGrade || 'No Grade');
         const isInlineEditing = inlineEditingId === trade.id;
         const inlineDraft = inlineDrafts?.[trade.id] || {
           setup_type: String(trade?.setup_type || ''),
@@ -398,10 +404,12 @@ export default function DetailedView({
                   <span
                     className={cn(
                       'text-xs px-2 py-1 rounded',
-                      trade.setup_grade ? 'bg-blue-500/20 text-blue-300' : 'bg-white/10 text-white/60'
+                      hasSetupQualityScore || normalizedSetupGrade
+                        ? 'bg-blue-500/20 text-blue-300'
+                        : 'bg-white/10 text-white/60'
                     )}
                   >
-                    Setup Quality: {trade.setup_grade || 'No Grade'}
+                    Setup Quality: {setupQualityLabel}
                   </span>
                 </div>
               )}

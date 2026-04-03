@@ -58,6 +58,18 @@ export class TradeService {
     }
   }
 
+  async getRiskLimit() {
+    try {
+      const settingsGetter = this.db?.settings?.get;
+      if (typeof settingsGetter !== 'function') return null;
+      const settings = await settingsGetter.call(this.db.settings);
+      const numericRisk = Number(settings?.risk_amount);
+      return Number.isFinite(numericRisk) && numericRisk > 0 ? numericRisk : null;
+    } catch {
+      return null;
+    }
+  }
+
   // Validation
   validate(tradeData) {
     return validateTrade(tradeData);

@@ -8,10 +8,10 @@ import { buildDisciplineSnapshot } from '@/lib/calculations/discipline';
 import { useMediaMutation } from '@/lib/hooks/useCalcHistory';
 import { syncRuleUsageCounts } from '@/components/dosanddonts/storage';
 import { buildTradeNotes } from '@/components/journal/utils/notes';
+import { computeTradeSetupQuality } from '@/lib/calculations/trades';
 import { useTradeForm } from './useTradeForm';
 import { localToUTCISO, isValidExitTime } from '../utils/dateUtils';
 import { calculatePnL } from '../utils/calculationUtils';
-import { getAutoSetupGrade } from '../utils/setupGrade';
 import { buildSetupTypeOptions } from '../constants/tradeConstants';
 
 const USER_ID = 'user-123';
@@ -165,23 +165,6 @@ export function useAddTradeModalController({ open, onSave, initialData }) {
     settings?.strategy_steps_by_setup,
   ]);
 
-  useEffect(() => {
-    const isVWAPPullback = (formData.setup_type || '').toLowerCase().trim() === 'vwap pullback';
-    const usesLegacyVWAPChecklist = isVWAPPullback && strategyStepsForSetup.length === 0;
-    if (!usesLegacyVWAPChecklist) return;
-
-    const nextGrade = getAutoSetupGrade(formData.breakout_checklist);
-    if (formData.setup_grade !== nextGrade) {
-      updateField('setup_grade', nextGrade);
-    }
-  }, [
-    formData.breakout_checklist,
-    formData.setup_grade,
-    formData.setup_type,
-    strategyStepsForSetup.length,
-    updateField,
-  ]);
-
   const strategyStepResults = useMemo(
     () => normalizeStrategyStepResults(formData.strategy_step_results, strategyStepsForSetup),
     [formData.strategy_step_results, strategyStepsForSetup]
@@ -211,6 +194,60 @@ export function useAddTradeModalController({ open, onSave, initialData }) {
     if (isSame) return;
     updateField('strategy_step_results', strategyStepResults);
   }, [formData.strategy_step_results, strategyStepResults, updateField]);
+
+  useEffect(() => {
+    const entryPrice = Number(formData.entry_price);
+    const stopLoss = Number(formData.stop_loss);
+    const positionSize = Number(formData.position_size);
+    const estimatedRisk = (
+      Number.isFinite(entryPrice)
+      && Number.isFinite(stopLoss)
+      && Number.isFinite(positionSize)
+      && positionSize > 0
+    )
+      ? Math.abs(entryPrice - stopLoss) * positionSize
+      : Number(formData.risk_amount);
+
+    const quality = computeTradeSetupQuality(
+      {
+        followed_plan: formData.followed_plan,
+        breakout_checklist: formData.breakout_checklist,
+        entry_price: entryPrice,
+        stop_loss: stopLoss,
+        quantity: Number.isFinite(positionSize) && positionSize > 0 ? positionSize : formData.quantity,
+        risk_amount: Number.isFinite(estimatedRisk) ? estimatedRisk : formData.risk_amount,
+        strategy_step_results: strategyStepResults,
+      },
+      { riskLimit: settings?.risk_amount }
+    );
+
+    const nextGrade = quality?.grade || '';
+    const nextScore = Number.isFinite(quality?.score) ? Math.round(quality.score) : null;
+    const currentScore = Number.isFinite(Number(formData.setup_quality_score))
+      ? Math.round(Number(formData.setup_quality_score))
+      : null;
+
+    if (formData.setup_grade !== nextGrade) {
+      updateField('setup_grade', nextGrade);
+    }
+
+    if (currentScore !== nextScore) {
+      updateField('setup_quality_score', nextScore);
+    }
+  }, [
+    formData.breakout_checklist,
+    formData.entry_price,
+    formData.followed_plan,
+    formData.position_size,
+    formData.quantity,
+    formData.risk_amount,
+    formData.setup_grade,
+    formData.setup_quality_score,
+    formData.stop_loss,
+    settings?.risk_amount,
+    strategyStepResults,
+    updateField,
+  ]);
 
   const suggestionTrade = useMemo(() => {
     const noteText = buildTradeNotes({

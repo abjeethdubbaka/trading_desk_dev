@@ -1,9 +1,32 @@
 import { ACCOUNT_TIERS } from './tiers.js';
 import { getTierCustomizations } from './customizations.js';
 
+const stripDefaultSetupTypes = (journalPreferences) => {
+  if (!journalPreferences || typeof journalPreferences !== 'object' || Array.isArray(journalPreferences)) {
+    return journalPreferences;
+  }
+
+  const next = { ...journalPreferences };
+  delete next.default_setup_types;
+  return next;
+};
+
+export function sanitizeTierSettingsPayload(payload = {}) {
+  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) return {};
+
+  const sanitized = { ...payload };
+  if (Object.prototype.hasOwnProperty.call(sanitized, 'journal_preferences')) {
+    sanitized.journal_preferences = stripDefaultSetupTypes(sanitized.journal_preferences);
+  }
+
+  return sanitized;
+}
+
 export function getTierSettingsFields(tierId) {
   const tier = ACCOUNT_TIERS[tierId];
   if (!tier) return {};
+
+  const tierJournalPreferences = stripDefaultSetupTypes(tier.journal_preferences);
 
   return {
     account_size:              tier.account_size,
@@ -26,7 +49,7 @@ export function getTierSettingsFields(tierId) {
     float_200m_min_r:          tier.float_200m_min_r,
     float_200m_max_r:          tier.float_200m_max_r,
 
-    journal_preferences:       tier.journal_preferences,
+    journal_preferences:       tierJournalPreferences,
     analysis_settings:         tier.analysis_settings,
     screenshot_settings:       tier.screenshot_settings,
 
@@ -43,9 +66,16 @@ export function getTierSettingsFields(tierId) {
 
 export function getTierSettingsWithCustomizations(tierId) {
   const baseSettings = getTierSettingsFields(tierId);
-  const customizations = getTierCustomizations(tierId);
+  const customizations = sanitizeTierSettingsPayload(getTierCustomizations(tierId));
 
-  return { ...baseSettings, ...customizations };
+  return {
+    ...baseSettings,
+    ...customizations,
+    journal_preferences: {
+      ...(baseSettings.journal_preferences || {}),
+      ...(customizations.journal_preferences || {}),
+    },
+  };
 }
 
 export function detectTierFromSettings(settings) {

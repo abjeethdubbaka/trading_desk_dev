@@ -9,7 +9,40 @@ import { useCallback, useRef, useEffect } from 'react';
 import { createSettingsService } from '../../services/SettingsService.js';
 import { db } from '../../db/index.js';
 import { settingsKeys } from '../../utils/queryKeys';
-import { detectTierFromSettings, getTierSettingsFields, saveTierCustomizations } from '../../config/accountTypes.js';
+import {
+  detectTierFromSettings,
+  getTierSettingsFields,
+  sanitizeTierSettingsPayload,
+  saveTierCustomizations,
+} from '../../config/accountTypes.js';
+
+const isPlainObject = (value) => value && typeof value === 'object' && !Array.isArray(value);
+
+const areValuesEqual = (left, right) => {
+  if (left === right) return true;
+
+  if (Array.isArray(left) && Array.isArray(right)) {
+    if (left.length !== right.length) return false;
+    for (let index = 0; index < left.length; index += 1) {
+      if (!areValuesEqual(left[index], right[index])) return false;
+    }
+    return true;
+  }
+
+  if (isPlainObject(left) && isPlainObject(right)) {
+    const leftKeys = Object.keys(left);
+    const rightKeys = Object.keys(right);
+    if (leftKeys.length !== rightKeys.length) return false;
+
+    for (const key of leftKeys) {
+      if (!Object.prototype.hasOwnProperty.call(right, key)) return false;
+      if (!areValuesEqual(left[key], right[key])) return false;
+    }
+    return true;
+  }
+
+  return false;
+};
 
 // Create settings service instance
 const settingsService = createSettingsService(db);
@@ -61,12 +94,14 @@ export function useSettings(options = {}) {
       if (currentTierId !== 'custom') {
         // Get the base tier settings to identify what was customized
         const baseSettings = getTierSettingsFields(currentTierId);
+        const normalizedSettings = sanitizeTierSettingsPayload(newSettings);
         const customizations = {};
         
         // Find fields that differ from base settings
-        Object.keys(newSettings).forEach(key => {
-          if (baseSettings[key] !== undefined && newSettings[key] !== baseSettings[key]) {
-            customizations[key] = newSettings[key];
+        Object.keys(baseSettings).forEach((key) => {
+          if (key === 'account_tier') return;
+          if (normalizedSettings[key] !== undefined && !areValuesEqual(normalizedSettings[key], baseSettings[key])) {
+            customizations[key] = normalizedSettings[key];
           }
         });
         

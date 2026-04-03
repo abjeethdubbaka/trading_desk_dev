@@ -73,6 +73,7 @@ export const useTradeForm = (initialData, userId = 'user-123') => {
     lessons: '',
     reflection_answers: getDefaultReflectionAnswers(),
     setup_grade: '',
+    setup_quality_score: null,
     breakout_checklist: defaultBreakoutChecklist,
     strategy_step_results: [],
     screenshots: [],
@@ -104,7 +105,7 @@ export const useTradeForm = (initialData, userId = 'user-123') => {
       position_size: (initialData.position_size ?? initialData.quantity)?.toString() || '',
       entry_time: entryTimeLocal || getCurrentLocalDateTime(),
       exit_time: exitTimeLocal || '',
-      fee: initialData.fee?.toString() || '',
+      fee: (initialData.fee ?? initialData.commission)?.toString() || '',
       setup_type: initialData.setup_type || '',
       custom_setup_type: initialData.custom_setup_type || '',
       notes: stripCalculatorAutoNote(initialData.notes),
@@ -117,6 +118,9 @@ export const useTradeForm = (initialData, userId = 'user-123') => {
         ...(initialData.reflection_answers || {})
       },
       setup_grade: initialData.setup_grade || '',
+      setup_quality_score: Number.isFinite(Number(initialData.setup_quality_score))
+        ? Number(initialData.setup_quality_score)
+        : null,
       breakout_checklist: {
         ...defaultBreakoutChecklist,
         ...(initialData.breakout_checklist || {}),
@@ -176,6 +180,7 @@ export const useTradeForm = (initialData, userId = 'user-123') => {
       lessons: '',
       reflection_answers: getDefaultReflectionAnswers(),
       setup_grade: '',
+      setup_quality_score: null,
       breakout_checklist: defaultBreakoutChecklist,
       strategy_step_results: [],
       screenshots: [],
@@ -240,6 +245,7 @@ export const useTradeForm = (initialData, userId = 'user-123') => {
       pnl_percent: pnlPercent,
       r_multiple: rMultiple,
       fee: formData.fee ? parseFloat(formData.fee) : null,
+      commission: formData.fee ? parseFloat(formData.fee) : null,
       user_id: userId,
       mistakes: formData.mistakes.length > 0 ? formData.mistakes : null,
       lessons: formData.lessons || null,
@@ -247,6 +253,9 @@ export const useTradeForm = (initialData, userId = 'user-123') => {
       notes: notesFromReflection,
       emotions: formData.emotions ? [formData.emotions] : [], // Convert string to array
       reflection_answers: normalizedReflectionAnswers,
+      setup_quality_score: Number.isFinite(Number(formData.setup_quality_score))
+        ? Math.round(Number(formData.setup_quality_score))
+        : null,
       strategy_step_results: strategyStepResults,
       trade_plan_id: formData.trade_plan_id || null,
       strategy_preset_id: formData.strategy_preset_id || null,

@@ -10,6 +10,7 @@ export { getTierCustomizations, saveTierCustomizations } from './accountTypes/cu
 export {
   getTierSettingsWithCustomizations,
   getTierSettingsFields,
+  sanitizeTierSettingsPayload,
   detectTierFromSettings,
 } from './accountTypes/utils.js';
 
