@@ -27,6 +27,7 @@ export const TRADE_DEFAULTS = {
   notes: null,
   screenshots: [],
   breakout_checklist: null,
+  strategy_step_results: [],
   reflection_answers: null,
   trade_plan_id: null,
   strategy_preset_id: null,

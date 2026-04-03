@@ -2,6 +2,7 @@ import React from 'react';
 import { ShieldCheck, ShieldAlert, AlertTriangle, CheckCircle2, Sparkles, RefreshCw, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils/general';
 import { useDisciplineCoachAI } from '@/lib/ai/hooks/useDisciplineCoachAI';
+import DailyGoalBar from '@/components/dashboard/DailyGoalBar';
 
 const STATUS_STYLE = {
   'on-track': {
@@ -42,7 +43,10 @@ function Metric({ label, value }) {
   );
 }
 
-export default function DisciplineCoachCard({ snapshot }) {
+export default function DisciplineCoachCard({
+  snapshot,
+  dailyGoal = null,
+}) {
   const {
     aiEnabled,
     aiLoading,
@@ -74,9 +78,6 @@ export default function DisciplineCoachCard({ snapshot }) {
       <div className="flex items-start justify-between gap-3">
         <div>
           <p className="text-sm font-semibold text-white">Discipline Coach</p>
-          <p className="text-xs text-white/45 mt-0.5">
-            {aiEnabled ? 'Phase 2 · AI overlay + local guardrails' : 'Phase 1 · Local rules · Soft guardrails'}
-          </p>
         </div>
 
         <div className="text-right">
@@ -127,6 +128,15 @@ export default function DisciplineCoachCard({ snapshot }) {
           )}
         </div>
       )}
+
+      {dailyGoal ? (
+        <DailyGoalBar
+          todayPnL={dailyGoal.todayPnL}
+          targetProfit={dailyGoal.targetProfit}
+          maxDailyLoss={dailyGoal.maxDailyLoss}
+          embedded
+        />
+      ) : null}
 
       <div className="grid grid-cols-2 gap-2">
         <Metric label="Plan Adherence" value={`${planAdherencePct.toFixed(0)}%`} />

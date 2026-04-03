@@ -62,8 +62,8 @@ export default function JournalToolbar({
 
   return (
     <div className="space-y-2">
-      <div className="flex flex-wrap items-center gap-3">
-        <div className="relative min-w-[260px] flex-1">
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="relative min-w-[260px] w-full md:w-auto md:flex-1 lg:max-w-[420px]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
           <Input
             value={searchTerm}
@@ -73,17 +73,6 @@ export default function JournalToolbar({
           />
         </div>
 
-        <div className="ml-auto flex flex-wrap items-center gap-2 text-xs">
-          <span className="rounded-lg border border-white/15 bg-white/[0.04] px-2.5 py-1 text-white/75">
-            {todayLabel}
-          </span>
-          <span className="rounded-lg border border-cyan-400/25 bg-cyan-500/12 px-2.5 py-1 text-cyan-200">
-            Tier {accountTier}
-          </span>
-        </div>
-      </div>
-
-      <div className="flex flex-wrap items-center gap-2">
         <Select value={filter} onValueChange={onFilterChange}>
           <SelectTrigger className="w-32 border-white/10 bg-white/[0.03]">
             <SelectValue placeholder="Filter" />
@@ -194,6 +183,15 @@ export default function JournalToolbar({
           <Plus className="w-4 h-4 mr-2 flex-shrink-0" />
           Add Trade
         </Button>
+
+        <div className="ml-auto flex flex-wrap items-center gap-2 text-xs">
+          <span className="rounded-lg border border-white/15 bg-white/[0.04] px-2.5 py-1 text-white/75">
+            {todayLabel}
+          </span>
+          <span className="rounded-lg border border-cyan-400/25 bg-cyan-500/12 px-2.5 py-1 text-cyan-200">
+            Tier {accountTier}
+          </span>
+        </div>
       </div>
 
       {importStatus?.message ? (

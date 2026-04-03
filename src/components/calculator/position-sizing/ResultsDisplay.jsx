@@ -3,7 +3,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Pause, Play, RotateCcw, Target } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useAnalysisTimer } from '@/lib/context/AnalysisTimerContext';
+import { formatAnalysisTimer, useAnalysisTimer } from '@/lib/context/AnalysisTimerContext';
 
 const DEFAULT_EXIT_LEVELS = [
   { r: 1, percent: 33, trailingStop: false },
@@ -88,6 +88,8 @@ export default function ResultsDisplay({
     hasStarted,
     isTimerRunning,
     isExpired,
+    isNearEnd,
+    remainingSeconds,
     toggleTimer,
     resetTimer,
   } = useAnalysisTimer();
@@ -159,6 +161,13 @@ export default function ResultsDisplay({
       : hasStarted
         ? 'Resume Timer'
         : 'Start Timer';
+  const timerStatusLabel = isExpired
+    ? 'Time up'
+    : isTimerRunning
+      ? 'Running'
+      : hasStarted
+        ? 'Paused'
+        : 'Ready';
 
   return (
     <div className="bg-gradient-to-br from-emerald-500/10 to-blue-500/10 rounded-xl p-5 border border-emerald-500/20">
@@ -236,6 +245,25 @@ export default function ResultsDisplay({
         <div className="rounded-lg bg-white/5 border border-white/10 p-3">
           <p className="text-xs text-white/45 mb-1">Risk Amount</p>
           <p className="text-xl font-bold text-red-400">{asMoney(actualRisk)}</p>
+        </div>
+
+        <div
+          className={cn(
+            'rounded-lg border p-3 lg:hidden',
+            isExpired
+              ? 'border-rose-400/40 bg-rose-500/10'
+              : isNearEnd
+                ? 'border-amber-300/45 bg-amber-300/10'
+                : isTimerRunning
+                  ? 'border-emerald-400/35 bg-emerald-500/10'
+                  : 'border-white/10 bg-white/5'
+          )}
+        >
+          <p className="text-xs text-white/45 mb-1">Analysis Timer</p>
+          <p className="font-mono text-xl font-bold text-white tracking-[0.12em]">
+            {formatAnalysisTimer(remainingSeconds)}
+          </p>
+          <p className="text-xs text-white/55 mt-1">{timerStatusLabel}</p>
         </div>
       </div>
 

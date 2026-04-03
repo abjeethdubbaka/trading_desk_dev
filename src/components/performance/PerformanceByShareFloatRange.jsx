@@ -1,5 +1,6 @@
 import React from 'react';
 import { formatCurrency, formatPercentage } from './utils';
+import InfoHint from '@/components/ui/InfoHint';
 
 export default function PerformanceByShareFloatRange({ data = [] }) {
   const resolvedData = Array.isArray(data) ? data : [];
@@ -13,8 +14,10 @@ export default function PerformanceByShareFloatRange({ data = [] }) {
   return (
     <div className="glass-card rounded-2xl border border-white/10 bg-gradient-to-br from-[#161423] to-[#10131b] p-6">
       <div className="mb-4">
-        <h3 className="text-lg font-semibold text-white">Share Float Range</h3>
-        <p className="mt-1 text-xs text-white/45">How float context impacts consistency and edge quality</p>
+        <h3 className="flex items-center gap-2 text-lg font-semibold text-white">
+          Share Float Range
+          <InfoHint text="How float context impacts consistency and edge quality" />
+        </h3>
       </div>
 
       {!hasData ? (

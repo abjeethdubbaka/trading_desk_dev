@@ -4,6 +4,7 @@ import {
   formatCurrency,
   formatPercentage
 } from '../utils';
+import InfoHint from '@/components/ui/InfoHint';
 
 export function PerformanceByHourOfDay({ data, trades = [] }) {
   const resolvedData = Array.isArray(data)
@@ -17,8 +18,10 @@ export function PerformanceByHourOfDay({ data, trades = [] }) {
   return (
     <div className="glass-card rounded-2xl border border-white/10 bg-gradient-to-br from-[#151522] to-[#10131b] p-6">
       <div className="mb-4">
-        <h3 className="text-lg font-semibold text-white">Hour of Day</h3>
-        <p className="text-xs text-white/45 mt-1">Best trade windows by net outcome and win rate</p>
+        <h3 className="flex items-center gap-2 text-lg font-semibold text-white">
+          Hour of Day
+          <InfoHint text="Best trade windows by net outcome and win rate" />
+        </h3>
       </div>
       
       {resolvedData.length === 0 || resolvedData.every(d => d.trades === 0) ? (

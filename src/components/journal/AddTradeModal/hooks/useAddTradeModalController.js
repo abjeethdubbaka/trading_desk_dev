@@ -7,14 +7,55 @@ import { useSettings } from '@/lib/context/SettingsContext';
 import { buildDisciplineSnapshot } from '@/lib/calculations/discipline';
 import { useMediaMutation } from '@/lib/hooks/useCalcHistory';
 import { syncRuleUsageCounts } from '@/components/dosanddonts/storage';
+import { buildTradeNotes } from '@/components/journal/utils/notes';
 import { useTradeForm } from './useTradeForm';
 import { localToUTCISO, isValidExitTime } from '../utils/dateUtils';
 import { calculatePnL } from '../utils/calculationUtils';
 import { getAutoSetupGrade } from '../utils/setupGrade';
+import { buildSetupTypeOptions } from '../constants/tradeConstants';
 
 const USER_ID = 'user-123';
 const SYMBOL_PATTERN = /^[A-Z]{1,5}$/;
 const ALERT_PRIORITIES = ['warning', 'focus'];
+const normalizeStrategySteps = (steps) => (
+  Array.isArray(steps)
+    ? steps.map((step) => String(step ?? '').trim()).filter(Boolean)
+    : []
+);
+
+const resolveStrategyStepsForSetup = (stepsBySetup, setupType, fallbackSteps = []) => {
+  const normalizedSetup = String(setupType || '').trim().toLowerCase();
+  if (!normalizedSetup) return normalizeStrategySteps(fallbackSteps);
+
+  const map = stepsBySetup && typeof stepsBySetup === 'object' && !Array.isArray(stepsBySetup)
+    ? stepsBySetup
+    : {};
+
+  const matchedKey = Object.keys(map).find(
+    (key) => String(key || '').trim().toLowerCase() === normalizedSetup
+  );
+
+  if (!matchedKey) return normalizeStrategySteps(fallbackSteps);
+  return normalizeStrategySteps(map[matchedKey]);
+};
+
+const normalizeStrategyStepResults = (results, stepLabels) => {
+  const source = Array.isArray(results) ? results : [];
+
+  return stepLabels.map((stepLabel, index) => {
+    const value = source[index];
+    const followed = value?.followed === true || value === true
+      ? true
+      : value?.followed === false || value === false
+        ? false
+        : null;
+
+    return {
+      step: String(stepLabel ?? '').trim(),
+      followed,
+    };
+  });
+};
 
 export function useAddTradeModalController({ open, onSave, initialData }) {
   const [loading, setLoading] = useState(false);
@@ -87,16 +128,6 @@ export function useAddTradeModalController({ open, onSave, initialData }) {
     });
   }, [formData.breakout_checklist, updateField]);
 
-  useEffect(() => {
-    const isVWAPPullback = (formData.setup_type || '').toLowerCase().trim() === 'vwap pullback';
-    if (!isVWAPPullback) return;
-
-    const nextGrade = getAutoSetupGrade(formData.breakout_checklist);
-    if (formData.setup_grade !== nextGrade) {
-      updateField('setup_grade', nextGrade);
-    }
-  }, [formData.breakout_checklist, formData.setup_grade, formData.setup_type, updateField]);
-
   const { pnl: calculatedPnl } = useMemo(() => calculatePnL({
     entryPrice: formData.entry_price,
     exitPrice: formData.exit_price,
@@ -111,22 +142,85 @@ export function useAddTradeModalController({ open, onSave, initialData }) {
     ? formData.dos_donts_rule_ids
     : [];
 
+  const setupTypeOptions = useMemo(() => {
+    const configuredSetupTypes = settings?.journal_preferences?.default_setup_types;
+    const options = buildSetupTypeOptions(configuredSetupTypes);
+    const selectedSetup = String(formData.setup_type || '').trim();
+
+    if (!selectedSetup || selectedSetup.toLowerCase() === 'manual') return options;
+    if (options.some((option) => option.toLowerCase() === selectedSetup.toLowerCase())) return options;
+
+    return [...options, selectedSetup];
+  }, [formData.setup_type, settings?.journal_preferences?.default_setup_types]);
+
+  const strategyStepsForSetup = useMemo(() => {
+    return resolveStrategyStepsForSetup(
+      settings?.strategy_steps_by_setup,
+      formData.setup_type,
+      settings?.strategy_steps
+    );
+  }, [
+    formData.setup_type,
+    settings?.strategy_steps,
+    settings?.strategy_steps_by_setup,
+  ]);
+
+  useEffect(() => {
+    const isVWAPPullback = (formData.setup_type || '').toLowerCase().trim() === 'vwap pullback';
+    const usesLegacyVWAPChecklist = isVWAPPullback && strategyStepsForSetup.length === 0;
+    if (!usesLegacyVWAPChecklist) return;
+
+    const nextGrade = getAutoSetupGrade(formData.breakout_checklist);
+    if (formData.setup_grade !== nextGrade) {
+      updateField('setup_grade', nextGrade);
+    }
+  }, [
+    formData.breakout_checklist,
+    formData.setup_grade,
+    formData.setup_type,
+    strategyStepsForSetup.length,
+    updateField,
+  ]);
+
+  const strategyStepResults = useMemo(
+    () => normalizeStrategyStepResults(formData.strategy_step_results, strategyStepsForSetup),
+    [formData.strategy_step_results, strategyStepsForSetup]
+  );
+
+  useEffect(() => {
+    const current = Array.isArray(formData.strategy_step_results)
+      ? formData.strategy_step_results
+      : [];
+    const isSame = current.length === strategyStepResults.length &&
+      current.every((value, index) => {
+        const nextValue = strategyStepResults[index];
+        const currentStep = String(value?.step ?? '').trim();
+        const currentFollowed = value?.followed === true
+          ? true
+          : value?.followed === false
+            ? false
+            : value === true
+              ? true
+              : value === false
+                ? false
+                : null;
+
+        return currentStep === nextValue?.step && currentFollowed === nextValue?.followed;
+      });
+
+    if (isSame) return;
+    updateField('strategy_step_results', strategyStepResults);
+  }, [formData.strategy_step_results, strategyStepResults, updateField]);
+
   const suggestionTrade = useMemo(() => {
-    const setupType = formData.setup_type === 'Manual'
-      ? formData.custom_setup_type
-      : formData.setup_type;
-    const reflection = formData.reflection_answers || {};
-    const noteText = [
-      reflection.what_went_wrong,
-      reflection.what_learned,
-    ]
-      .map((value) => String(value || '').trim())
-      .filter(Boolean)
-      .join('. ');
+    const noteText = buildTradeNotes({
+      reflectionAnswers: formData.reflection_answers,
+      notes: formData.notes,
+    });
 
     return {
       ...formData,
-      setup_type: setupType,
+      setup_type: formData.setup_type,
       notes: noteText,
       pnl: pnlValue,
       emotions: formData.emotions ? [formData.emotions] : [],
@@ -139,6 +233,18 @@ export function useAddTradeModalController({ open, onSave, initialData }) {
       [key]: value,
     });
   }, [formData.reflection_answers, updateField]);
+
+  const handleStrategyStepResultChange = useCallback((index, value) => {
+    const next = normalizeStrategyStepResults(
+      formData.strategy_step_results,
+      strategyStepsForSetup
+    );
+    next[index] = {
+      ...next[index],
+      followed: value === true,
+    };
+    updateField('strategy_step_results', next);
+  }, [formData.strategy_step_results, strategyStepsForSetup, updateField]);
 
   const handleSubmit = useCallback(async (event) => {
     event.preventDefault();
@@ -207,6 +313,9 @@ export function useAddTradeModalController({ open, onSave, initialData }) {
     pnlValue,
     selectedRuleIds,
     suggestionTrade,
+    setupTypeOptions,
+    strategyStepsForSetup,
+    strategyStepResults,
     symbolError,
     updateField,
     handleUploadFiles,
@@ -214,6 +323,7 @@ export function useAddTradeModalController({ open, onSave, initialData }) {
     handleBreakoutChecklistChange,
     handleBreakoutMetaChange,
     handleReflectionChange,
+    handleStrategyStepResultChange,
     handleSubmit,
   };
 }

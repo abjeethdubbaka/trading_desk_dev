@@ -33,6 +33,7 @@ export default function AddTradeModal({ open, onClose, onSave, initialData }) {
           onUploadFiles={controller.handleUploadFiles}
           onRemoveById={controller.handleRemoveById}
           onReflectionChange={controller.handleReflectionChange}
+          onStrategyStepResultChange={controller.handleStrategyStepResultChange}
           onBreakoutChecklistChange={controller.handleBreakoutChecklistChange}
           onBreakoutMetaChange={controller.handleBreakoutMetaChange}
           onSubmit={controller.handleSubmit}
@@ -43,6 +44,9 @@ export default function AddTradeModal({ open, onClose, onSave, initialData }) {
           uploading={controller.uploading}
           selectedRuleIds={controller.selectedRuleIds}
           suggestionTrade={controller.suggestionTrade}
+          setupTypeOptions={controller.setupTypeOptions}
+          strategySteps={controller.strategyStepsForSetup}
+          strategyStepResults={controller.strategyStepResults}
           preTradeAlert={controller.preTradeAlert}
           loading={controller.loading}
         />

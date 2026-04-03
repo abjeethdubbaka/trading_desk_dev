@@ -1,6 +1,7 @@
 import { useCallback, useState } from 'react';
 import { toast } from 'sonner';
 import { parseTradesCsv } from '@/components/journal/utils/csvImport';
+import { getTradeNotesText } from '@/components/journal/utils/notes';
 
 const csvEscape = (value) => {
   if (value === null || value === undefined) return '';
@@ -121,7 +122,7 @@ export function useJournalDataTransfer({ filteredTrades, accountTier, bulkCreate
         trade.setup_type || '',
         emotions,
         trade.followed_plan ?? '',
-        trade.notes || '',
+        getTradeNotesText(trade),
       ];
     });
 

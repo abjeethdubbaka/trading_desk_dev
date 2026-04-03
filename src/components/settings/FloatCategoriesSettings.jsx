@@ -8,6 +8,8 @@ export default function FloatCategoriesSettings() {
   const { settings, loading, saving, updateFloatCategory } = useSettings();
   const [draftValues, setDraftValues] = useState({});
   const categories = settings?.float_categories || {};
+  const compactInputClass = 'h-9 rounded-lg px-2.5 bg-white/5 border-white/10 text-sm';
+  const compactSelectClass = 'w-full h-9 rounded-lg px-2.5 bg-white/5 border border-white/10 text-sm text-white';
 
   const inputValue = useCallback((value) => (value == null || value === Infinity ? '' : String(value)), []);
   const keyFor = useCallback((categoryKey, field) => `${categoryKey}:${field}`, []);
@@ -46,15 +48,15 @@ export default function FloatCategoriesSettings() {
   const categoryEntries = useMemo(() => Object.entries(categories), [categories]);
 
   return (
-    <div className="glass-card rounded-2xl p-5 gradient-border max-w-2xl">
+    <div className="glass-card rounded-2xl p-4 gradient-border max-w-2xl">
       <div className="flex items-center gap-2 mb-4">
         <Layers className="w-4 h-4 text-emerald-400" />
         <h2 className="text-lg font-semibold">Float Categories</h2>
       </div>
       
-      <div className="space-y-4">
+      <div className="space-y-3">
         {categoryEntries.map(([key, category]) => (
-          <div key={key} className="bg-white/5 rounded-lg p-4 border border-white/10">
+          <div key={key} className="bg-white/5 rounded-lg p-3 border border-white/10">
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
                 <div className={`w-3 h-3 rounded-full ${category.color.replace('text-', 'bg-')}`} />
@@ -72,7 +74,7 @@ export default function FloatCategoriesSettings() {
                   onChange={(e) => updateDraftValue(key, 'min', e.target.value)}
                   onBlur={(e) => commitNumericField(key, 'min', e.target.value, 0, true)}
                   placeholder="0"
-                  className="bg-white/5 border-white/10 text-sm"
+                  className={compactInputClass}
                   disabled={loading || saving}
                 />
               </div>
@@ -85,7 +87,7 @@ export default function FloatCategoriesSettings() {
                   onChange={(e) => updateDraftValue(key, 'max', e.target.value)}
                   onBlur={(e) => commitNumericField(key, 'max', e.target.value, 0, true)}
                   placeholder="Infinity"
-                  className="bg-white/5 border-white/10 text-sm"
+                  className={compactInputClass}
                   disabled={loading || saving}
                 />
               </div>
@@ -95,7 +97,7 @@ export default function FloatCategoriesSettings() {
                 <select
                   value={category.color || ''}
                   onChange={(e) => updateFloatCategory(key, { color: e.target.value })}
-                  className="w-full bg-white/5 border-white/10 text-sm rounded px-2 py-1 text-white"
+                  className={compactSelectClass}
                   disabled={loading || saving}
                 >
                   <option value="text-red-400" className="bg-gray-800">Red</option>
@@ -117,7 +119,7 @@ export default function FloatCategoriesSettings() {
                   onChange={(e) => updateDraftValue(key, 'positionMultiplier', e.target.value)}
                   onBlur={(e) => commitNumericField(key, 'positionMultiplier', e.target.value, 1)}
                   placeholder="1.0"
-                  className="bg-white/5 border-white/10 text-sm"
+                  className={compactInputClass}
                   disabled={loading || saving}
                 />
               </div>
@@ -131,7 +133,7 @@ export default function FloatCategoriesSettings() {
                   onChange={(e) => updateDraftValue(key, 'stopLossPercent', e.target.value)}
                   onBlur={(e) => commitNumericField(key, 'stopLossPercent', e.target.value, 2)}
                   placeholder="3.0"
-                  className="bg-white/5 border-white/10 text-sm"
+                  className={compactInputClass}
                   disabled={loading || saving}
                 />
               </div>
@@ -145,7 +147,7 @@ export default function FloatCategoriesSettings() {
                   onChange={(e) => updateDraftValue(key, 'maxFloatPercent', e.target.value)}
                   onBlur={(e) => commitNumericField(key, 'maxFloatPercent', e.target.value, 0.5)}
                   placeholder="0.5"
-                  className="bg-white/5 border-white/10 text-sm"
+                  className={compactInputClass}
                   disabled={loading || saving}
                 />
               </div>

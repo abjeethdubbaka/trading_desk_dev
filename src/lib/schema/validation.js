@@ -133,6 +133,7 @@ export const FieldValidations = {
   emotions: [ValidationTypes.ARRAY],
   followed_plan: [ValidationTypes.BOOLEAN],
   notes: [ValidationTypes.STRING],
+  strategy_step_results: [ValidationTypes.ARRAY],
   dos_donts_rule_ids: [ValidationTypes.ARRAY],
   screenshot_url: [ValidationTypes.URL],
   stop_loss: [ValidationTypes.NON_NEGATIVE_NUMBER],
@@ -148,6 +149,8 @@ export const FieldValidations = {
   target_profit_dollars: [ValidationTypes.CURRENCY],
   max_dollars: [ValidationTypes.CURRENCY],
   exit_strategy: [ValidationTypes.OBJECT],
+  strategy_steps: [ValidationTypes.ARRAY],
+  strategy_steps_by_setup: [ValidationTypes.OBJECT],
   
   // Media fields
   file_name: [ValidationTypes.REQUIRED, ValidationTypes.STRING],

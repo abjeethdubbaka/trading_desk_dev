@@ -9,7 +9,6 @@ import React, { useMemo } from 'react';
 import { Clock3, Layers3, Radar, Sparkles } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import EmotionMatrix from '@/components/performance/EmotionMatrix';
-import HoldDurationSummary from '@/components/performance/HoldDurationSummary';
 import PerformanceByDayOfWeek from '@/components/performance/PerformanceByDayOfWeek';
 import PerformanceByHoldDurationBuckets from '@/components/performance/PerformanceByHoldDurationBuckets';
 import PerformanceByHourOfDay from '@/components/performance/PerformanceByHourOfDay';
@@ -20,6 +19,7 @@ import SetupTimeFloatHeatmap from '@/components/performance/SetupTimeFloatHeatma
 import PeriodComparison from '@/components/performance/PeriodComparison';
 import PlanAdherenceCard from '@/components/performance/PlanAdherenceCard';
 import AnalysisPanel from '@/components/journal/analysis/AnalysisPanel';
+import InfoHint from '@/components/ui/InfoHint';
 import { useSettings } from '@/lib/context/SettingsContext';
 import { useTrades } from '@/lib/hooks/useTrades';
 import {
@@ -62,7 +62,7 @@ function InsightChip({ label, value, tone = 'text-white' }) {
   );
 }
 
-function TabHero({ icon: Icon, title, subtitle, toneClasses, children }) {
+function TabHero({ icon: Icon, title, hint, toneClasses, children }) {
   return (
     <div
       className={cn(
@@ -83,8 +83,8 @@ function TabHero({ icon: Icon, title, subtitle, toneClasses, children }) {
             <h3 className="flex items-center gap-2 text-base font-semibold text-white md:text-lg">
               <Icon className="h-4 w-4 text-white/80" />
               {title}
+              <InfoHint text={hint} />
             </h3>
-            <p className="mt-1 text-xs text-white/55">{subtitle}</p>
           </div>
           <Sparkles className="mt-1 h-4 w-4 text-white/35" />
         </div>
@@ -252,7 +252,7 @@ export default function PerformancePage() {
           <TabHero
             icon={Clock3}
             title="Timing Intelligence"
-            subtitle="See when your edge is strongest and which hold windows produce your best outcomes."
+            hint="See when your edge is strongest and which hold windows produce your best outcomes."
             toneClasses="bg-sky-500/25"
           >
             <InsightChip
@@ -282,18 +282,17 @@ export default function PerformancePage() {
           </TabHero>
 
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+            <PerformanceByHoldDurationBuckets data={byHoldBucket} />
             <PerformanceByHourOfDay data={byHour} />
             <PerformanceByDayOfWeek data={byDay} />
-            <HoldDurationSummary stats={holdStats} />
           </div>
-          <PerformanceByHoldDurationBuckets data={byHoldBucket} />
         </TabsContent>
 
         <TabsContent value="setups" className="mt-4 space-y-4">
           <TabHero
             icon={Layers3}
             title="Setup Intelligence"
-            subtitle="Compare strategy, price level, and float context to isolate the setups worth repeating."
+            hint="Compare strategy, price level, and float context to isolate the setups worth repeating."
             toneClasses="bg-violet-500/25"
           >
             <InsightChip
@@ -335,7 +334,7 @@ export default function PerformancePage() {
           <TabHero
             icon={Radar}
             title="Performance Analysis"
-            subtitle="Read your quality indicators with context from risk, consistency, and recent expectancy."
+            hint="Read your quality indicators with context from risk, consistency, and recent expectancy."
             toneClasses="bg-amber-400/25"
           >
             <InsightChip label="Expectancy" value={formatCompactCurrency(stats.expectancy)} tone="text-amber-200" />

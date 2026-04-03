@@ -2,6 +2,7 @@ import React from 'react';
 import { Clock3 } from 'lucide-react';
 import { formatHoldDuration } from '@/lib/calculations/trades';
 import { cn } from '@/lib/utils/general';
+import InfoHint from '@/components/ui/InfoHint';
 
 function HoldMetric({ label, value, tone = 'text-white' }) {
   return (
@@ -21,8 +22,10 @@ export default function HoldDurationSummary({ stats }) {
             <Clock3 className="w-5 h-5" />
           </div>
           <div>
-            <h3 className="text-lg font-semibold text-white">Hold Duration</h3>
-            <p className="text-xs text-white/45">Needs both entry and exit time</p>
+            <h3 className="flex items-center gap-2 text-lg font-semibold text-white">
+              Hold Duration
+              <InfoHint text="Needs both entry and exit time." />
+            </h3>
           </div>
         </div>
 
@@ -37,7 +40,10 @@ export default function HoldDurationSummary({ stats }) {
     <div className="glass-card rounded-xl p-6">
       <div className="flex items-center justify-between gap-3 mb-4">
         <div>
-          <h3 className="text-lg font-semibold text-white">Hold Duration</h3>
+          <h3 className="flex items-center gap-2 text-lg font-semibold text-white">
+            Hold Duration
+            <InfoHint text="Average time in trade across winners and losers." />
+          </h3>
         </div>
 
         <div className="w-10 h-10 rounded-xl bg-sky-500/10 border border-sky-400/15 flex items-center justify-center text-sky-300">

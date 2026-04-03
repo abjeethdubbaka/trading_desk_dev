@@ -1,20 +1,26 @@
 import { average, median, round } from '../shared/helpers.js';
 
+const parseDateMs = (value) => {
+  if (!value) return null;
+  const millis = new Date(value).getTime();
+  return Number.isFinite(millis) ? millis : null;
+};
+
 export function getTradeHoldDurationMinutes(trade) {
-  const storedDuration = Number(trade?.hold_duration_minutes);
-  if (Number.isFinite(storedDuration) && storedDuration >= 0) {
-    return storedDuration;
+  // Prefer deriving from timestamps so edits to entry/exit times always reflect in analytics.
+  const entryTimeMs = parseDateMs(trade?.entry_time);
+  const exitTimeMs = parseDateMs(trade?.exit_time);
+  if (entryTimeMs != null && exitTimeMs != null && exitTimeMs >= entryTimeMs) {
+    return Math.round((exitTimeMs - entryTimeMs) / 60000);
   }
 
-  if (!trade?.entry_time || !trade?.exit_time) return null;
+  // Fallback for legacy data that only has precomputed duration.
+  const storedDuration = Number(trade?.hold_duration_minutes);
+  if (Number.isFinite(storedDuration) && storedDuration >= 0) {
+    return Math.round(storedDuration);
+  }
 
-  const entryTimeMs = new Date(trade.entry_time).getTime();
-  const exitTimeMs = new Date(trade.exit_time).getTime();
-
-  if (!Number.isFinite(entryTimeMs) || !Number.isFinite(exitTimeMs)) return null;
-  if (exitTimeMs < entryTimeMs) return null;
-
-  return Math.round((exitTimeMs - entryTimeMs) / 60000);
+  return null;
 }
 
 export function formatHoldDuration(minutes) {

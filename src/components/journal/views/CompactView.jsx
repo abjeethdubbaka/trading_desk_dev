@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { cn } from '@/lib/utils/general';
 import { formatDate, formatTime, formatCurrency } from '../utils/formatters';
+import { getTradeNotesText } from '../utils/notes';
 import { Image, AlertCircle, ChevronDown, Edit2, Trash2, Copy, CopyPlus, Pencil, Check, X } from 'lucide-react';
 import { PnlBadge, DirectionBadge, RMultipleBadge, EmotionBadge, SetupBadge } from '@/components/ui/TradeBadge';
 import TradeReviewPanel from '../analysis/TradeReviewPanel';
@@ -96,9 +97,10 @@ function TradeRow({
   const [reviewOpen, setReviewOpen] = useState(false);
   const [isInlineEditing, setIsInlineEditing] = useState(false);
   const [isInlineSaving, setIsInlineSaving] = useState(false);
+  const cleanedTradeNotes = getTradeNotesText(trade);
   const [inlineDraft, setInlineDraft] = useState({
     setup_type: String(trade?.setup_type || ''),
-    notes: String(trade?.notes || ''),
+    notes: cleanedTradeNotes,
   });
 
   const pnl = trade.pnl || 0;
@@ -110,9 +112,13 @@ function TradeRow({
     ? trade.emotions.filter(Boolean)
     : (trade.emotions ? [trade.emotions] : []);
   const primaryEmotion = emotionList[0] || null;
-  const notesPreview = String(trade.notes || '').trim();
   const entryTimeLabel = trade.entry_time ? formatTime(trade.entry_time) : '--';
   const exitTimeLabel = trade.exit_time ? formatTime(trade.exit_time) : '--';
+  const followedPlanLabel = trade.followed_plan === true
+    ? 'Followed plan'
+    : trade.followed_plan === false
+      ? 'Plan deviation'
+      : null;
 
   const pnlPct = entryPrice && positionSize
     ? ((pnl / (entryPrice * positionSize)) * 100).toFixed(1)
@@ -121,7 +127,7 @@ function TradeRow({
   useEffect(() => {
     setInlineDraft({
       setup_type: String(trade?.setup_type || ''),
-      notes: String(trade?.notes || ''),
+      notes: getTradeNotesText(trade),
     });
     setIsInlineEditing(false);
     setIsInlineSaving(false);
@@ -130,7 +136,7 @@ function TradeRow({
   const startInlineEdit = () => {
     setInlineDraft({
       setup_type: String(trade?.setup_type || ''),
-      notes: String(trade?.notes || ''),
+      notes: getTradeNotesText(trade),
     });
     setExpanded(true);
     setIsInlineEditing(true);
@@ -139,7 +145,7 @@ function TradeRow({
   const cancelInlineEdit = () => {
     setInlineDraft({
       setup_type: String(trade?.setup_type || ''),
-      notes: String(trade?.notes || ''),
+      notes: getTradeNotesText(trade),
     });
     setIsInlineEditing(false);
   };
@@ -237,7 +243,7 @@ function TradeRow({
             {primaryEmotion ? (
               <EmotionBadge emotion={primaryEmotion} />
             ) : (
-              <span className="text-[10px] text-white/25">—</span>
+              <span className="text-[10px] text-white/25">-</span>
             )}
             {emotionList.length > 1 ? (
               <span className="text-[10px] text-white/35">+{emotionList.length - 1}</span>
@@ -245,13 +251,32 @@ function TradeRow({
           </div>
         </div>
 
-        {/* Notes */}
-        <div className="w-[180px] flex-shrink-0 hidden xl:block pr-2">
-          <span className="block text-[10px] text-white/40 truncate">
-            {notesPreview || '—'}
-          </span>
+        {/* Grade */}
+        <div className="w-[90px] flex-shrink-0 hidden xl:block">
+          {trade.setup_grade ? (
+            <span className="text-[10px] px-1.5 py-0.5 rounded border border-blue-500/20 bg-blue-500/10 text-blue-300/70 whitespace-nowrap">
+              Grade: {trade.setup_grade}
+            </span>
+          ) : (
+            <span className="text-[10px] text-white/25">-</span>
+          )}
         </div>
 
+        {/* Plan */}
+        <div className="w-[120px] flex-shrink-0 hidden xl:block">
+          {followedPlanLabel ? (
+            <span className={cn(
+              'text-[10px] px-1.5 py-0.5 rounded border whitespace-nowrap',
+              trade.followed_plan
+                ? 'border-emerald-500/15 bg-emerald-500/8 text-emerald-300/60'
+                : 'border-rose-500/20 bg-rose-500/10 text-rose-300/70'
+            )}>
+              {followedPlanLabel}
+            </span>
+          ) : (
+            <span className="text-[10px] text-white/25">-</span>
+          )}
+        </div>
         {/* Thumbnails */}
         <div className="flex items-center gap-1 mx-2 flex-shrink-0">
           {screenshots.slice(0, 2).map((id, i) => (
@@ -319,31 +344,6 @@ function TradeRow({
           className="px-8 pb-3 space-y-2 animate-fade-in border-t border-white/[0.03]"
           onClick={e => e.stopPropagation()}
         >
-          {/* Meta row */}
-          <div className="flex flex-wrap items-center gap-2 pt-2">
-            {trade.emotions    && <EmotionBadge emotion={trade.emotions} />}
-            {trade.setup_grade && (
-              <span className="text-[10px] px-1.5 py-0.5 rounded border border-blue-500/20 bg-blue-500/10 text-blue-300/70">
-                Grade: {trade.setup_grade}
-              </span>
-            )}
-            {trade.followed_plan === false && (
-              <span className="text-[10px] px-1.5 py-0.5 rounded border border-rose-500/20 bg-rose-500/10 text-rose-300/70">
-                Deviated from plan
-              </span>
-            )}
-            {trade.followed_plan === true && (
-              <span className="text-[10px] px-1.5 py-0.5 rounded border border-emerald-500/15 bg-emerald-500/8 text-emerald-300/60">
-                Followed plan
-              </span>
-            )}
-          </div>
-
-          <div className="flex flex-wrap items-center gap-3 text-[10px] text-white/45 font-mono">
-            <span>Entry Time: {entryTimeLabel}</span>
-            <span>Exit Time: {exitTimeLabel}</span>
-          </div>
-
           {isInlineEditing ? (
             <div className="space-y-2.5 rounded-lg border border-cyan-500/20 bg-cyan-500/[0.06] p-2.5">
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 items-end">
@@ -390,7 +390,7 @@ function TradeRow({
             </div>
           ) : (
             <p className="text-[11px] text-white/40 leading-relaxed max-w-xl whitespace-pre-wrap break-words">
-              {trade.notes ? trade.notes : 'No notes added.'}
+              {cleanedTradeNotes || 'No notes added.'}
             </p>
           )}
 
@@ -451,9 +451,13 @@ function Header() {
       <div className="w-[120px] flex-shrink-0 hidden xl:block">
         <span className="text-[9px] font-semibold uppercase tracking-widest text-white/25">Emotions</span>
       </div>
-      <div className="w-[180px] flex-shrink-0 hidden xl:block pr-2">
-        <span className="text-[9px] font-semibold uppercase tracking-widest text-white/25">Notes</span>
+      <div className="w-[90px] flex-shrink-0 hidden xl:block">
+        <span className="text-[9px] font-semibold uppercase tracking-widest text-white/25">Grade</span>
       </div>
+      <div className="w-[120px] flex-shrink-0 hidden xl:block">
+        <span className="text-[9px] font-semibold uppercase tracking-widest text-white/25">Plan</span>
+      </div>
+
       <div className="w-20 flex-shrink-0">
         <span className="text-[9px] font-semibold uppercase tracking-widest text-white/25">Img</span>
       </div>
@@ -498,5 +502,7 @@ export default function CompactView({
     </div>
   );
 }
+
+
 
 

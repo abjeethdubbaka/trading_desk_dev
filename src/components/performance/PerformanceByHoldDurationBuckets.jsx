@@ -1,5 +1,6 @@
 import React from 'react';
 import { formatCurrency, formatPercentage } from './utils';
+import InfoHint from '@/components/ui/InfoHint';
 
 export default function PerformanceByHoldDurationBuckets({ data = [] }) {
   const resolvedData = Array.isArray(data) ? data : [];
@@ -10,8 +11,10 @@ export default function PerformanceByHoldDurationBuckets({ data = [] }) {
   return (
     <div className="glass-card rounded-2xl border border-white/10 bg-gradient-to-br from-[#141b21] to-[#101317] p-6">
       <div className="mb-4">
-        <h3 className="text-lg font-semibold text-white">Hold Duration Buckets (5m)</h3>
-        <p className="text-xs text-white/45 mt-1">Trade quality by 5-minute hold windows</p>
+        <h3 className="flex items-center gap-2 text-lg font-semibold text-white">
+          Hold Duration Buckets (5m)
+          <InfoHint text="Trade quality by 5-minute hold windows" />
+        </h3>
       </div>
 
       {!hasData ? (

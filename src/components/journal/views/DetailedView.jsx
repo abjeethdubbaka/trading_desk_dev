@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { cn } from '@/lib/utils/general';
-import { formatDate, formatTime, formatCurrency } from '../utils/formatters';
+import { formatDate, formatCurrency } from '../utils/formatters';
+import { getTradeNotesText } from '../utils/notes';
 import { AlertCircle, Copy, CopyPlus, Pencil, Check, X } from 'lucide-react';
 import { createMediaService } from '@/lib/services/MediaService.js';
 import { db } from '@/lib/db/index.js';
@@ -181,7 +182,7 @@ export default function DetailedView({
       ...prev,
       [trade.id]: {
         setup_type: String(trade?.setup_type || ''),
-        notes: String(trade?.notes || ''),
+        notes: getTradeNotesText(trade),
       },
     }));
     setInlineEditingId(trade.id);
@@ -192,7 +193,7 @@ export default function DetailedView({
       ...prev,
       [trade.id]: {
         setup_type: String(trade?.setup_type || ''),
-        notes: String(trade?.notes || ''),
+        notes: getTradeNotesText(trade),
       },
     }));
     setInlineEditingId((current) => (current === trade.id ? null : current));
@@ -214,7 +215,7 @@ export default function DetailedView({
 
     const draft = inlineDrafts?.[trade.id] || {
       setup_type: String(trade?.setup_type || ''),
-      notes: String(trade?.notes || ''),
+      notes: getTradeNotesText(trade),
     };
 
     setInlineSavingId(trade.id);
@@ -232,10 +233,11 @@ export default function DetailedView({
   return (
     <div className="grid grid-cols-2 gap-3 p-3 max-h-[600px] overflow-y-auto">
       {trades.map((trade) => {
+        const cleanedTradeNotes = getTradeNotesText(trade);
         const isInlineEditing = inlineEditingId === trade.id;
         const inlineDraft = inlineDrafts?.[trade.id] || {
           setup_type: String(trade?.setup_type || ''),
-          notes: String(trade?.notes || ''),
+          notes: cleanedTradeNotes,
         };
         const isInlineSaving = inlineSavingId === trade.id;
 
@@ -260,9 +262,6 @@ export default function DetailedView({
               </div>
               <div className="text-xs text-white/50">
                 {formatDate(trade.entry_time || trade.created_date)}
-              </div>
-              <div className="text-[11px] text-white/45">
-                Entry: {trade.entry_time ? formatTime(trade.entry_time) : '-'} | Exit: {trade.exit_time ? formatTime(trade.exit_time) : '-'}
               </div>
             </div>
             <div className="flex items-start gap-2">
@@ -464,7 +463,7 @@ export default function DetailedView({
 
           {!isInlineEditing && (
             <div className="text-xs text-white/60 border-t border-white/10 pt-2 mt-1 whitespace-pre-wrap break-words">
-              {trade.notes ? trade.notes : 'No notes added.'}
+              {cleanedTradeNotes || 'No notes added.'}
             </div>
           )}
 

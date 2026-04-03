@@ -438,9 +438,6 @@ export default function FloatPositionSizer({ historyData, onCalculationSaved = (
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
           <div>
             <h2 className="text-lg font-semibold text-white">Float Position Sizer</h2>
-            <p className="text-xs text-white/55 mt-1">
-              Pull share-float context, size by risk, then log the trade.
-            </p>
           </div>
 
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 w-full lg:w-auto">

@@ -10,7 +10,7 @@
     "dev": "vite",
     "build": "vite build",
     "electron": "electron .",
-    "electron-dev": "concurrently \"npm run dev\" \"wait-on http://localhost:5176 && electron .\"",
+    "electron-dev": "concurrently -k --success first \"npm run dev\" \"wait-on http://localhost:5176 && electron .\"",
     "electron-pack": "electron-builder",
     "preelectron-pack": "npm run build"
   },

@@ -26,7 +26,7 @@ export default function EmotionMatrix({ trades = [] }) {
 
   return (
     <div className="bg-[#13131e] border border-white/8 rounded-2xl p-5 space-y-4">
-      <div><p className="text-sm font-semibold">Emotion vs outcome</p><p className="text-xs text-white/40 mt-0.5">How your emotional state predicts trade quality</p></div>
+      <div><p className="text-sm font-semibold">Emotion vs outcome</p></div>
       <div className="overflow-x-auto">
         <table className="w-full text-xs border-collapse">
           <thead><tr className="text-[10px] font-semibold uppercase tracking-wider text-white/30">

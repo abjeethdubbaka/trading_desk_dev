@@ -18,6 +18,8 @@ export default function RiskSettingsTab({
   handleExitTrailingToggle,
   exitPercentTotal,
 }) {
+  const compactInputClass = 'h-9 rounded-lg px-2.5 bg-white/5 border-white/10';
+
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
       <div className="space-y-4">
@@ -31,7 +33,7 @@ export default function RiskSettingsTab({
             onChange={handleFieldChange('position_sizing_percent')}
             onBlur={() => commitDraftField('position_sizing_percent')}
             placeholder="1"
-            className="bg-white/5 border-white/10"
+            className={compactInputClass}
             disabled={isLoading}
           />
         </Field>
@@ -44,7 +46,7 @@ export default function RiskSettingsTab({
             onChange={handleFieldChange('default_stop_loss_percent')}
             onBlur={() => commitDraftField('default_stop_loss_percent')}
             placeholder="4"
-            className="bg-white/5 border-white/10"
+            className={compactInputClass}
             disabled={isLoading}
           />
         </Field>
@@ -57,7 +59,7 @@ export default function RiskSettingsTab({
             onChange={handleFieldChange('risk_amount')}
             onBlur={() => commitDraftField('risk_amount')}
             placeholder="1000"
-            className="bg-white/5 border-white/10"
+            className={compactInputClass}
             disabled={isLoading}
           />
         </Field>
@@ -71,7 +73,7 @@ export default function RiskSettingsTab({
             onChange={handleFieldChange('analysis_timer_seconds')}
             onBlur={() => commitDraftField('analysis_timer_seconds')}
             placeholder="180"
-            className="bg-white/5 border-white/10"
+            className={compactInputClass}
             disabled={isLoading}
           />
         </Field>

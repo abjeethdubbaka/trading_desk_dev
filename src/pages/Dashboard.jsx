@@ -20,10 +20,9 @@ import { buildDisciplineSnapshot } from '@/lib/calculations/discipline';
 import TradingCalendar    from '@/components/dashboard/TradingCalendar';
 import PerformanceBreakdown from '@/components/dashboard/PerformanceBreakdown';
 import DashboardHeader    from '@/components/dashboard/DashboardHeader';
-import StreakTracker       from '@/components/dashboard/StreakTracker';
-import DailyGoalBar        from '@/components/dashboard/DailyGoalBar';
 import DisciplineCoachCard from '@/components/dashboard/DisciplineCoachCard';
 import MorningBrief        from '@/components/dashboard/MorningBrief';
+import DailyImprovements   from '@/components/dashboard/DailyImprovements';
 import DayPanel            from '@/components/dashboard/DayPanel';
 
 const toFiniteNumber = (value, fallback = 0) => {
@@ -52,13 +51,18 @@ export default function Dashboard() {
   // ── Analytics (pure functions, no extra queries) ──────────────────────────
   const allStats   = useMemo(() => calcCoreStats(trades),          [trades]);
   const todayStats = useMemo(() => calcTodayStats(trades),         [trades]);
-  const sequence   = useMemo(() => getDailySequence(trades, 20),   [trades]);
+  const fourteenDaySequence = useMemo(() => getDailySequence(trades, 14), [trades]);
   const curve      = useMemo(() => buildEquityCurve(trades, accountSize), [trades, accountSize]);
-  const recentDailyPnL = useMemo(() => sequence.map((item) => item.pnl), [sequence]);
   const disciplineSnapshot = useMemo(
     () => buildDisciplineSnapshot(trades, settings),
     [trades, settings]
   );
+  const avg14DayPnl = useMemo(() => {
+    if (!fourteenDaySequence.length) return 0;
+    const total = fourteenDaySequence.reduce((sum, day) => sum + toFiniteNumber(day?.pnl, 0), 0);
+    return total / fourteenDaySequence.length;
+  }, [fourteenDaySequence]);
+  const avg14DayResult = avg14DayPnl >= 0 ? 'W' : 'L';
 
   const currentBalance = accountSize + toFiniteNumber(allStats.totalPnL, 0);
   const maxDailyLoss = -Math.abs(maxDollars);
@@ -78,28 +82,31 @@ export default function Dashboard() {
       <DashboardHeader
         currentBalance={currentBalance}
         totalPnL={allStats.totalPnL}
-        todayPnL={todayStats.totalPnL}
         winRate={allStats.winRate}
         avgR={allStats.avgR}
-        todayTrades={todayStats.totalTrades}
-        recentDailyPnL={recentDailyPnL}
+        avg14DayResult={avg14DayResult}
       />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
         <div className="lg:col-span-2 space-y-5">
-          <DailyGoalBar
-            todayPnL={todayStats.totalPnL}
-            targetProfit={targetProfitDollars}
-            maxDailyLoss={maxDailyLoss}
+          <DisciplineCoachCard
+            snapshot={disciplineSnapshot}
+            dailyGoal={{
+              todayPnL: todayStats.totalPnL,
+              targetProfit: targetProfitDollars,
+              maxDailyLoss,
+            }}
           />
-          <DisciplineCoachCard snapshot={disciplineSnapshot} />
-          <StreakTracker sequence={sequence} />
           <TradingCalendar trades={trades} onDaySelect={setSelectedDay} />
         </div>
-        {selectedDay
-          ? <DayPanel day={selectedDay} trades={trades} onClose={() => setSelectedDay(null)} />
-          : <MorningBrief trades={trades} />
-        }
+        {selectedDay ? (
+          <DayPanel day={selectedDay} trades={trades} onClose={() => setSelectedDay(null)} />
+        ) : (
+          <div className="space-y-5">
+            <MorningBrief trades={trades} />
+            <DailyImprovements />
+          </div>
+        )}
       </div>
 
       <PerformanceBreakdown data={curve} />

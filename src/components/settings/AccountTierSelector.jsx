@@ -67,7 +67,7 @@ export default function AccountTierSelector() {
           <Button
             variant="outline"
             disabled={isLoading}
-            className="w-full justify-between bg-white/5 border-white/10 hover:bg-white/10 text-white"
+            className="w-full h-9 rounded-lg px-2.5 justify-between bg-white/5 border-white/10 hover:bg-white/10 text-white"
           >
             <div className="flex items-center gap-2">
               <span className="text-lg">{currentTier?.icon}</span>

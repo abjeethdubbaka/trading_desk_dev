@@ -4,6 +4,7 @@ import {
   formatCurrency,
   formatPercentage
 } from '../utils';
+import InfoHint from '@/components/ui/InfoHint';
 
 export function PerformanceBySetupType({ data, trades = [] }) {
   const resolvedData = Array.isArray(data)
@@ -17,8 +18,10 @@ export function PerformanceBySetupType({ data, trades = [] }) {
   return (
     <div className="glass-card rounded-2xl border border-white/10 bg-gradient-to-br from-[#161423] to-[#10131b] p-6">
       <div className="mb-4">
-        <h3 className="text-lg font-semibold text-white">Setup Type</h3>
-        <p className="text-xs text-white/45 mt-1">Which setups are carrying your edge</p>
+        <h3 className="flex items-center gap-2 text-lg font-semibold text-white">
+          Setup Type
+          <InfoHint text="Which setups are carrying your edge" />
+        </h3>
       </div>
 
       {resolvedData.length === 0 || resolvedData.every((setup) => setup.trades === 0) ? (

@@ -17,6 +17,7 @@ const FLOAT_TARGET_FIELDS = [
 export default function FloatTargetSettings() {
   const { settings, loading, saving, updateSettings } = useSettings();
   const [draft, setDraft] = useState({});
+  const compactInputClass = 'h-9 rounded-lg px-2.5 bg-white/5 border-white/10 text-sm';
 
   useEffect(() => {
     const nextDraft = {};
@@ -39,7 +40,7 @@ export default function FloatTargetSettings() {
   }, [updateSettings]);
 
   return (
-    <div className="glass-card rounded-2xl p-5 gradient-border max-w-md">
+    <div className="glass-card rounded-2xl p-4 gradient-border max-w-md">
       <h3 className="text-sm font-medium text-white/80 mb-3">Float-Based Target Profit (R:R Ratios)</h3>
       <div className="space-y-3">
         <div className="grid grid-cols-2 gap-3">
@@ -52,7 +53,7 @@ export default function FloatTargetSettings() {
               onChange={(e) => handleChange('float_10m_min_r', e.target.value)}
               onBlur={(e) => commitField('float_10m_min_r', e.target.value)}
               placeholder="4"
-              className="bg-white/5 border-white/10 text-sm"
+              className={compactInputClass}
               disabled={loading || saving}
             />
           </div>
@@ -65,7 +66,7 @@ export default function FloatTargetSettings() {
               onChange={(e) => handleChange('float_10m_max_r', e.target.value)}
               onBlur={(e) => commitField('float_10m_max_r', e.target.value)}
               placeholder="7"
-              className="bg-white/5 border-white/10 text-sm"
+              className={compactInputClass}
               disabled={loading || saving}
             />
           </div>
@@ -81,7 +82,7 @@ export default function FloatTargetSettings() {
               onChange={(e) => handleChange('float_10_50m_min_r', e.target.value)}
               onBlur={(e) => commitField('float_10_50m_min_r', e.target.value)}
               placeholder="3"
-              className="bg-white/5 border-white/10 text-sm"
+              className={compactInputClass}
               disabled={loading || saving}
             />
           </div>
@@ -94,7 +95,7 @@ export default function FloatTargetSettings() {
               onChange={(e) => handleChange('float_10_50m_max_r', e.target.value)}
               onBlur={(e) => commitField('float_10_50m_max_r', e.target.value)}
               placeholder="5"
-              className="bg-white/5 border-white/10 text-sm"
+              className={compactInputClass}
               disabled={loading || saving}
             />
           </div>
@@ -110,7 +111,7 @@ export default function FloatTargetSettings() {
               onChange={(e) => handleChange('float_50_200m_min_r', e.target.value)}
               onBlur={(e) => commitField('float_50_200m_min_r', e.target.value)}
               placeholder="2"
-              className="bg-white/5 border-white/10 text-sm"
+              className={compactInputClass}
               disabled={loading || saving}
             />
           </div>
@@ -123,7 +124,7 @@ export default function FloatTargetSettings() {
               onChange={(e) => handleChange('float_50_200m_max_r', e.target.value)}
               onBlur={(e) => commitField('float_50_200m_max_r', e.target.value)}
               placeholder="3"
-              className="bg-white/5 border-white/10 text-sm"
+              className={compactInputClass}
               disabled={loading || saving}
             />
           </div>
@@ -139,7 +140,7 @@ export default function FloatTargetSettings() {
               onChange={(e) => handleChange('float_200m_min_r', e.target.value)}
               onBlur={(e) => commitField('float_200m_min_r', e.target.value)}
               placeholder="1"
-              className="bg-white/5 border-white/10 text-sm"
+              className={compactInputClass}
               disabled={loading || saving}
             />
           </div>
@@ -152,7 +153,7 @@ export default function FloatTargetSettings() {
               onChange={(e) => handleChange('float_200m_max_r', e.target.value)}
               onBlur={(e) => commitField('float_200m_max_r', e.target.value)}
               placeholder="2"
-              className="bg-white/5 border-white/10 text-sm"
+              className={compactInputClass}
               disabled={loading || saving}
             />
           </div>

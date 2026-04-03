@@ -7,6 +7,7 @@
 
 import { useState, useMemo } from 'react';
 import { startOfMonth, endOfMonth, subMonths } from 'date-fns';
+import { getTradeNotesText } from '../../utils/notes';
 
 export function useJournalFilters(trades = []) {
   const [searchTerm, setSearchTerm] = useState('');
@@ -18,9 +19,10 @@ export function useJournalFilters(trades = []) {
       // ── Search ──────────────────────────────────────────────────────────
       if (searchTerm) {
         const q = searchTerm.toLowerCase();
+        const notesText = getTradeNotesText(trade).toLowerCase();
         const match =
           trade.symbol?.toLowerCase().includes(q) ||
-          trade.notes?.toLowerCase().includes(q)  ||
+          notesText.includes(q) ||
           trade.setup_type?.toLowerCase().includes(q);
         if (!match) return false;
       }

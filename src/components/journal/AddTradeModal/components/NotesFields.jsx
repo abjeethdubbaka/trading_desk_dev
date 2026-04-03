@@ -33,6 +33,12 @@ const SETUP_GRADES = [
   { value: 'F', label: 'F (Revenge/tilt trade)' }
 ];
 
+const getStrategyStepFollowed = (value) => {
+  if (value?.followed === true || value === true) return true;
+  if (value?.followed === false || value === false) return false;
+  return null;
+};
+
 const ChecklistStep = ({
   title,
   items,
@@ -105,11 +111,19 @@ const NotesFields = ({
   setupGrade,
   breakoutChecklist,
   reflectionAnswers,
+  strategySteps,
+  strategyStepResults,
   onReflectionChange,
+  onStrategyStepResultChange,
   onBreakoutChecklistChange,
   onBreakoutMetaChange
 }) => {
   const isVWAPPullback = (setupType || '').toLowerCase().trim() === 'vwap pullback';
+  const normalizedStrategySteps = Array.isArray(strategySteps)
+    ? strategySteps.map((step) => String(step ?? '').trim()).filter(Boolean)
+    : [];
+  const showGenericStrategyChecklist = normalizedStrategySteps.length > 0;
+  const showLegacyVWAPChecklist = isVWAPPullback && normalizedStrategySteps.length === 0;
 
   return (
     <>
@@ -140,7 +154,50 @@ const NotesFields = ({
         </div>
       </div>
 
-      {isVWAPPullback && (
+      {showGenericStrategyChecklist && (
+        <div className="space-y-3 border border-cyan-500/20 rounded-lg p-4 bg-cyan-500/5">
+          <p className="text-sm font-semibold text-cyan-300">STRATEGY CHECKLIST</p>
+          <p className="text-xs text-white/60">
+            Mark each step for <span className="text-white/80">{setupType || 'selected strategy'}</span>.
+          </p>
+
+          <div className="space-y-2.5">
+            {normalizedStrategySteps.map((step, index) => {
+              const currentValue = Array.isArray(strategyStepResults)
+                ? strategyStepResults[index]
+                : null;
+              const followed = getStrategyStepFollowed(currentValue);
+              const isYes = followed === true;
+              const isNo = followed === false;
+
+              return (
+                <div key={`strategy-step-${index}`} className="grid grid-cols-[1fr_auto_auto] items-center gap-3 rounded-md border border-white/10 bg-white/5 px-2.5 py-2">
+                  <p className="text-xs text-white/85">
+                    <span className="text-white/55 mr-1.5">Step {index + 1}:</span>
+                    {step}
+                  </p>
+                  <label className="flex items-center gap-1 text-[11px] text-emerald-300">
+                    <Checkbox
+                      checked={isYes}
+                      onCheckedChange={() => onStrategyStepResultChange(index, true)}
+                    />
+                    YES
+                  </label>
+                  <label className="flex items-center gap-1 text-[11px] text-red-300">
+                    <Checkbox
+                      checked={isNo}
+                      onCheckedChange={() => onStrategyStepResultChange(index, false)}
+                    />
+                    NO
+                  </label>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {showLegacyVWAPChecklist && (
         <>
           <div className="space-y-3 border border-blue-500/20 rounded-lg p-4 bg-blue-500/5">
             <p className="text-sm font-semibold text-blue-300">YOUR 3-STEP BREAKOUT STRATEGY</p>

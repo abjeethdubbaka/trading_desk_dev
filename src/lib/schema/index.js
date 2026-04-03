@@ -46,6 +46,7 @@ export const TradeSchema = {
     'notes',
     'lessons',
     'reflection_answers',
+    'strategy_step_results',
     'dos_donts_rule_ids',
     'emotions',
     'emotion_before',
@@ -122,6 +123,8 @@ export const SettingsSchema = {
     // Trading Schedule & Rules
     'trading_hours',
     'trading_rules',
+    'strategy_steps',
+    'strategy_steps_by_setup',
     'pdt_status',
     
     // Performance Tracking
@@ -197,6 +200,8 @@ export const SettingsSchema = {
       require_position_size_calc: true,
       min_risk_reward_ratio: 1.5
     },
+    strategy_steps: [],
+    strategy_steps_by_setup: {},
     pdt_status: 'enabled', // 'enabled', 'disabled', 'pattern_day_trader'
     
     // Performance Tracking

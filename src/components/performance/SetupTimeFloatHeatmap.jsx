@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
 import { cn } from '@/lib/utils/general';
+import InfoHint from '@/components/ui/InfoHint';
 
 const formatCompactCurrency = (value) => {
   const numericValue = Number(value);
@@ -79,10 +80,10 @@ export default function SetupTimeFloatHeatmap({ data }) {
     return (
       <div className="glass-card rounded-2xl border border-white/10 bg-gradient-to-br from-[#161423] to-[#10131b] p-6">
         <div className="mb-3">
-          <h3 className="text-lg font-semibold text-white">Setup x Time x Float Heatmap (3D)</h3>
-          <p className="mt-1 text-xs text-white/45">
-            Add more tagged trades with entry time and share-float enrichment to unlock multi-axis combos.
-          </p>
+          <h3 className="flex items-center gap-2 text-lg font-semibold text-white">
+            Setup x Time x Float Heatmap (3D)
+            <InfoHint text="Add more tagged trades with entry time and share-float enrichment to unlock multi-axis combos." />
+          </h3>
         </div>
         <div className="rounded-xl border border-dashed border-white/15 bg-white/[0.02] px-4 py-8 text-center text-sm text-white/55">
           Not enough multi-dimensional trade data yet.
@@ -95,10 +96,10 @@ export default function SetupTimeFloatHeatmap({ data }) {
     <div className="glass-card rounded-2xl border border-white/10 bg-gradient-to-br from-[#161423] to-[#10131b] p-6">
       <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h3 className="text-lg font-semibold text-white">Setup x Time x Float Heatmap (3D)</h3>
-          <p className="mt-1 text-xs text-white/45">
-            Layered view of combo strength. Cell color tracks average P&L; depth layer is share-float range.
-          </p>
+          <h3 className="flex items-center gap-2 text-lg font-semibold text-white">
+            Setup x Time x Float Heatmap (3D)
+            <InfoHint text="Layered view of combo strength. Cell color tracks average P&L; depth layer is share-float range." />
+          </h3>
         </div>
         <div className="rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-right text-[11px] text-white/65">
           <p>{setups.length} setups</p>

@@ -2,6 +2,25 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import { calculatePnL } from '../utils/calculationUtils';
 import { getCurrentLocalDateTime, utcToLocalDateTime } from '../utils/dateUtils';
 import { formatCurrency } from '../../utils/formatters';
+import { buildTradeNotes, stripCalculatorAutoNote } from '../../utils/notes';
+
+const normalizeStrategyStepFollowed = (value) => {
+  if (value?.followed === true || value === true) return true;
+  if (value?.followed === false || value === false) return false;
+  return null;
+};
+
+const normalizeStrategyStepResults = (results) => (
+  Array.isArray(results)
+    ? results.map((value) => ({
+        step:
+          value && typeof value === 'object' && !Array.isArray(value)
+            ? String(value.step || '').trim()
+            : '',
+        followed: normalizeStrategyStepFollowed(value),
+      }))
+    : []
+);
 
 export const useTradeForm = (initialData, userId = 'user-123') => {
   const getDefaultReflectionAnswers = () => ({
@@ -55,6 +74,7 @@ export const useTradeForm = (initialData, userId = 'user-123') => {
     reflection_answers: getDefaultReflectionAnswers(),
     setup_grade: '',
     breakout_checklist: defaultBreakoutChecklist,
+    strategy_step_results: [],
     screenshots: [],
     trade_plan_id: null,
     strategy_preset_id: null,
@@ -87,7 +107,7 @@ export const useTradeForm = (initialData, userId = 'user-123') => {
       fee: initialData.fee?.toString() || '',
       setup_type: initialData.setup_type || '',
       custom_setup_type: initialData.custom_setup_type || '',
-      notes: initialData.notes || '',
+      notes: stripCalculatorAutoNote(initialData.notes),
       emotions: initialData.emotions || 'neutral',
       followed_plan: initialData.followed_plan ?? true,
       mistakes: initialData.mistakes || [],
@@ -113,6 +133,9 @@ export const useTradeForm = (initialData, userId = 'user-123') => {
           ...(initialData.breakout_checklist?.step3 || {})
         }
       },
+      strategy_step_results: Array.isArray(initialData.strategy_step_results)
+        ? normalizeStrategyStepResults(initialData.strategy_step_results)
+        : [],
       screenshots: screenshotIds,
       trade_plan_id: initialData.trade_plan_id || null,
       strategy_preset_id: initialData.strategy_preset_id || null,
@@ -154,6 +177,7 @@ export const useTradeForm = (initialData, userId = 'user-123') => {
       reflection_answers: getDefaultReflectionAnswers(),
       setup_grade: '',
       breakout_checklist: defaultBreakoutChecklist,
+      strategy_step_results: [],
       screenshots: [],
       trade_plan_id: null,
       strategy_preset_id: null,
@@ -186,6 +210,22 @@ export const useTradeForm = (initialData, userId = 'user-123') => {
     });
 
     const reflectionAnswers = formData.reflection_answers || {};
+    const normalizedReflectionAnswers = {
+      what_went_wrong: String(reflectionAnswers.what_went_wrong || '').trim(),
+      what_learned: String(reflectionAnswers.what_learned || '').trim(),
+      outcome:
+        pnl < 0 ? 'loss' :
+        pnl > 0 ? 'profit' :
+        'neutral'
+    };
+    const preservedNotes = stripCalculatorAutoNote(formData.notes);
+    const notesFromReflection = buildTradeNotes({
+      reflectionAnswers: normalizedReflectionAnswers,
+      notes: preservedNotes,
+    });
+    const strategyStepResults = Array.isArray(formData.strategy_step_results)
+      ? normalizeStrategyStepResults(formData.strategy_step_results)
+      : [];
 
     const submissionData = {
       ...formData,
@@ -204,24 +244,17 @@ export const useTradeForm = (initialData, userId = 'user-123') => {
       mistakes: formData.mistakes.length > 0 ? formData.mistakes : null,
       lessons: formData.lessons || null,
       screenshots: formData.screenshots.length > 0 ? formData.screenshots : null,
+      notes: notesFromReflection,
       emotions: formData.emotions ? [formData.emotions] : [], // Convert string to array
-      reflection_answers: {
-        what_went_wrong: String(reflectionAnswers.what_went_wrong || '').trim(),
-        what_learned: String(reflectionAnswers.what_learned || '').trim(),
-        outcome:
-          pnl < 0 ? 'loss' :
-          pnl > 0 ? 'profit' :
-          'neutral'
-      },
+      reflection_answers: normalizedReflectionAnswers,
+      strategy_step_results: strategyStepResults,
       trade_plan_id: formData.trade_plan_id || null,
       strategy_preset_id: formData.strategy_preset_id || null,
       dos_donts_rule_ids: Array.isArray(formData.dos_donts_rule_ids)
         ? [...new Set(formData.dos_donts_rule_ids.map((id) => String(id || '').trim()).filter(Boolean))]
         : [],
-      // Handle setup type - use custom if Manual, otherwise use selected setup
-      setup_type: formData.setup_type === 'Manual' 
-        ? (formData.custom_setup_type || 'Manual') 
-        : formData.setup_type
+      // Setup type is selected from configured strategy setups.
+      setup_type: formData.setup_type
       // Note: entry_time and exit_time are handled in the main component
     };
 

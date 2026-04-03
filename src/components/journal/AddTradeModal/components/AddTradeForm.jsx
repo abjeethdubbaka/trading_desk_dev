@@ -20,7 +20,7 @@ import EmotionsSelect from './EmotionsSelect';
 import NotesFields from './NotesFields';
 import ScreenshotUpload from './ScreenshotUpload';
 import DosAndDontsSelector from './DosAndDontsSelector';
-import { SETUP_TYPE_OPTIONS } from '../constants/tradeConstants';
+import { SETUP_TYPE_OPTIONS as DEFAULT_SETUP_TYPE_OPTIONS } from '../constants/tradeConstants';
 
 export default function AddTradeForm({
   initialData,
@@ -32,6 +32,9 @@ export default function AddTradeForm({
   selectedRuleIds,
   suggestionTrade,
   preTradeAlert,
+  setupTypeOptions = DEFAULT_SETUP_TYPE_OPTIONS,
+  strategySteps = [],
+  strategyStepResults = [],
   loading,
   onClose,
   onSubmit,
@@ -39,6 +42,7 @@ export default function AddTradeForm({
   onUploadFiles,
   onRemoveById,
   onReflectionChange,
+  onStrategyStepResultChange = () => {},
   onBreakoutChecklistChange,
   onBreakoutMetaChange,
 }) {
@@ -100,30 +104,21 @@ export default function AddTradeForm({
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
           <Label>Setup Type</Label>
-          {formData.setup_type === 'Manual' ? (
-            <Input
-              value={formData.custom_setup_type || ''}
-              onChange={(event) => onUpdateField('custom_setup_type', event.target.value)}
-              placeholder="Enter custom setup name..."
-              className="bg-white/5 border-white/10 text-white placeholder-white/50"
-            />
-          ) : (
-            <Select
-              value={formData.setup_type}
-              onValueChange={(value) => onUpdateField('setup_type', value)}
-            >
-              <SelectTrigger className="bg-white/5 border-white/10">
-                <SelectValue placeholder="Select setup" />
-              </SelectTrigger>
-              <SelectContent className="bg-[#1a1a24] border-white/10">
-                {SETUP_TYPE_OPTIONS.map((setup) => (
-                  <SelectItem key={setup} value={setup}>
-                    {setup}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
+          <Select
+            value={formData.setup_type}
+            onValueChange={(value) => onUpdateField('setup_type', value)}
+          >
+            <SelectTrigger className="bg-white/5 border-white/10">
+              <SelectValue placeholder="Select setup" />
+            </SelectTrigger>
+            <SelectContent className="bg-[#1a1a24] border-white/10">
+              {setupTypeOptions.map((setup) => (
+                <SelectItem key={setup} value={setup}>
+                  {setup}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
 
         <ScreenshotUpload
@@ -182,7 +177,10 @@ export default function AddTradeForm({
         setupGrade={formData.setup_grade}
         breakoutChecklist={formData.breakout_checklist}
         reflectionAnswers={formData.reflection_answers}
+        strategySteps={strategySteps}
+        strategyStepResults={strategyStepResults}
         onReflectionChange={onReflectionChange}
+        onStrategyStepResultChange={onStrategyStepResultChange}
         onBreakoutChecklistChange={onBreakoutChecklistChange}
         onBreakoutMetaChange={onBreakoutMetaChange}
       />

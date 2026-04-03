@@ -468,6 +468,8 @@ Highlights:
   - message boxes
   - close app
   - menu event subscriptions
+- Shows a startup loading splash while the main window initializes.
+- Includes `LaunchTradeDesk.vbs` at repo root for Windows shortcuts that launch without a visible command prompt.
 
 ---
 

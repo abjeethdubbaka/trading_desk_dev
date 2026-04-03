@@ -1,22 +1,63 @@
 import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { validateTrade } from '@/lib/validation/trades';
+import { getTradeNotesText } from '../utils/notes';
+
+const parseNumber = (value) => {
+  if (value === '' || value == null) return null;
+
+  if (typeof value === 'number') {
+    return Number.isFinite(value) ? value : null;
+  }
+
+  if (typeof value === 'string') {
+    const normalized = value.replace(/[$,%\s]/g, '').replace(/,/g, '');
+    if (!normalized) return null;
+    const parsed = Number(normalized);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+
+  return null;
+};
 
 const toPositiveNumber = (value, fallback = 0) => {
-  const parsed = Number(value);
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+  const parsed = parseNumber(value);
+  return parsed != null && parsed > 0 ? parsed : fallback;
 };
 
 const toOptionalNumber = (value) => {
-  if (value === '' || value == null) return null;
-  const parsed = Number(value);
-  return Number.isFinite(parsed) ? parsed : null;
+  return parseNumber(value);
 };
 
 const toIsoStringOrNow = (value) => {
   if (!value) return new Date().toISOString();
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? new Date().toISOString() : date.toISOString();
+};
+
+const normalizeString = (value) => String(value ?? '').trim();
+
+const normalizeStringArray = (value) => {
+  if (Array.isArray(value)) {
+    return [...new Set(value.map((item) => String(item ?? '').trim()).filter(Boolean))];
+  }
+
+  if (value === '' || value == null) return [];
+
+  const single = String(value).trim();
+  return single ? [single] : [];
+};
+
+const toSerializableObject = (value) => {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+
+  try {
+    const parsed = JSON.parse(JSON.stringify(value));
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
 };
 
 async function writeTextToClipboard(text) {
@@ -37,19 +78,24 @@ async function writeTextToClipboard(text) {
 }
 
 function normalizeDuplicateTrade(trade) {
-  const symbol = String(trade?.symbol || '').trim().toUpperCase();
-  const entryPrice = toPositiveNumber(trade?.entry_price, 0);
-  const quantity = toPositiveNumber(trade?.quantity ?? trade?.position_size, 0);
-  const positionSize = toPositiveNumber(trade?.position_size ?? trade?.quantity, quantity || 0);
+  const symbol = normalizeString(trade?.symbol ?? trade?.ticker).toUpperCase();
+  const entryPrice = toPositiveNumber(trade?.entry_price ?? trade?.entryPrice ?? trade?.entry, 0);
+  const quantity = toPositiveNumber(trade?.quantity ?? trade?.position_size ?? trade?.shares, 0);
+  const positionSize = toPositiveNumber(
+    trade?.position_size ?? trade?.quantity ?? trade?.shares,
+    quantity || 0
+  );
+  const direction = normalizeString(trade?.direction).toLowerCase() === 'short' ? 'short' : 'long';
+  const entryTime = toIsoStringOrNow(trade?.entry_time ?? trade?.created_date);
+  const commission = toOptionalNumber(trade?.commission ?? trade?.fee);
 
   return {
-    ...trade,
     symbol,
     entry_price: entryPrice,
     quantity,
     position_size: positionSize || quantity,
-    direction: trade?.direction === 'short' ? 'short' : 'long',
-    entry_time: new Date().toISOString(),
+    direction,
+    entry_time: entryTime,
     exit_time: null,
     exit_price: null,
     hold_duration_minutes: null,
@@ -60,18 +106,58 @@ function normalizeDuplicateTrade(trade) {
     gross_pnl: 0,
     screenshots: [],
     screenshot_url: null,
-    notes: String(trade?.notes || '').trim(),
-    emotions: Array.isArray(trade?.emotions)
-      ? trade.emotions.filter(Boolean)
-      : trade?.emotions
-        ? [trade.emotions]
-        : [],
+    setup_type: normalizeString(trade?.setup_type),
+    custom_setup_type: normalizeString(trade?.custom_setup_type),
+    stop_loss: toOptionalNumber(trade?.stop_loss),
+    target_price: toOptionalNumber(trade?.target_price),
+    commission: commission ?? 0,
+    fee: toOptionalNumber(trade?.fee),
+    risk_amount: toOptionalNumber(trade?.risk_amount),
+    position_size_percent: toOptionalNumber(trade?.position_size_percent),
+    risk_reward_ratio: toOptionalNumber(trade?.risk_reward_ratio),
+    market_condition: normalizeString(trade?.market_condition),
+    float_category: normalizeString(trade?.float_category),
+    share_float: toOptionalNumber(trade?.share_float),
+    share_float_range: normalizeString(trade?.share_float_range),
+    sector: normalizeString(trade?.sector),
+    news_impact: normalizeString(trade?.news_impact),
+    notes: getTradeNotesText(trade),
+    lessons: normalizeString(trade?.lessons),
+    setup_grade: normalizeString(trade?.setup_grade),
+    tags: normalizeStringArray(trade?.tags),
+    mistakes: normalizeStringArray(trade?.mistakes),
+    trade_mistakes: normalizeStringArray(trade?.trade_mistakes),
+    trade_successes: normalizeStringArray(trade?.trade_successes),
+    emotions: normalizeStringArray(trade?.emotions),
     followed_plan: Boolean(trade?.followed_plan ?? true),
-    created_date: undefined,
-    updated_date: undefined,
-    created_at: undefined,
-    updated_at: undefined,
-    id: undefined,
+    plan_rating: toOptionalNumber(trade?.plan_rating),
+    entry_quality: toOptionalNumber(trade?.entry_quality),
+    exit_quality: toOptionalNumber(trade?.exit_quality),
+    reflection_answers: toSerializableObject(trade?.reflection_answers),
+    breakout_checklist: toSerializableObject(trade?.breakout_checklist),
+    trade_plan_id: trade?.trade_plan_id ?? null,
+    strategy_preset_id: trade?.strategy_preset_id ?? null,
+    dos_donts_rule_ids: normalizeStringArray(trade?.dos_donts_rule_ids),
+  };
+}
+
+function buildMinimalDuplicateTrade(trade) {
+  const symbol = normalizeString(trade?.symbol ?? trade?.ticker).toUpperCase();
+  const entryPrice = toPositiveNumber(trade?.entry_price ?? trade?.entryPrice ?? trade?.entry, 0);
+  const quantity = toPositiveNumber(trade?.quantity ?? trade?.position_size ?? trade?.shares, 0);
+
+  return {
+    symbol,
+    entry_price: entryPrice,
+    quantity,
+    position_size: quantity,
+    direction: normalizeString(trade?.direction).toLowerCase() === 'short' ? 'short' : 'long',
+    entry_time: toIsoStringOrNow(trade?.entry_time ?? trade?.created_date),
+    notes: getTradeNotesText(trade),
+    emotions: normalizeStringArray(trade?.emotions),
+    followed_plan: Boolean(trade?.followed_plan ?? true),
+    screenshots: [],
+    screenshot_url: null,
   };
 }
 
@@ -190,8 +276,23 @@ export function useJournalTradeManagement({ createTrade, updateTrade, deleteTrad
 
   const handleDuplicateTrade = useCallback(async (trade) => {
     try {
-      const duplicatePayload = normalizeDuplicateTrade(trade);
-      const validation = validateTrade(duplicatePayload);
+      let duplicatePayload = normalizeDuplicateTrade(trade);
+      let validation = validateTrade(duplicatePayload);
+
+      if (!validation.isValid) {
+        const fallbackPayload = buildMinimalDuplicateTrade(trade);
+        const fallbackValidation = validateTrade(fallbackPayload);
+
+        if (!fallbackValidation.isValid) {
+          const allErrors = [...new Set([...(validation.errors || []), ...(fallbackValidation.errors || [])])];
+          const message = `Trade validation failed: ${allErrors.join(', ')}`;
+          toast.error(message);
+          return;
+        }
+
+        duplicatePayload = fallbackPayload;
+        validation = fallbackValidation;
+      }
 
       if (!validation.isValid) {
         const message = `Trade validation failed: ${(validation.errors || []).join(', ')}`;
@@ -208,7 +309,7 @@ export function useJournalTradeManagement({ createTrade, updateTrade, deleteTrad
   }, [createTrade]);
 
   const handleCopyNotes = useCallback(async (trade) => {
-    const notes = String(trade?.notes || '').trim();
+    const notes = getTradeNotesText(trade);
     if (!notes) {
       toast.info('No notes to copy');
       return;

@@ -25,8 +25,7 @@ export const MISTAKE_OPTIONS = [
   'Did Not Follow Plan'
 ];
 
-export const SETUP_TYPE_OPTIONS = [
-  'Manual',
+export const DEFAULT_SETUP_TYPES = [
   'VWAP Pullback',
   'Breakout',
   'Pullback',
@@ -38,4 +37,35 @@ export const SETUP_TYPE_OPTIONS = [
   'Swing'
 ];
 
+export const MANUAL_SETUP_TYPE = 'Manual';
+
+export const sanitizeSetupTypes = (setupTypes, fallback = DEFAULT_SETUP_TYPES) => {
+  const source = Array.isArray(setupTypes) && setupTypes.length > 0
+    ? setupTypes
+    : fallback;
+
+  const seen = new Set();
+  const sanitized = [];
+
+  source.forEach((setup) => {
+    const normalized = String(setup ?? '').trim();
+    if (!normalized) return;
+    if (normalized.toLowerCase() === MANUAL_SETUP_TYPE.toLowerCase()) return;
+
+    const key = normalized.toLowerCase();
+    if (seen.has(key)) return;
+
+    seen.add(key);
+    sanitized.push(normalized);
+  });
+
+  return sanitized.length > 0 ? sanitized : [...fallback];
+};
+
+export const buildSetupTypeOptions = (setupTypes) => [
+  ...sanitizeSetupTypes(setupTypes),
+];
+
+// Backward-compatible default export used by Add Trade form.
+export const SETUP_TYPE_OPTIONS = buildSetupTypeOptions(DEFAULT_SETUP_TYPES);
 
