@@ -216,7 +216,8 @@ export class SettingsService {
       riskAmount: settings.risk_amount,
       positionSizingPercent: settings.position_sizing_percent,
       defaultStopLossPercent: settings.default_stop_loss_percent,
-      maxDollars: settings.max_dollars
+      maxDollars: settings.max_dollars,
+      maxPositionValue: settings.max_position_value
     };
   }
 

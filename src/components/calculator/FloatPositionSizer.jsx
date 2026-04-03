@@ -11,10 +11,10 @@ import { Button } from '@/components/ui/button';
 import { Plus, RotateCcw, RefreshCw } from 'lucide-react';
 import {
   MemoizedFloatInputForm,
-  MemoizedFloatInfoBox,
   MemoizedResultsDisplay,
 } from './memoized';
 import { SummaryPanel } from './float-position-sizer/SummaryPanel';
+import { FloatSmartPlanCard } from './float-position-sizer/FloatSmartPlanCard';
 import { useFloatPositionSizerController } from './float-position-sizer/hooks/useFloatPositionSizerController';
 
 export default function FloatPositionSizer({ historyData, onCalculationSaved = () => {} }) {
@@ -33,7 +33,7 @@ export default function FloatPositionSizer({ historyData, onCalculationSaved = (
         statusPills={controller.statusPills}
       />
 
-      <Card className="bg-[#1a1a24] border-white/10">
+      <Card className="border-white/10 bg-gradient-to-br from-[#1a1a24] to-[#131c2a] shadow-[0_10px_30px_-18px_rgba(59,130,246,0.5)]">
         <CardContent className="p-6 space-y-6">
           <MemoizedFloatInputForm
             symbol={controller.symbol}
@@ -52,17 +52,16 @@ export default function FloatPositionSizer({ historyData, onCalculationSaved = (
         </CardContent>
       </Card>
 
-      {controller.shareFloat && controller.floatData && (
-        <MemoizedFloatInfoBox
-          symbol={controller.symbol}
-          shareFloat={controller.shareFloat}
-          floatCategory={controller.floatCategory}
-          floatCategories={controller.floatCategories}
-          calculation={controller.calculation}
-        />
-      )}
+      <FloatSmartPlanCard
+        symbol={controller.symbol}
+        floatData={controller.floatData}
+        loadingFloat={controller.loadingFloat}
+        smartFloatPlan={controller.smartFloatPlan}
+        onRefreshShareFloat={controller.fetchShareFloat}
+        onApplyFloatSmartPlan={controller.handleApplyFloatSmartPlan}
+      />
 
-      {controller.calculation && (
+      {controller.calculation?._viewSource === 'snapshot' && (
         <MemoizedResultsDisplay
           {...controller.calculation}
           exitStrategy={controller.exitStrategy}

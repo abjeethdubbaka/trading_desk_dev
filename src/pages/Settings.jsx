@@ -91,6 +91,8 @@ export default function SettingsPage() {
 
         <TabsContent value="risk" className="mt-5 max-w-[980px]">
           <RiskSettingsTab
+            settings={settings}
+            updateFields={updateFields}
             getDisplayValue={fieldDrafts.getDisplayValue}
             handleFieldChange={fieldDrafts.handleFieldChange}
             commitDraftField={fieldDrafts.commitDraftField}

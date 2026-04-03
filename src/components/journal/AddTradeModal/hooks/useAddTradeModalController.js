@@ -8,7 +8,10 @@ import { buildDisciplineSnapshot } from '@/lib/calculations/discipline';
 import { useMediaMutation } from '@/lib/hooks/useCalcHistory';
 import { syncRuleUsageCounts } from '@/components/dosanddonts/storage';
 import { buildTradeNotes } from '@/components/journal/utils/notes';
-import { computeTradeSetupQuality } from '@/lib/calculations/trades';
+import {
+  buildStrategyEngineSnapshot,
+  computeTradeSetupQuality,
+} from '@/lib/calculations/trades';
 import { useTradeForm } from './useTradeForm';
 import { localToUTCISO, isValidExitTime } from '../utils/dateUtils';
 import { calculatePnL } from '../utils/calculationUtils';
@@ -264,6 +267,18 @@ export function useAddTradeModalController({ open, onSave, initialData }) {
     };
   }, [formData, pnlValue]);
 
+  const strategySnapshot = useMemo(
+    () => buildStrategyEngineSnapshot(tierTrades, settings, {
+      candidateSetup: formData.setup_type,
+      candidateEntryTime: formData.entry_time,
+    }),
+    [formData.entry_time, formData.setup_type, settings, tierTrades]
+  );
+  const strategyRecommendation = strategySnapshot?.candidate || null;
+  const strategyRecommendedNow = Array.isArray(strategySnapshot?.recommendedNow)
+    ? strategySnapshot.recommendedNow
+    : [];
+
   const handleReflectionChange = useCallback((key, value) => {
     updateField('reflection_answers', {
       ...(formData.reflection_answers || {}),
@@ -350,6 +365,8 @@ export function useAddTradeModalController({ open, onSave, initialData }) {
     pnlValue,
     selectedRuleIds,
     suggestionTrade,
+    strategyRecommendation,
+    strategyRecommendedNow,
     setupTypeOptions,
     strategyStepsForSetup,
     strategyStepResults,

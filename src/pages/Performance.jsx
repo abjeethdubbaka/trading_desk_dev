@@ -20,12 +20,14 @@ import PlanAdherenceCard from '@/components/performance/PlanAdherenceCard';
 import WeeklyReviewCard from '@/components/performance/WeeklyReviewCard';
 import SetupQualityPerTradeCard from '@/components/performance/SetupQualityPerTradeCard';
 import MistakePatternInsights from '@/components/performance/MistakePatternInsights';
+import StrategyEngineCard from '@/components/performance/StrategyEngineCard';
 import AnalysisPanel from '@/components/journal/analysis/AnalysisPanel';
 import InfoHint from '@/components/ui/InfoHint';
 import { useSettings } from '@/lib/context/SettingsContext';
 import { useTrades } from '@/lib/hooks/useTrades';
 import {
   analyzeMistakePatterns,
+  buildStrategyEngineSnapshot,
   buildEquityCurve,
   buildWeeklyReview,
   calcCoreStats,
@@ -162,6 +164,10 @@ export default function PerformancePage() {
       floatCategories: settings?.float_categories,
     }),
     [tradesWithQuality, settings?.float_categories]
+  );
+  const strategySnapshot = useMemo(
+    () => buildStrategyEngineSnapshot(tradesWithQuality, settings),
+    [settings, tradesWithQuality]
   );
   const byHoldBucket = useMemo(() => perfByHoldDurationBuckets(tradesWithQuality, 5), [tradesWithQuality]);
   const weeklyReview = useMemo(() => buildWeeklyReview(tradesWithQuality, [7, 14]), [tradesWithQuality]);
@@ -355,6 +361,8 @@ export default function PerformancePage() {
             />
             <InsightChip label="Total Setups" value={String(bySetup.length)} tone="text-white" />
           </TabHero>
+
+          <StrategyEngineCard snapshot={strategySnapshot} />
 
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
             <PerformanceBySetupType data={bySetup} />

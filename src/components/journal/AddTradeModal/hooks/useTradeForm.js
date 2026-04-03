@@ -78,7 +78,13 @@ export const useTradeForm = (initialData, userId = 'user-123') => {
     screenshots: [],
     trade_plan_id: null,
     strategy_preset_id: null,
-    dos_donts_rule_ids: []
+    dos_donts_rule_ids: [],
+    risk_amount: null,
+    target_price: null,
+    risk_reward_ratio: null,
+    share_float: null,
+    float_category: null,
+    share_float_range: null
   });
 
   // Initialize form with initial data - only run when initialData actually changes
@@ -144,7 +150,21 @@ export const useTradeForm = (initialData, userId = 'user-123') => {
       strategy_preset_id: initialData.strategy_preset_id || null,
       dos_donts_rule_ids: Array.isArray(initialData.dos_donts_rule_ids)
         ? [...new Set(initialData.dos_donts_rule_ids.map((id) => String(id || '').trim()).filter(Boolean))]
-        : []
+        : [],
+      risk_amount: Number.isFinite(Number(initialData.risk_amount))
+        ? Number(initialData.risk_amount)
+        : null,
+      target_price: Number.isFinite(Number(initialData.target_price))
+        ? Number(initialData.target_price)
+        : null,
+      risk_reward_ratio: Number.isFinite(Number(initialData.risk_reward_ratio))
+        ? Number(initialData.risk_reward_ratio)
+        : null,
+      share_float: Number.isFinite(Number(initialData.share_float))
+        ? Math.round(Number(initialData.share_float))
+        : null,
+      float_category: initialData.float_category || null,
+      share_float_range: initialData.share_float_range || null
     };
   }, [initialData?.id]); // Only depend on the ID, not the whole object
 
@@ -185,7 +205,13 @@ export const useTradeForm = (initialData, userId = 'user-123') => {
       screenshots: [],
       trade_plan_id: null,
       strategy_preset_id: null,
-      dos_donts_rule_ids: []
+      dos_donts_rule_ids: [],
+      risk_amount: null,
+      target_price: null,
+      risk_reward_ratio: null,
+      share_float: null,
+      float_category: null,
+      share_float_range: null
     });
   }, []);
 
@@ -261,6 +287,20 @@ export const useTradeForm = (initialData, userId = 'user-123') => {
       dos_donts_rule_ids: Array.isArray(formData.dos_donts_rule_ids)
         ? [...new Set(formData.dos_donts_rule_ids.map((id) => String(id || '').trim()).filter(Boolean))]
         : [],
+      risk_amount: Number.isFinite(Number(formData.risk_amount))
+        ? Number(formData.risk_amount)
+        : null,
+      target_price: Number.isFinite(Number(formData.target_price))
+        ? Number(formData.target_price)
+        : null,
+      risk_reward_ratio: Number.isFinite(Number(formData.risk_reward_ratio))
+        ? Number(formData.risk_reward_ratio)
+        : null,
+      share_float: Number.isFinite(Number(formData.share_float))
+        ? Math.round(Number(formData.share_float))
+        : null,
+      float_category: formData.float_category ? String(formData.float_category).trim() : null,
+      share_float_range: formData.share_float_range ? String(formData.share_float_range).trim() : null,
       // Setup type is selected from configured strategy setups.
       setup_type: formData.setup_type
       // Note: entry_time and exit_time are handled in the main component

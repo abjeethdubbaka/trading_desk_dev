@@ -150,6 +150,7 @@ export const FieldValidations = {
   analysis_timer_seconds: [ValidationTypes.NON_NEGATIVE_NUMBER],
   target_profit_dollars: [ValidationTypes.CURRENCY],
   max_dollars: [ValidationTypes.CURRENCY],
+  max_position_value: [ValidationTypes.CURRENCY],
   exit_strategy: [ValidationTypes.OBJECT],
   strategy_steps: [ValidationTypes.ARRAY],
   strategy_steps_by_setup: [ValidationTypes.OBJECT],

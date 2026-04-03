@@ -105,6 +105,7 @@ export const SettingsSchema = {
     'position_sizing_percent', 
     'default_stop_loss_percent',
     'max_dollars',
+    'max_position_value',
     'max_positions',
     'max_daily_trades',
     'target_profit_dollars',
@@ -159,6 +160,7 @@ export const SettingsSchema = {
     position_sizing_percent: 0.01,  // 1% as decimal
     default_stop_loss_percent: 0.04, // 4% as decimal
     max_dollars: 1000,
+    max_position_value: null,
     max_positions: 3,
     max_daily_trades: 5,
     target_profit_dollars: 500,
@@ -258,7 +260,8 @@ export const SettingsSchema = {
       weekly_report: true,
       monthly_report: true,
       risk_alerts: true,
-      goal_achievements: true
+      goal_achievements: true,
+      analysis_timer_sound: true
     },
     
     // UI Preferences

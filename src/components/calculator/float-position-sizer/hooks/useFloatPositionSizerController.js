@@ -8,6 +8,7 @@ import { calcPosition } from '@/lib/calculations/trades';
 import { TradeCreator } from '../../float-calculator/TradeCreator';
 import { FloatDataService } from '../../float-calculator/FloatDataService';
 import { clearCalculatorState, loadCalculatorState, saveCalculatorState } from '../statePersistence';
+import { buildFloatSmartPlan } from '../floatSmartPlan';
 
 const floatDataService = new FloatDataService();
 
@@ -18,13 +19,14 @@ export function useFloatPositionSizerController({ historyData, onCalculationSave
   const initialState = useMemo(() => loadCalculatorState() || {}, []);
   const settingsHydratedRef = useRef(false);
   const previousSettingsRef = useRef({ accountSize: null, riskAmount: null });
+  const lastAppliedTradingSelectionRef = useRef({ symbol: null, entryPrice: null });
 
   const accountSize = settings?.account_size;
   const riskAmount = settings?.risk_amount;
   const positionSizingPct = settings?.position_sizing_percent;
   const defaultStopLossPct = settings?.default_stop_loss_percent;
   const targetProfitDollars = settings?.target_profit_dollars;
-  const maxDollars = settings?.max_dollars;
+  const maxPositionValue = settings?.max_position_value;
   const floatCategories = settings?.float_categories;
   const exitStrategy = settings?.exit_strategy;
 
@@ -93,7 +95,7 @@ export function useFloatPositionSizerController({ historyData, onCalculationSave
     shareFloat: shareFloat ?? undefined,
     floatCategory: floatCategory ?? undefined,
     floatCategories,
-    maxDollars,
+    maxPositionValue,
     targetProfitDollars,
     riskRewardRatio: 3,
     ...overrides,
@@ -108,14 +110,17 @@ export function useFloatPositionSizerController({ historyData, onCalculationSave
     shareFloat,
     floatCategory,
     floatCategories,
-    maxDollars,
+    maxPositionValue,
     targetProfitDollars,
   ]);
 
-  const runCalculation = useCallback((overrides = {}) => {
+  const runCalculation = useCallback((overrides = {}, source = null) => {
     const result = calcPosition(buildCalculationParams(overrides));
-    setCalculation(result);
-    return result;
+    const normalizedResult = source
+      ? { ...result, _viewSource: source }
+      : result;
+    setCalculation(normalizedResult);
+    return normalizedResult;
   }, [buildCalculationParams]);
 
   useEffect(() => {
@@ -148,16 +153,26 @@ export function useFloatPositionSizerController({ historyData, onCalculationSave
   }, [riskAmount, accountSize, clearCalculation]);
 
   useEffect(() => {
-    if (selectedSymbol && selectedSymbol !== symbol) {
-      updateSymbol(selectedSymbol);
+    const nextSymbol = selectedSymbol ? String(selectedSymbol) : '';
+    const nextEntryPrice = selectedEntryPrice != null ? String(selectedEntryPrice) : null;
+    const lastApplied = lastAppliedTradingSelectionRef.current;
+
+    const hasSelectionChanged = lastApplied.symbol !== nextSymbol
+      || lastApplied.entryPrice !== nextEntryPrice;
+    if (!hasSelectionChanged) return;
+
+    lastAppliedTradingSelectionRef.current = {
+      symbol: nextSymbol,
+      entryPrice: nextEntryPrice,
+    };
+
+    if (nextSymbol) {
+      updateSymbol(nextSymbol);
     }
-    if (selectedEntryPrice != null) {
-      const nextEntryPrice = String(selectedEntryPrice);
-      if (nextEntryPrice !== entryPrice) {
-        updateEntryPrice(nextEntryPrice);
-      }
+    if (nextEntryPrice != null) {
+      updateEntryPrice(nextEntryPrice);
     }
-  }, [selectedSymbol, selectedEntryPrice, symbol, entryPrice, updateSymbol, updateEntryPrice]);
+  }, [selectedSymbol, selectedEntryPrice, updateSymbol, updateEntryPrice]);
 
   useEffect(() => {
     if (!historyData) return;
@@ -201,7 +216,7 @@ export function useFloatPositionSizerController({ historyData, onCalculationSave
           runCalculation({
             shareFloat: cached.share_float ?? undefined,
             floatCategory: resolvedCategory ?? undefined,
-          });
+          }, 'auto');
           toast.success(`Position calculated for ${symbolToFetch}`);
         } catch (error) {
           toast.error(`Position calculation failed: ${error.message}`);
@@ -231,7 +246,7 @@ export function useFloatPositionSizerController({ historyData, onCalculationSave
           runCalculation({
             shareFloat: data.share_float ?? undefined,
             floatCategory: resolvedCategory ?? undefined,
-          });
+          }, 'auto');
           toast.success(`Float data loaded for ${symbolToFetch} and position calculated`);
         } catch (error) {
           toast.error(`Position calculation failed: ${error.message}`);
@@ -245,6 +260,63 @@ export function useFloatPositionSizerController({ historyData, onCalculationSave
       setLoadingFloat(false);
     }
   }, [symbol, entryPrice, resolveCategory, runCalculation]);
+
+  const floatCategoryLabel = useMemo(() => {
+    if (!floatCategory) return 'Unknown Float';
+    const category = floatCategories?.[floatCategory];
+    return category?.label || String(floatCategory).toUpperCase();
+  }, [floatCategories, floatCategory]);
+
+  const smartFloatPlan = useMemo(
+    () => buildFloatSmartPlan({
+      entryPrice,
+      direction,
+      shareFloat,
+      floatRangeKey: floatCategory || 'unknown',
+      floatRangeLabel: floatCategoryLabel,
+      settings,
+      marketContext: floatData || {},
+    }),
+    [direction, entryPrice, floatCategory, floatCategoryLabel, floatData, settings, shareFloat]
+  );
+
+  const handleApplyFloatSmartPlan = useCallback(() => {
+    if (!smartFloatPlan?.hasFloatData || !smartFloatPlan?.canApply) {
+      toast.error('Fetch float data and enter entry price first.');
+      return;
+    }
+
+    const recommendation = smartFloatPlan.recommendations || {};
+    const nextStopPrice = Number(recommendation.stopPrice);
+    const nextRiskAmount = Number(recommendation.riskAmount);
+    const nextPreferredR = Number(recommendation.preferredR);
+
+    const overrides = {
+      shareFloat: shareFloat ?? undefined,
+      floatCategory: floatCategory ?? undefined,
+    };
+
+    if (Number.isFinite(nextStopPrice) && nextStopPrice > 0) {
+      const normalizedStop = nextStopPrice.toFixed(2);
+      setCustomStop(normalizedStop);
+      overrides.stopLossPrice = normalizedStop;
+    }
+
+    if (Number.isFinite(nextRiskAmount) && nextRiskAmount > 0) {
+      overrides.riskAmount = nextRiskAmount;
+    }
+
+    if (Number.isFinite(nextPreferredR) && nextPreferredR > 0) {
+      overrides.riskRewardRatio = Number(nextPreferredR.toFixed(2));
+    }
+
+    try {
+      runCalculation(overrides, 'smart');
+      toast.success('Applied float-smart risk and exit plan.');
+    } catch (error) {
+      toast.error(`Failed to apply smart plan: ${error.message}`);
+    }
+  }, [floatCategory, runCalculation, shareFloat, smartFloatPlan]);
 
   const handleCalculate = useCallback(() => {
     if (!entryPrice) {
@@ -269,7 +341,7 @@ export function useFloatPositionSizerController({ historyData, onCalculationSave
     }
 
     try {
-      const result = runCalculation({ direction: effectiveDirection });
+      const result = runCalculation({ direction: effectiveDirection }, 'snapshot');
 
       const historyItem = {
         timestamp: new Date().toISOString(),
@@ -383,6 +455,7 @@ export function useFloatPositionSizerController({ historyData, onCalculationSave
     floatCategory,
     floatData,
     loadingFloat,
+    smartFloatPlan,
     calculation,
     statusPills,
     canAddToJournal,
@@ -391,6 +464,7 @@ export function useFloatPositionSizerController({ historyData, onCalculationSave
     updateCustomStop,
     updateDirection,
     fetchShareFloat,
+    handleApplyFloatSmartPlan,
     handleCalculate,
     handleRefreshSettings,
     handleAddToJournal,

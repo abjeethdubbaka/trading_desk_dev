@@ -71,6 +71,35 @@ const formatR = (value) => {
   return numeric.toFixed(2).replace(/\.?0+$/, '');
 };
 
+const formatElapsedLabel = (seconds) => `T+${formatAnalysisTimer(seconds)}`;
+
+function MetricCard({
+  label,
+  value,
+  subtext = null,
+  tone = 'default',
+}) {
+  return (
+    <div className="rounded-xl border border-white/10 bg-gradient-to-b from-white/[0.08] to-white/[0.03] px-3 py-2.5 transition-colors hover:bg-white/[0.08]">
+      <p className="text-[10px] uppercase tracking-[0.1em] text-white/50">{label}</p>
+      <p className={cn(
+        'mt-1 text-lg font-semibold',
+        tone === 'success' && 'text-emerald-300',
+        tone === 'danger' && 'text-red-300',
+        tone === 'info' && 'text-cyan-300',
+        tone === 'warning' && 'text-amber-300',
+        tone === 'default' && 'text-white'
+      )}
+      >
+        {value}
+      </p>
+      {subtext && (
+        <p className="mt-0.5 text-[11px] text-white/40">{subtext}</p>
+      )}
+    </div>
+  );
+}
+
 export default function ResultsDisplay({
   entryPrice,
   stopLossPrice,
@@ -85,6 +114,7 @@ export default function ResultsDisplay({
   exitStrategy,
 }) {
   const {
+    timerDurationSeconds,
     hasStarted,
     isTimerRunning,
     isExpired,
@@ -168,25 +198,132 @@ export default function ResultsDisplay({
       : hasStarted
         ? 'Paused'
         : 'Ready';
+  const isTimerUrgentBlink = isTimerRunning && remainingSeconds > 0 && remainingSeconds <= 10;
+  const directionLabel = String(direction || '-').toUpperCase();
+  const snapshotTags = [
+    { label: 'Entry', value: asMoney(entryPrice), tone: 'text-emerald-300' },
+    { label: 'Stop', value: asMoney(stopLossPrice), tone: 'text-red-300' },
+    { label: 'Target', value: asMoney(targetPrice), tone: 'text-cyan-300' },
+    { label: 'Direction', value: directionLabel, tone: 'text-amber-300' },
+  ];
+  const ladderSegments = useMemo(() => {
+    if (!Array.isArray(targets) || targets.length === 0) return [];
+    const rawPercents = targets.map((target) => {
+      const numericPercent = Number(target?.percent);
+      return Number.isFinite(numericPercent) && numericPercent > 0 ? numericPercent : 0;
+    });
+    const totalPercent = rawPercents.reduce((sum, percent) => sum + percent, 0);
+    const fallbackPercent = 100 / targets.length;
+    let accumulated = 0;
+
+    return targets.map((target, index) => {
+      const isLast = index === targets.length - 1;
+      const computedPercent = totalPercent > 0
+        ? (rawPercents[index] / totalPercent) * 100
+        : fallbackPercent;
+      const widthPercent = isLast
+        ? Math.max(0, 100 - accumulated)
+        : Math.max(0, computedPercent);
+      const startPercent = accumulated;
+      accumulated += widthPercent;
+
+      return {
+        target,
+        index,
+        widthPercent,
+        centerPercent: startPercent + (widthPercent / 2),
+      };
+    });
+  }, [targets]);
+  const elapsedSeconds = hasStarted
+    ? Math.max(0, Number(timerDurationSeconds) - Number(remainingSeconds))
+    : 0;
+  const ladderCheckpoints = useMemo(() => {
+    if (ladderSegments.length === 0) return [];
+    const totalDuration = Number.isFinite(Number(timerDurationSeconds)) && Number(timerDurationSeconds) > 0
+      ? Number(timerDurationSeconds)
+      : 0;
+    let cumulativePercent = 0;
+
+    return ladderSegments.map((segment) => {
+      cumulativePercent += segment.widthPercent;
+      const checkpointElapsedSeconds = Math.round((totalDuration * cumulativePercent) / 100);
+      const secondsToCheckpoint = Math.max(0, checkpointElapsedSeconds - elapsedSeconds);
+
+      return {
+        ...segment,
+        checkpointElapsedSeconds,
+        secondsToCheckpoint,
+        isReached: hasStarted && elapsedSeconds >= checkpointElapsedSeconds,
+      };
+    });
+  }, [elapsedSeconds, hasStarted, ladderSegments, timerDurationSeconds]);
+  const nextLadderCheckpoint = ladderCheckpoints.find((checkpoint) => !checkpoint.isReached) || null;
+  const activeLadderCheckpointIndex = isTimerRunning && nextLadderCheckpoint
+    ? nextLadderCheckpoint.index
+    : null;
+  const activeLadderCheckpointCenter = activeLadderCheckpointIndex == null
+    ? null
+    : ladderCheckpoints.find((checkpoint) => checkpoint.index === activeLadderCheckpointIndex)?.centerPercent ?? null;
+  const isActiveLadderUrgent = Boolean(
+    isTimerRunning
+    && nextLadderCheckpoint
+    && nextLadderCheckpoint.secondsToCheckpoint > 0
+    && nextLadderCheckpoint.secondsToCheckpoint <= 10
+  );
+  const timeCue = useMemo(() => {
+    if (ladderCheckpoints.length === 0) return null;
+    if (!hasStarted) {
+      return {
+        tone: 'text-cyan-100/85',
+        message: `Start timer on entry. First trim checkpoint is ${formatElapsedLabel(ladderCheckpoints[0].checkpointElapsedSeconds)}.`,
+      };
+    }
+    if (isExpired) {
+      return {
+        tone: 'text-rose-200',
+        message: 'Timer expired. If momentum faded, avoid waiting for extra move and prioritize capital protection.',
+      };
+    }
+    if (!nextLadderCheckpoint) {
+      return {
+        tone: 'text-emerald-200',
+        message: 'All ladder checkpoints passed. Manage runner with tighter stop discipline.',
+      };
+    }
+    if (nextLadderCheckpoint.secondsToCheckpoint <= 45) {
+      return {
+        tone: 'text-amber-200',
+        message: `Checkpoint ${nextLadderCheckpoint.index + 1} is due now (${formatElapsedLabel(nextLadderCheckpoint.checkpointElapsedSeconds)}). If push is weak, reduce risk or trail tighter.`,
+      };
+    }
+    return {
+      tone: 'text-cyan-100/85',
+      message: `Next checkpoint: Tier ${nextLadderCheckpoint.index + 1} by ${formatElapsedLabel(nextLadderCheckpoint.checkpointElapsedSeconds)} (in ${formatAnalysisTimer(nextLadderCheckpoint.secondsToCheckpoint)}).`,
+    };
+  }, [hasStarted, isExpired, ladderCheckpoints, nextLadderCheckpoint]);
 
   return (
-    <div className="bg-gradient-to-br from-emerald-500/10 to-blue-500/10 rounded-xl p-5 border border-emerald-500/20">
-      <div className="mb-4 pb-4 border-b border-white/10">
+    <div className="rounded-2xl border border-emerald-400/20 bg-gradient-to-br from-[#0f1724]/95 via-[#111d2c] to-[#0d1f24] p-5 shadow-[0_12px_34px_-20px_rgba(16,185,129,0.55)]">
+      <div className="mb-4 border-b border-white/10 pb-4">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <div>
+          <div className="space-y-1.5">
             <div className="flex flex-wrap items-center gap-2 mb-1.5">
-              <h3 className="text-lg font-semibold text-white">Position Analysis</h3>
+              <h3 className="text-lg font-semibold text-white">Position Snapshot</h3>
+              <span className="rounded-md border border-emerald-400/35 bg-emerald-500/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-emerald-200">
+                Active Plan
+              </span>
               <Button
                 type="button"
                 size="sm"
                 variant="outline"
                 onClick={toggleTimer}
-                className="h-8 px-2.5 border-white/20 bg-white/5 hover:bg-white/10 text-white"
+                className="h-7 border-white/20 bg-white/5 px-2.5 text-[11px] text-white hover:bg-white/10"
               >
                 {isTimerRunning ? (
-                  <Pause className="w-3.5 h-3.5 mr-1.5" />
+                  <Pause className="mr-1.5 h-3.5 w-3.5" />
                 ) : (
-                  <Play className="w-3.5 h-3.5 mr-1.5" />
+                  <Play className="mr-1.5 h-3.5 w-3.5" />
                 )}
                 {timerButtonLabel}
               </Button>
@@ -195,61 +332,44 @@ export default function ResultsDisplay({
                 size="sm"
                 variant="ghost"
                 onClick={resetTimer}
-                className="h-8 px-2 text-white/60 hover:text-white hover:bg-white/10"
+                className="h-7 px-2 text-[11px] text-white/70 hover:bg-white/10 hover:text-white"
               >
-                <RotateCcw className="w-3.5 h-3.5 mr-1.5" />
+                <RotateCcw className="mr-1.5 h-3.5 w-3.5" />
                 Reset
               </Button>
             </div>
-            <p className="text-xs text-white/60 mt-1">
-              Entry <span className="text-emerald-400">{asMoney(entryPrice)}</span>
-              <span className="mx-1 text-white/30">|</span>
-              Stop <span className="text-red-400">{asMoney(stopLossPrice)}</span>
-              <span className="mx-1 text-white/30">|</span>
-              Target <span className="text-blue-400">{asMoney(targetPrice)}</span>
-              <span className="mx-1 text-white/30">|</span>
-              <span className="text-amber-300">{(direction || '-').toUpperCase()}</span>
-            </p>
+            <div className="flex flex-wrap gap-1.5">
+              {snapshotTags.map((tag) => (
+                <span key={tag.label} className="rounded-full border border-white/12 bg-white/[0.04] px-2 py-0.5 text-[10px]">
+                  <span className="text-white/45">{tag.label}:</span>{' '}
+                  <span className={tag.tone}>{tag.value}</span>
+                </span>
+              ))}
+            </div>
           </div>
 
           {mode && (
-            <Badge className="w-fit bg-blue-500/20 text-blue-300 border-0">
+            <Badge className="w-fit border-0 bg-cyan-500/20 text-cyan-200">
               {String(mode).replace('-', ' ')}
             </Badge>
           )}
         </div>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-3 mb-4">
-        <div className="rounded-lg bg-white/5 border border-white/10 p-3">
-          <p className="text-xs text-white/45 mb-1">Position Size</p>
-          <p className="text-xl font-bold text-white">{Number(shares || 0).toLocaleString()}</p>
-          <p className="text-xs text-white/35">shares</p>
-        </div>
-
-        <div className="rounded-lg bg-white/5 border border-white/10 p-3">
-          <p className="text-xs text-white/45 mb-1">Entry</p>
-          <p className="text-xl font-bold text-emerald-400">{asMoney(entryPrice)}</p>
-        </div>
-
-        <div className="rounded-lg bg-white/5 border border-white/10 p-3">
-          <p className="text-xs text-white/45 mb-1">Stop</p>
-          <p className="text-xl font-bold text-red-400">{asMoney(stopLossPrice)}</p>
-        </div>
-
-        <div className="rounded-lg bg-white/5 border border-white/10 p-3">
-          <p className="text-xs text-white/45 mb-1">Total Cost</p>
-          <p className="text-xl font-bold text-white">{asWholeMoney(positionValue)}</p>
-        </div>
-
-        <div className="rounded-lg bg-white/5 border border-white/10 p-3">
-          <p className="text-xs text-white/45 mb-1">Risk Amount</p>
-          <p className="text-xl font-bold text-red-400">{asMoney(actualRisk)}</p>
-        </div>
+      <div className="mb-4 grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5">
+        <MetricCard
+          label="Position Size"
+          value={Number(shares || 0).toLocaleString()}
+          subtext="shares"
+        />
+        <MetricCard label="Entry" value={asMoney(entryPrice)} tone="success" />
+        <MetricCard label="Stop" value={asMoney(stopLossPrice)} tone="danger" />
+        <MetricCard label="Total Cost" value={asWholeMoney(positionValue)} />
+        <MetricCard label="Risk Amount" value={asMoney(actualRisk)} tone="danger" />
 
         <div
           className={cn(
-            'rounded-lg border p-3 lg:hidden',
+            'rounded-xl border px-3 py-2.5 lg:hidden',
             isExpired
               ? 'border-rose-400/40 bg-rose-500/10'
               : isNearEnd
@@ -259,73 +379,127 @@ export default function ResultsDisplay({
                   : 'border-white/10 bg-white/5'
           )}
         >
-          <p className="text-xs text-white/45 mb-1">Analysis Timer</p>
-          <p className="font-mono text-xl font-bold text-white tracking-[0.12em]">
+          <p className="mb-1 text-xs text-white/45">Analysis Timer</p>
+          <p className={cn(
+            'font-mono text-xl font-bold tracking-[0.12em]',
+            isTimerRunning
+              ? isTimerUrgentBlink
+                ? 'animate-pulse text-amber-100 drop-shadow-[0_0_12px_rgba(253,224,71,1)]'
+                : 'animate-pulse text-emerald-100 drop-shadow-[0_0_10px_rgba(16,185,129,0.9)]'
+              : 'text-white'
+          )}>
             {formatAnalysisTimer(remainingSeconds)}
           </p>
-          <p className="text-xs text-white/55 mt-1">{timerStatusLabel}</p>
+          <p className="mt-1 text-xs text-white/55">{timerStatusLabel}</p>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
-        <div className="rounded-lg bg-white/5 border border-white/10 p-3">
-          <p className="text-xs text-white/45 mb-1">Reward ({riskRewardRatio || '-'}R)</p>
-          <p className="text-xl font-bold text-emerald-400">{reward == null ? '-' : asMoney(reward)}</p>
-        </div>
-
-        <div className="rounded-lg bg-white/5 border border-white/10 p-3">
-          <p className="text-xs text-white/45 mb-1">Target Price</p>
-          <p className="text-xl font-bold text-blue-400">{asMoney(targetPrice)}</p>
-        </div>
-
-        <div className="rounded-lg bg-white/5 border border-white/10 p-3">
-          <p className="text-xs text-white/45 mb-1">Risk Level</p>
-          <p className="text-xl font-bold text-amber-400">{riskLevelPct == null ? '-' : `${riskLevelPct}%`}</p>
-        </div>
+      <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <MetricCard
+          label={`Reward (${riskRewardRatio || '-'}R)`}
+          value={reward == null ? '-' : asMoney(reward)}
+          tone="success"
+        />
+        <MetricCard label="Target Price" value={asMoney(targetPrice)} tone="info" />
+        <MetricCard label="Risk Level" value={riskLevelPct == null ? '-' : `${riskLevelPct}%`} tone="warning" />
       </div>
 
-      <div className="pt-4 border-t border-white/10">
-        <div className="flex items-center gap-2 mb-3">
-          <Target className="w-4 h-4 text-emerald-400" />
+      <div className="border-t border-white/10 pt-4">
+        <div className="mb-3 flex items-center gap-2">
+          <Target className="h-4 w-4 text-emerald-400" />
           <h4 className="text-sm font-semibold text-emerald-300">Exit Strategy</h4>
         </div>
 
-        <div className="space-y-2">
-          {(targets || []).map((target, i) => (
-            <div key={`${target.r}-${i}`} className="bg-white/5 rounded-lg p-3 border border-white/10">
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <Badge className={cn(
-                    'border-0',
-                    target.isTrailingStop ? 'bg-purple-500/20 text-purple-300' : 'bg-emerald-500/20 text-emerald-300'
-                  )}>
-                    {formatR(target.r)}R {target.isTrailingStop ? '(Trailing Stop)' : ''}
-                  </Badge>
-                  <span className="text-sm text-white/70">
-                    Sell {Number(target.shares || 0).toLocaleString()} ({target.percent.toFixed(1)}%) @ {asMoney(target.price)}
-                  </span>
-                </div>
-
-                <span className="text-sm font-bold text-emerald-300">
-                  +{asMoney(target.profit)}
-                </span>
+        {ladderSegments.length > 0 && (
+          <div className="mb-3 rounded-xl border border-white/12 bg-black/30 p-3">
+            <p className="text-[10px] uppercase tracking-[0.12em] text-white/55">Exit Ladder (Price + Time)</p>
+            <div className="relative mt-2 overflow-hidden rounded-full border border-white/12 bg-white/10">
+              <div className="flex h-2.5 w-full">
+                {ladderSegments.map((segment) => (
+                  <div
+                    key={`ladder-segment-${segment.index}`}
+                    className={cn(
+                      segment.target.isTrailingStop
+                        ? 'bg-violet-400/85'
+                        : segment.index % 3 === 0
+                          ? 'bg-emerald-400/85'
+                          : segment.index % 3 === 1
+                          ? 'bg-cyan-400/85'
+                          : 'bg-blue-400/85'
+                    ,
+                      segment.index === activeLadderCheckpointIndex && (
+                        isActiveLadderUrgent
+                          ? 'animate-pulse brightness-[2] saturate-[2.4] shadow-[0_0_18px_rgba(250,204,21,0.95)]'
+                          : 'brightness-[1.7] saturate-[2] shadow-[0_0_14px_rgba(45,212,191,0.8)]'
+                      )
+                    )}
+                    style={{ width: `${segment.widthPercent}%` }}
+                  />
+                ))}
               </div>
-
-              <div className="h-1.5 rounded-full bg-white/10 mt-2 overflow-hidden">
+              {activeLadderCheckpointCenter != null && (
                 <div
                   className={cn(
-                    'h-full rounded-full',
-                    target.isTrailingStop
-                      ? 'bg-gradient-to-r from-purple-500/70 to-fuchsia-400/70'
-                      : 'bg-gradient-to-r from-emerald-500/70 to-blue-400/70'
+                    'pointer-events-none absolute inset-y-0 z-10 w-[2px]',
+                    isActiveLadderUrgent
+                      ? 'animate-pulse bg-amber-200 shadow-[0_0_18px_rgba(253,224,71,1)]'
+                      : 'bg-cyan-200 shadow-[0_0_14px_rgba(34,211,238,0.95)]'
                   )}
-                  style={{ width: `${Math.max(4, target.percent)}%` }}
+                  style={{ left: `${Math.min(98, Math.max(2, activeLadderCheckpointCenter))}%` }}
                 />
-              </div>
+              )}
             </div>
-          ))}
+            <div className="relative mt-1.5 h-5">
+              {ladderSegments.map((segment) => (
+                <p
+                  key={`ladder-price-marker-${segment.index}`}
+                  className={cn(
+                    'absolute top-0 -translate-x-1/2 whitespace-nowrap text-[10px]',
+                    segment.index === activeLadderCheckpointIndex
+                      ? isActiveLadderUrgent
+                        ? 'animate-pulse font-bold text-amber-100 drop-shadow-[0_0_10px_rgba(253,224,71,1)]'
+                        : 'font-semibold text-cyan-50 drop-shadow-[0_0_8px_rgba(34,211,238,0.8)]'
+                      : 'text-cyan-100/75'
+                  )}
+                  style={{ left: `${Math.min(98, Math.max(2, segment.centerPercent))}%` }}
+                >
+                  {Number(segment.target.shares || 0).toLocaleString()} at {formatR(segment.target.r)}R ({asMoney(segment.target.price)})
+                </p>
+              ))}
+            </div>
+            <div className="relative mt-1 h-4">
+              {ladderCheckpoints.map((checkpoint) => (
+                <p
+                  key={`ladder-time-marker-${checkpoint.index}`}
+                  className={cn(
+                    'absolute top-0 -translate-x-1/2 whitespace-nowrap text-[9px] sm:text-[10px]',
+                    checkpoint.index === activeLadderCheckpointIndex
+                      ? isActiveLadderUrgent
+                        ? 'animate-pulse font-bold text-amber-100 drop-shadow-[0_0_10px_rgba(253,224,71,1)]'
+                        : 'font-semibold text-cyan-100 drop-shadow-[0_0_8px_rgba(34,211,238,0.8)]'
+                      : checkpoint.isReached
+                        ? 'text-emerald-200/85'
+                        : 'text-white/65'
+                  )}
+                  style={{ left: `${Math.min(98, Math.max(2, checkpoint.centerPercent))}%` }}
+                >
+                  {formatElapsedLabel(checkpoint.checkpointElapsedSeconds)}
+                </p>
+              ))}
+            </div>
+            {timeCue && (
+              <div className="mt-2 rounded-lg border border-white/12 bg-white/[0.03] px-2.5 py-2">
+                <p className="text-[10px] uppercase tracking-[0.08em] text-white/50">Time Sync</p>
+                <p className={cn('mt-1 text-[11px]', timeCue.tone)}>
+                  {timeCue.message}
+                </p>
+              </div>
+            )}
+          </div>
+        )}
 
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 bg-gradient-to-r from-emerald-500/10 to-blue-500/10 rounded-lg p-3 border border-emerald-500/20">
+        <div className="space-y-2">
+          <div className="flex flex-col gap-2 rounded-xl border border-emerald-500/20 bg-gradient-to-r from-emerald-500/10 to-blue-500/10 p-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-2">
               <Badge className="bg-gradient-to-r from-emerald-500/20 to-blue-500/20 text-emerald-200 border-0">
                 Total Profit

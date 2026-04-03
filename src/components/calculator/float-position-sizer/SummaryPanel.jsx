@@ -12,11 +12,11 @@ const formatCurrency = (value, fallback = '--') => {
 
 function SummaryTile({ icon: Icon, label, value, valueClassName = 'text-white' }) {
   return (
-    <div className="rounded-lg bg-white/5 border border-white/10 px-3 py-2 min-w-[120px]">
-      <p className="text-[10px] uppercase tracking-wide text-white/40 flex items-center gap-1">
+    <div className="min-w-[120px] rounded-xl border border-white/10 bg-gradient-to-b from-white/10 to-white/5 px-3 py-2.5">
+      <p className="flex items-center gap-1 text-[10px] uppercase tracking-wide text-white/45">
         <Icon className="w-3 h-3" /> {label}
       </p>
-      <p className={`text-sm font-semibold mt-1 ${valueClassName}`}>{value}</p>
+      <p className={`mt-1 text-sm font-semibold ${valueClassName}`}>{value}</p>
     </div>
   );
 }
@@ -29,10 +29,11 @@ export function SummaryPanel({
   statusPills,
 }) {
   return (
-    <div className="rounded-xl border border-white/10 bg-[#13131e] p-4">
+    <div className="rounded-2xl border border-white/10 bg-gradient-to-br from-[#13131e] via-[#141a27] to-[#102233] p-4 shadow-[0_10px_30px_-18px_rgba(34,211,238,0.5)]">
       <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
         <div>
           <h2 className="text-lg font-semibold text-white">Float Position Sizer</h2>
+          <p className="mt-0.5 text-xs text-white/50">Plan risk and exits with cleaner, float-aware structure.</p>
         </div>
 
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 w-full lg:w-auto">
@@ -51,7 +52,7 @@ export function SummaryPanel({
         {statusPills.map((pill) => (
           <div
             key={pill.label}
-            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] border ${
+            className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] transition-colors ${
               pill.ready
                 ? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-300'
                 : 'bg-white/5 border-white/15 text-white/55'

@@ -20,7 +20,16 @@ import EmotionsSelect from './EmotionsSelect';
 import NotesFields from './NotesFields';
 import ScreenshotUpload from './ScreenshotUpload';
 import DosAndDontsSelector from './DosAndDontsSelector';
+import StrategySignal from './StrategySignal';
 import { SETUP_TYPE_OPTIONS as DEFAULT_SETUP_TYPE_OPTIONS } from '../constants/tradeConstants';
+
+const CAP_OPTIONS = [
+  { value: 'micro', label: 'Micro (<10M)' },
+  { value: 'small', label: 'Small (10M-50M)' },
+  { value: 'medium', label: 'Medium (50M-200M)' },
+  { value: 'large', label: 'Large (200M-1B)' },
+  { value: 'mega', label: 'Mega (1B+)' },
+];
 
 export default function AddTradeForm({
   initialData,
@@ -36,6 +45,8 @@ export default function AddTradeForm({
     selectedRuleIds,
     suggestionTrade,
     preTradeAlert,
+    strategyRecommendation,
+    strategyRecommendedNow,
     setupTypeOptions = DEFAULT_SETUP_TYPE_OPTIONS,
     strategyStepsForSetup = [],
     strategyStepResults = [],
@@ -49,6 +60,7 @@ export default function AddTradeForm({
     handleBreakoutChecklistChange,
     handleBreakoutMetaChange,
   } = controller;
+  const selectedCapValue = formData.float_category || formData.share_float_range || 'none';
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6 mt-4">
@@ -105,7 +117,7 @@ export default function AddTradeForm({
         onExitChange={(value) => updateField('exit_time', value)}
       />
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
         <div className="space-y-2">
           <Label>Setup Type</Label>
           <Select
@@ -125,6 +137,30 @@ export default function AddTradeForm({
           </Select>
         </div>
 
+        <div className="space-y-2">
+          <Label>Cap</Label>
+          <Select
+            value={selectedCapValue}
+            onValueChange={(value) => {
+              const nextValue = value === 'none' ? null : value;
+              updateField('float_category', nextValue);
+              updateField('share_float_range', nextValue);
+            }}
+          >
+            <SelectTrigger className="bg-white/5 border-white/10">
+              <SelectValue placeholder="Select cap" />
+            </SelectTrigger>
+            <SelectContent className="bg-[#1a1a24] border-white/10">
+              <SelectItem value="none">Unknown</SelectItem>
+              {CAP_OPTIONS.map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
         <ScreenshotUpload
           screenshotIds={screenshotIds}
           uploading={uploading}
@@ -132,6 +168,11 @@ export default function AddTradeForm({
           onRemove={handleRemoveById}
         />
       </div>
+
+      <StrategySignal
+        recommendation={strategyRecommendation}
+        recommendedNow={strategyRecommendedNow}
+      />
 
       {presets.length > 0 && (
         <div className="space-y-2">

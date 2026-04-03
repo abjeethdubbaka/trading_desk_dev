@@ -5,6 +5,8 @@ import RiskMeter from '@/components/settings/RiskMeter';
 import ExitStrategySettings from '@/components/settings/ExitStrategySettings';
 
 export default function RiskSettingsTab({
+  settings,
+  updateFields,
   getDisplayValue,
   handleFieldChange,
   commitDraftField,
@@ -19,6 +21,7 @@ export default function RiskSettingsTab({
   exitPercentTotal,
 }) {
   const compactInputClass = 'h-9 rounded-lg px-2.5 bg-white/5 border-white/10';
+  const timerSoundEnabled = settings?.notifications?.analysis_timer_sound !== false;
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -76,6 +79,30 @@ export default function RiskSettingsTab({
             className={compactInputClass}
             disabled={isLoading}
           />
+        </Field>
+
+        <Field label="Timer sound alerts" hint="Play timer sounds for start/pause, 10-second countdown, and finish">
+          <label className="h-9 px-2.5 rounded-lg border border-white/10 bg-white/5 flex items-center gap-2 text-xs text-white/75">
+            <input
+              type="checkbox"
+              checked={Boolean(timerSoundEnabled)}
+              onChange={(event) => {
+                const checked = Boolean(event.target.checked);
+                const currentNotifications = settings?.notifications && typeof settings.notifications === 'object'
+                  ? settings.notifications
+                  : {};
+                updateFields({
+                  notifications: {
+                    ...currentNotifications,
+                    analysis_timer_sound: checked,
+                  },
+                });
+              }}
+              className="accent-cyan-400"
+              disabled={isLoading}
+            />
+            Enable timer sound cues
+          </label>
         </Field>
 
         <ExitStrategySettings

@@ -34,6 +34,7 @@ export function getTierSettingsFields(tierId) {
 
     target_profit_dollars:     tier.daily_profit_target,
     max_dollars:               tier.max_dollars,
+    max_position_value:        tier.max_position_value,
     risk_amount:               tier.risk_amount,
     position_sizing_percent:   tier.position_sizing_percent,
     default_stop_loss_percent: tier.default_stop_loss_percent,

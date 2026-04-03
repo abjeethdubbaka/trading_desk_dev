@@ -11,6 +11,7 @@ export function calcPosition({
   shareFloat,
   floatCategory,
   floatCategories = {},
+  maxPositionValue = 0,
   maxDollars = 0,
   riskRewardRatio = 3,
 }) {
@@ -21,6 +22,13 @@ export function calcPosition({
   const isLong = direction === 'long';
   const maxSharesByBalance = Math.floor(account / entry);
   const accountPositionValue = (account * positionPct) / 100;
+  const configuredMaxPositionValue = Number(maxPositionValue);
+  const legacyMaxPositionValue = Number(maxDollars);
+  const resolvedMaxPositionValue = Number.isFinite(configuredMaxPositionValue) && configuredMaxPositionValue > 0
+    ? configuredMaxPositionValue
+    : Number.isFinite(legacyMaxPositionValue) && legacyMaxPositionValue > 0
+      ? legacyMaxPositionValue
+      : null;
 
   let stop;
   let riskPerShare;
@@ -54,17 +62,19 @@ export function calcPosition({
       const baseShares = Math.floor(accountPositionValue / entry);
       const adjustedShares = Math.floor(baseShares * (categoryPositionMultiplier ?? 1));
       const maxByFloat = Math.floor(shareFloat * ((categoryMaxFloatPercent ?? 0.5) / 100));
-      const maxByAccountDollars = maxDollars > 0 ? Math.floor(maxDollars / entry) : Infinity;
+      const maxByPositionValue = resolvedMaxPositionValue != null
+        ? Math.floor(resolvedMaxPositionValue / entry)
+        : Infinity;
 
       shares = Math.max(
         1,
-        Math.min(riskShares, adjustedShares, maxByFloat, maxByAccountDollars, maxSharesByBalance)
+        Math.min(riskShares, adjustedShares, maxByFloat, maxByPositionValue, maxSharesByBalance)
       );
       mode = 'float-aware';
     } else {
-      const maxPositionValue =
-        maxDollars > 0 ? Math.min(accountPositionValue, maxDollars) : accountPositionValue;
-      const maxSharesByPosition = Math.floor(maxPositionValue / entry);
+      const allowedPositionValue =
+        resolvedMaxPositionValue != null ? Math.min(accountPositionValue, resolvedMaxPositionValue) : accountPositionValue;
+      const maxSharesByPosition = Math.floor(allowedPositionValue / entry);
       shares = Math.max(1, Math.min(riskShares, maxSharesByPosition, maxSharesByBalance));
       mode = 'entry-only';
     }

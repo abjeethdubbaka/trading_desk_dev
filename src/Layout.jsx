@@ -92,6 +92,7 @@ export default function Layout({ children, currentPageName }) {
     isNearEnd,
     isExpired,
   } = useAnalysisTimer();
+  const isTimerUrgentBlink = isTimerRunning && remainingSeconds > 0 && remainingSeconds <= 10;
 
   const activeNavItem = useMemo(
     () => navItems.find((item) => item.page === currentPageName) ?? navItems[0],
@@ -239,7 +240,14 @@ export default function Layout({ children, currentPageName }) {
                 </div>
 
                 {!collapsed && (
-                  <p className="font-mono text-sm font-semibold tracking-[0.18em] text-white/90">
+                  <p className={cn(
+                    'font-mono text-sm font-semibold tracking-[0.18em]',
+                    isTimerRunning
+                      ? isTimerUrgentBlink
+                        ? 'animate-pulse text-amber-100 drop-shadow-[0_0_10px_rgba(253,224,71,1)]'
+                        : 'animate-pulse text-emerald-100 drop-shadow-[0_0_8px_rgba(16,185,129,0.9)]'
+                      : 'text-white/90'
+                  )}>
                     {formatAnalysisTimer(remainingSeconds)}
                   </p>
                 )}
@@ -247,7 +255,14 @@ export default function Layout({ children, currentPageName }) {
 
               {collapsed && (
                 <>
-                  <p className="font-mono text-[11px] font-semibold tracking-[0.16em] text-white/90">
+                  <p className={cn(
+                    'font-mono text-[11px] font-semibold tracking-[0.16em]',
+                    isTimerRunning
+                      ? isTimerUrgentBlink
+                        ? 'animate-pulse text-amber-100 drop-shadow-[0_0_10px_rgba(253,224,71,1)]'
+                        : 'animate-pulse text-emerald-100 drop-shadow-[0_0_8px_rgba(16,185,129,0.9)]'
+                      : 'text-white/90'
+                  )}>
                     {formatAnalysisTimer(remainingSeconds)}
                   </p>
                   <p className="text-[8px] uppercase tracking-[0.2em] text-white/45">
