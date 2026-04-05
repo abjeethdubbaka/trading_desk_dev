@@ -82,32 +82,48 @@ const normalizeStrategySteps = (steps) => (
 );
 
 const resolveStrategyStepsForSetup = (stepsBySetup, setupType, fallbackSteps = []) => {
-  const normalizedSetup = String(setupType || '').trim().toLowerCase();
-  if (!normalizedSetup) return normalizeStrategySteps(fallbackSteps);
-
   const map = stepsBySetup && typeof stepsBySetup === 'object' && !Array.isArray(stepsBySetup)
     ? stepsBySetup
     : {};
+  const hasPersistedMap = Object.keys(map).length > 0;
+  const normalizedSetup = String(setupType || '').trim().toLowerCase();
+  if (!normalizedSetup) {
+    return hasPersistedMap ? [] : normalizeStrategySteps(fallbackSteps);
+  }
 
   const matchedKey = Object.keys(map).find(
     (key) => String(key || '').trim().toLowerCase() === normalizedSetup
   );
 
-  if (!matchedKey) return normalizeStrategySteps(fallbackSteps);
+  if (!matchedKey) return hasPersistedMap ? [] : normalizeStrategySteps(fallbackSteps);
   return normalizeStrategySteps(map[matchedKey]);
 };
 
+const toStepLabelKey = (value) => String(value ?? '').trim().toLowerCase();
+
 const normalizeStrategyStepResults = (results, stepDefinitions) => {
   const source = Array.isArray(results) ? results : [];
+  const sourceByLabel = new Map();
+
+  source.forEach((value) => {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) return;
+
+    const stepKey = toStepLabelKey(value.step);
+    if (!stepKey) return;
+    if (!sourceByLabel.has(stepKey)) {
+      sourceByLabel.set(stepKey, value);
+    }
+  });
 
   return stepDefinitions.map((stepDefinition, index) => {
-    const value = source[index];
+    const stepLabel = String(stepDefinition?.label ?? stepDefinition ?? '').trim();
+    const stepKey = toStepLabelKey(stepLabel);
+    const value = (stepKey ? sourceByLabel.get(stepKey) : undefined) ?? source[index];
     const followed = value?.followed === true || value === true
       ? true
       : value?.followed === false || value === false
         ? false
         : null;
-    const stepLabel = String(stepDefinition?.label ?? stepDefinition ?? '').trim();
     const persistedGrade = normalizeStrategyStepGrade(value?.grade);
     const followedFromGrade = deriveFollowedFromGrade(persistedGrade);
 

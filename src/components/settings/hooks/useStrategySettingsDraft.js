@@ -126,10 +126,18 @@ const normalizeStepsBySetup = (stepsBySetup, setupTypes, legacySteps = []) => {
   const source = stepsBySetup && typeof stepsBySetup === 'object' && !Array.isArray(stepsBySetup)
     ? stepsBySetup
     : {};
+  const hasPersistedMap = Object.keys(source).length > 0;
+  const normalizedLegacySteps = normalizeStrategyStepDefinitions(legacySteps);
 
   const result = {};
-  setupTypes.forEach((setupType) => {
-    result[setupType] = getStepsForSetup(source, setupType, legacySteps);
+  setupTypes.forEach((setupType, index) => {
+    if (hasPersistedMap) {
+      result[setupType] = getStepsForSetup(source, setupType, []);
+      return;
+    }
+
+    // Legacy migration path: seed only the first setup with legacy steps.
+    result[setupType] = index === 0 ? normalizedLegacySteps : [];
   });
 
   return result;
@@ -160,7 +168,6 @@ export function useStrategySettingsDraft({ settings, updateFields }) {
   const [selectedStrategySetupIndex, setSelectedStrategySetupIndex] = useState(0);
   const [strategyStepsBySetupDraft, setStrategyStepsBySetupDraft] = useState({});
   const [strategyStepsDraft, setStrategyStepsDraft] = useState([{ label: '', grade: '', relativeGrades: [] }]);
-  const [newStrategySetupDraft, setNewStrategySetupDraft] = useState('');
   const strategyStepsDraftRef = useRef(strategyStepsDraft);
   const skipLocalSettingsHydrationRef = useRef(false);
   const skipNextDraftSyncRef = useRef(false);
@@ -211,7 +218,8 @@ export function useStrategySettingsDraft({ settings, updateFields }) {
     syncStrategyStepsDraft(toStrategyStepDraft(selectedSteps));
   }, [selectedStrategySetupIndex, strategyStepsBySetupDraft, strategySetupsDraft, syncStrategyStepsDraft]);
 
-  const commitStrategySteps = useCallback((steps = null) => {
+  const commitStrategySteps = useCallback((steps = null, options = {}) => {
+    const { skipDraftSync = true } = options;
     const selectedSetupName = strategySetupsDraft[selectedStrategySetupIndex];
     if (!selectedSetupName) return;
 
@@ -228,7 +236,7 @@ export function useStrategySettingsDraft({ settings, updateFields }) {
       strategy_steps: getStrategyStepLabels(normalized), // legacy compatibility
     });
 
-    skipNextDraftSyncRef.current = true;
+    skipNextDraftSyncRef.current = skipDraftSync;
     setStrategyStepsBySetupDraft(nextStepsBySetup);
   }, [
     selectedStrategySetupIndex,
@@ -287,36 +295,37 @@ export function useStrategySettingsDraft({ settings, updateFields }) {
     updateFields,
   ]);
 
+  const selectStrategySetupByIndex = useCallback((index) => {
+    if (!Number.isFinite(index)) return;
+    const safeIndex = Math.min(Math.max(index, 0), strategySetupsDraft.length - 1);
+    if (safeIndex === selectedStrategySetupIndex) return;
+
+    commitStrategySteps(null, { skipDraftSync: false });
+    setSelectedStrategySetupIndex(safeIndex);
+  }, [commitStrategySteps, selectedStrategySetupIndex, strategySetupsDraft.length]);
+
   const handleStrategySetupSelect = useCallback((value) => {
     const index = Number.parseInt(value, 10);
-    if (!Number.isFinite(index)) return;
-    commitStrategySteps();
-    setSelectedStrategySetupIndex(index);
-  }, [commitStrategySteps]);
+    selectStrategySetupByIndex(index);
+  }, [selectStrategySetupByIndex]);
 
-  const handleNewStrategySetupDraftChange = useCallback((value) => {
-    setNewStrategySetupDraft(value);
-  }, []);
-
-  const handleAddStrategySetup = useCallback(() => {
-    const nextSetupName = String(newStrategySetupDraft || '').trim();
+  const handleAddStrategySetupWithName = useCallback((setupNameInput) => {
+    const nextSetupName = String(setupNameInput || '').trim();
     if (!nextSetupName) return;
 
     const existingIndex = strategySetupsDraft.findIndex(
       (setup) => String(setup || '').trim().toLowerCase() === nextSetupName.toLowerCase()
     );
     if (existingIndex >= 0) {
-      setSelectedStrategySetupIndex(existingIndex);
-      setNewStrategySetupDraft('');
+      selectStrategySetupByIndex(existingIndex);
       return;
     }
 
     const nextSetups = [...strategySetupsDraft, nextSetupName];
     commitStrategySetups(nextSetups, nextSetups.length - 1);
-    setNewStrategySetupDraft('');
   }, [
     commitStrategySetups,
-    newStrategySetupDraft,
+    selectStrategySetupByIndex,
     strategySetupsDraft,
   ]);
 
@@ -523,9 +532,7 @@ export function useStrategySettingsDraft({ settings, updateFields }) {
     selectedStrategySetupIndex,
     selectedStrategySetupName,
     handleStrategySetupSelect,
-    newStrategySetupDraft,
-    handleNewStrategySetupDraftChange,
-    handleAddStrategySetup,
+    handleAddStrategySetupWithName,
     handleRemoveStrategySetup,
     strategySetupCount,
     strategyStepsDraft,

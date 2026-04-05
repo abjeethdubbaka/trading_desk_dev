@@ -6,6 +6,7 @@ import {
   Select,
   SelectContent,
   SelectItem,
+  SelectSeparator,
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
@@ -14,6 +15,7 @@ import Field from '@/components/settings/Field';
 import InfoHint from '@/components/ui/InfoHint';
 
 const STRATEGY_STEP_GRADE_OPTIONS = ['A++', 'A+', 'A', 'B', 'C', 'D', 'F'];
+const ADD_SETUP_VALUE = '__add_setup__';
 
 export default function AccountSettingsTab({
   getDisplayValue,
@@ -24,9 +26,7 @@ export default function AccountSettingsTab({
   selectedStrategySetupIndex,
   selectedStrategySetupName,
   handleStrategySetupSelect,
-  newStrategySetupDraft,
-  handleNewStrategySetupDraftChange,
-  handleAddStrategySetup,
+  handleAddStrategySetupWithName,
   handleRemoveStrategySetup,
   strategySetupCount,
   strategyStepsDraft,
@@ -47,6 +47,17 @@ export default function AccountSettingsTab({
     Math.max(selectedStrategySetupIndex ?? 0, 0),
     availableSetups.length - 1
   );
+  const handleSetupDropdownChange = (value) => {
+    if (value === ADD_SETUP_VALUE) {
+      const defaultSetupName = `Setup ${availableSetups.length + 1}`;
+      const setupName = window.prompt('Enter new setup name', defaultSetupName);
+      if (setupName == null) return;
+      handleAddStrategySetupWithName(setupName);
+      return;
+    }
+
+    handleStrategySetupSelect(value);
+  };
 
   return (
     <div className="space-y-4">
@@ -100,10 +111,10 @@ export default function AccountSettingsTab({
             </span>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-[240px_minmax(0,1fr)_auto_auto] gap-2">
+          <div className="grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_auto] gap-2">
             <Select
               value={String(selectedSetupIndex)}
-              onValueChange={handleStrategySetupSelect}
+              onValueChange={handleSetupDropdownChange}
               disabled={isLoading}
             >
               <SelectTrigger className={compactInputClass}>
@@ -115,39 +126,23 @@ export default function AccountSettingsTab({
                     {setup?.trim() ? setup : `Strategy ${index + 1}`}
                   </SelectItem>
                 ))}
+                <SelectSeparator className="bg-white/10" />
+                <SelectItem value={ADD_SETUP_VALUE}>
+                  + Add Setup
+                </SelectItem>
               </SelectContent>
             </Select>
-
-            <Input
-              value={newStrategySetupDraft}
-              onChange={(event) => handleNewStrategySetupDraftChange(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key !== 'Enter') return;
-                event.preventDefault();
-                handleAddStrategySetup();
-              }}
-              placeholder="Add setup (e.g. VWAP Pullback)"
-              className={compactInputClass}
-              disabled={isLoading}
-            />
-
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={handleAddStrategySetup}
-              disabled={isLoading}
-              className="h-9"
-            >
-              <Plus className="w-3.5 h-3.5 mr-1.5" />
-              Add Setup
-            </Button>
 
             <Button
               type="button"
               variant="ghost"
               size="sm"
-              onClick={() => handleRemoveStrategySetup(selectedSetupIndex)}
+              onClick={() => {
+                const setupName = availableSetups[selectedSetupIndex] || `Strategy ${selectedSetupIndex + 1}`;
+                const confirmed = window.confirm(`Delete setup "${setupName}" and all of its steps?`);
+                if (!confirmed) return;
+                handleRemoveStrategySetup(selectedSetupIndex);
+              }}
               disabled={isLoading || availableSetups.length <= 1}
               className="h-9 text-white/45 hover:text-rose-300 hover:bg-rose-500/10"
             >

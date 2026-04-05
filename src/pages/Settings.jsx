@@ -78,9 +78,7 @@ export default function SettingsPage() {
             selectedStrategySetupIndex={strategyDraft.selectedStrategySetupIndex}
             selectedStrategySetupName={strategyDraft.selectedStrategySetupName}
             handleStrategySetupSelect={strategyDraft.handleStrategySetupSelect}
-            newStrategySetupDraft={strategyDraft.newStrategySetupDraft}
-            handleNewStrategySetupDraftChange={strategyDraft.handleNewStrategySetupDraftChange}
-            handleAddStrategySetup={strategyDraft.handleAddStrategySetup}
+            handleAddStrategySetupWithName={strategyDraft.handleAddStrategySetupWithName}
             handleRemoveStrategySetup={strategyDraft.handleRemoveStrategySetup}
             strategySetupCount={strategyDraft.strategySetupCount}
             strategyStepsDraft={strategyDraft.strategyStepsDraft}
