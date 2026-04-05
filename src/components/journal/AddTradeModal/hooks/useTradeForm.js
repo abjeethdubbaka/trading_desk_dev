@@ -9,12 +9,18 @@ const normalizeStrategyStepFollowed = (value) => {
   return null;
 };
 
+const normalizeStrategyStepGrade = (value) => String(value ?? '').trim().toUpperCase();
+
 const normalizeStrategyStepResults = (results) => (
   Array.isArray(results)
     ? results.map((value) => ({
         step:
           value && typeof value === 'object' && !Array.isArray(value)
             ? String(value.step || '').trim()
+            : '',
+        grade:
+          value && typeof value === 'object' && !Array.isArray(value)
+            ? normalizeStrategyStepGrade(value.grade)
             : '',
         followed: normalizeStrategyStepFollowed(value),
       }))

@@ -1,6 +1,8 @@
 import { ACCOUNT_TIERS } from './tiers.js';
 import { getTierCustomizations } from './customizations.js';
 
+const GLOBAL_ONLY_SETTINGS_FIELDS = new Set(['exit_strategy']);
+
 const stripDefaultSetupTypes = (journalPreferences) => {
   if (!journalPreferences || typeof journalPreferences !== 'object' || Array.isArray(journalPreferences)) {
     return journalPreferences;
@@ -15,6 +17,10 @@ export function sanitizeTierSettingsPayload(payload = {}) {
   if (!payload || typeof payload !== 'object' || Array.isArray(payload)) return {};
 
   const sanitized = { ...payload };
+  GLOBAL_ONLY_SETTINGS_FIELDS.forEach((field) => {
+    delete sanitized[field];
+  });
+
   if (Object.prototype.hasOwnProperty.call(sanitized, 'journal_preferences')) {
     sanitized.journal_preferences = stripDefaultSetupTypes(sanitized.journal_preferences);
   }
@@ -68,13 +74,21 @@ export function getTierSettingsFields(tierId) {
 export function getTierSettingsWithCustomizations(tierId) {
   const baseSettings = getTierSettingsFields(tierId);
   const customizations = sanitizeTierSettingsPayload(getTierCustomizations(tierId));
+  const tierScopedCustomizations = {};
+
+  Object.keys(baseSettings).forEach((key) => {
+    if (key === 'account_tier') return;
+    if (Object.prototype.hasOwnProperty.call(customizations, key)) {
+      tierScopedCustomizations[key] = customizations[key];
+    }
+  });
 
   return {
     ...baseSettings,
-    ...customizations,
+    ...tierScopedCustomizations,
     journal_preferences: {
       ...(baseSettings.journal_preferences || {}),
-      ...(customizations.journal_preferences || {}),
+      ...(tierScopedCustomizations.journal_preferences || {}),
     },
   };
 }

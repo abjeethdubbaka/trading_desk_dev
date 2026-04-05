@@ -4,12 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Pause, Play, RotateCcw, Target } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { formatAnalysisTimer, useAnalysisTimer } from '@/lib/context/AnalysisTimerContext';
-
-const DEFAULT_EXIT_LEVELS = [
-  { r: 1, percent: 33, trailingStop: false },
-  { r: 2, percent: 33, trailingStop: false },
-  { r: 3, percent: 34, trailingStop: true },
-];
+import { DEFAULT_EXIT_LEVELS, normalizeExitStrategyLevels } from '@/components/settings/exitStrategy';
 const asMoney = (value, digits = 2) => {
   const numeric = Number(value);
   if (!Number.isFinite(numeric)) return '-';
@@ -42,26 +37,8 @@ const withWeights = (levels) => {
 };
 
 const sanitizeExitLevels = (exitStrategy) => {
-  const rawLevels = Array.isArray(exitStrategy?.levels) && exitStrategy.levels.length > 0
-    ? exitStrategy.levels
-    : DEFAULT_EXIT_LEVELS;
-
-  const cleaned = rawLevels
-    .map((level, index) => {
-      const fallback = DEFAULT_EXIT_LEVELS[index] || { r: index + 1, percent: 0, trailingStop: false };
-      const parsedR = Number(level?.r);
-      const parsedPercent = Number(level?.percent);
-
-      return {
-        r: Number.isFinite(parsedR) && parsedR > 0 ? parsedR : fallback.r,
-        percent: Number.isFinite(parsedPercent) && parsedPercent > 0 ? parsedPercent : 0,
-        trailingStop: Boolean(level?.trailingStop),
-      };
-    })
-    .filter((level) => level.percent > 0)
-    .sort((a, b) => a.r - b.r);
-
-  return withWeights(cleaned.length > 0 ? cleaned : DEFAULT_EXIT_LEVELS);
+  const normalizedLevels = normalizeExitStrategyLevels(exitStrategy?.levels);
+  return withWeights(normalizedLevels);
 };
 
 const formatR = (value) => {

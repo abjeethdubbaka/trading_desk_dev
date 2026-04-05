@@ -67,6 +67,12 @@ export function enrichTrade(trade, options = {}) {
     enriched.share_float_range = null;
   }
 
+  if (resolvedShareFloatRange?.key && resolvedShareFloatRange.key !== 'unknown') {
+    enriched.float_category = resolvedShareFloatRange.key;
+  } else if (!trade.float_category && !trade.share_float && !trade.share_float_range) {
+    enriched.float_category = null;
+  }
+
   const holdDurationMinutes = getTradeHoldDurationMinutes(trade);
   enriched.hold_duration_minutes = holdDurationMinutes == null ? null : holdDurationMinutes;
 

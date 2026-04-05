@@ -10,8 +10,12 @@ const polygonClient = new PolygonClient();
 
 const SHARE_FLOAT_CACHE_TTL_MS = 12 * 60 * 60 * 1000;
 const DEFAULT_FALLBACK_SHARE_FLOAT = 100_000_000;
+const DEFAULT_RATE_LIMIT_BACKOFF_MS = 60 * 1000;
 const SHARE_FLOAT_DEBUG_KEY = 'debug.shareFloatEnrichment';
 const shareFloatCache = new Map();
+const inFlightShareFloatRequests = new Map();
+let polygonRateLimitedUntil = 0;
+let polygonFinancialsUnavailable = false;
 
 function isShareFloatDebugEnabled() {
   if (typeof window === 'undefined') return false;
@@ -76,6 +80,37 @@ function hasShareFloatValue(value) {
   return Number.isFinite(parsed) && parsed > 0;
 }
 
+function isRateLimitErrorPayload(payload) {
+  const statusCode = Number(payload?.statusCode);
+  if (statusCode === 429) return true;
+  const message = String(payload?.error || '');
+  return /429|too many requests|rate.?limit/i.test(message);
+}
+
+function setPolygonRateLimitCooldown(ms = DEFAULT_RATE_LIMIT_BACKOFF_MS, reason = 'rate_limited') {
+  const safeMs = Number.isFinite(ms) && ms > 0 ? ms : DEFAULT_RATE_LIMIT_BACKOFF_MS;
+  polygonRateLimitedUntil = Math.max(polygonRateLimitedUntil, Date.now() + safeMs);
+  logShareFloat('rate_limit_cooldown_set', {
+    reason,
+    durationMs: safeMs,
+    untilIso: new Date(polygonRateLimitedUntil).toISOString(),
+  });
+}
+
+function isPolygonRateLimitCooldownActive() {
+  return Date.now() < polygonRateLimitedUntil;
+}
+
+function resolveFallbackShareFloat(symbol, reason = 'fallback') {
+  setCachedShareFloat(symbol, DEFAULT_FALLBACK_SHARE_FLOAT);
+  logShareFloat('resolved_from_default_fallback', {
+    symbol,
+    shareFloat: DEFAULT_FALLBACK_SHARE_FLOAT,
+    reason,
+  });
+  return DEFAULT_FALLBACK_SHARE_FLOAT;
+}
+
 export async function fetchShareFloatFromPolygon(symbol) {
   const normalizedSymbol = normalizeSymbol(symbol);
   if (!normalizedSymbol) return null;
@@ -86,68 +121,106 @@ export async function fetchShareFloatFromPolygon(symbol) {
     return cachedShareFloat;
   }
 
-  logShareFloat('fetch_start', { symbol: normalizedSymbol });
-  const polygonData = await polygonClient.getStockData(normalizedSymbol);
-  logShareFloat('fetch_result', {
-    symbol: normalizedSymbol,
-    hasError: Boolean(polygonData?.error),
-    error: polygonData?.error || null,
-    hasSharesOutstanding: Boolean(
-      parseNumber(polygonData?.share_class_shares_outstanding ?? polygonData?.outstanding_shares)
-    ),
-    hasMarketCap: Boolean(parseNumber(polygonData?.market_cap ?? polygonData?.market_capitalization)),
-  });
-
-  const sharesOutstanding = parseNumber(
-    polygonData?.share_class_shares_outstanding ?? polygonData?.outstanding_shares
-  );
-
-  if (Number.isFinite(sharesOutstanding) && sharesOutstanding > 0) {
-    const actualShareFloat = Math.round(sharesOutstanding * 0.75);
-    setCachedShareFloat(normalizedSymbol, actualShareFloat);
-    logShareFloat('resolved_from_ticker_overview', {
-      symbol: normalizedSymbol,
-      sharesOutstanding,
-      shareFloat: actualShareFloat,
-    });
-    return actualShareFloat;
+  if (inFlightShareFloatRequests.has(normalizedSymbol)) {
+    return inFlightShareFloatRequests.get(normalizedSymbol);
   }
 
-  const sharesOutstandingFromFinancials = parseNumber(
-    await polygonClient.getSharesOutstanding(normalizedSymbol)
-  );
-  if (Number.isFinite(sharesOutstandingFromFinancials) && sharesOutstandingFromFinancials > 0) {
-    const actualShareFloat = Math.round(sharesOutstandingFromFinancials * 0.75);
-    setCachedShareFloat(normalizedSymbol, actualShareFloat);
-    logShareFloat('resolved_from_financials', {
-      symbol: normalizedSymbol,
-      sharesOutstanding: sharesOutstandingFromFinancials,
-      shareFloat: actualShareFloat,
-    });
-    return actualShareFloat;
-  }
+  const fetchPromise = (async () => {
+    if (isPolygonRateLimitCooldownActive()) {
+      return resolveFallbackShareFloat(normalizedSymbol, 'rate_limit_cooldown_active');
+    }
 
-  const marketCap = parseNumber(polygonData?.market_cap ?? polygonData?.market_capitalization);
-  const estimatedShareFloat = estimateFloatFromMarketCap(marketCap);
-  if (estimatedShareFloat != null) {
-    setCachedShareFloat(normalizedSymbol, estimatedShareFloat);
-    logShareFloat('resolved_from_market_cap_estimate', {
+    logShareFloat('fetch_start', { symbol: normalizedSymbol });
+    const polygonData = await polygonClient.getStockData(normalizedSymbol);
+    logShareFloat('fetch_result', {
       symbol: normalizedSymbol,
-      marketCap,
-      shareFloat: estimatedShareFloat,
+      hasError: Boolean(polygonData?.error),
+      error: polygonData?.error || null,
+      statusCode: polygonData?.statusCode ?? null,
+      hasSharesOutstanding: Boolean(
+        parseNumber(polygonData?.share_class_shares_outstanding ?? polygonData?.outstanding_shares)
+      ),
+      hasMarketCap: Boolean(parseNumber(polygonData?.market_cap ?? polygonData?.market_capitalization)),
     });
-    return estimatedShareFloat;
-  }
 
-  // Match calculator behavior: if API doesn't provide enough signal, use
-  // a conservative default so journal-created trades still get float context.
-  setCachedShareFloat(normalizedSymbol, DEFAULT_FALLBACK_SHARE_FLOAT);
-  logShareFloat('resolved_from_default_fallback', {
-    symbol: normalizedSymbol,
-    shareFloat: DEFAULT_FALLBACK_SHARE_FLOAT,
-    reason: polygonData?.error || 'insufficient_polygon_fields',
-  });
-  return DEFAULT_FALLBACK_SHARE_FLOAT;
+    if (isRateLimitErrorPayload(polygonData)) {
+      setPolygonRateLimitCooldown(polygonData?.retryAfterMs, 'ticker_overview_429');
+      return resolveFallbackShareFloat(normalizedSymbol, polygonData?.error || 'ticker_overview_429');
+    }
+
+    const sharesOutstanding = parseNumber(
+      polygonData?.share_class_shares_outstanding ?? polygonData?.outstanding_shares
+    );
+
+    if (Number.isFinite(sharesOutstanding) && sharesOutstanding > 0) {
+      const actualShareFloat = Math.round(sharesOutstanding * 0.75);
+      setCachedShareFloat(normalizedSymbol, actualShareFloat);
+      logShareFloat('resolved_from_ticker_overview', {
+        symbol: normalizedSymbol,
+        sharesOutstanding,
+        shareFloat: actualShareFloat,
+      });
+      return actualShareFloat;
+    }
+
+    const canTryFinancials = !polygonFinancialsUnavailable
+      && !isPolygonRateLimitCooldownActive()
+      && !polygonData?.error;
+
+    if (canTryFinancials) {
+      const financialsResponse = await polygonClient.getSharesOutstandingMeta(normalizedSymbol);
+      const sharesOutstandingFromFinancials = parseNumber(financialsResponse?.value);
+
+      if (financialsResponse?.rateLimited || isRateLimitErrorPayload(financialsResponse)) {
+        setPolygonRateLimitCooldown(financialsResponse?.retryAfterMs, 'financials_429');
+      }
+
+      // On many plans, this endpoint is unavailable; avoid retrying it per symbol.
+      if (financialsResponse?.statusCode === 403 || financialsResponse?.statusCode === 404) {
+        polygonFinancialsUnavailable = true;
+        logShareFloat('financials_endpoint_unavailable', {
+          symbol: normalizedSymbol,
+          statusCode: financialsResponse.statusCode,
+          error: financialsResponse.error || null,
+        });
+      }
+
+      if (Number.isFinite(sharesOutstandingFromFinancials) && sharesOutstandingFromFinancials > 0) {
+        const actualShareFloat = Math.round(sharesOutstandingFromFinancials * 0.75);
+        setCachedShareFloat(normalizedSymbol, actualShareFloat);
+        logShareFloat('resolved_from_financials', {
+          symbol: normalizedSymbol,
+          sharesOutstanding: sharesOutstandingFromFinancials,
+          shareFloat: actualShareFloat,
+        });
+        return actualShareFloat;
+      }
+    }
+
+    const marketCap = parseNumber(polygonData?.market_cap ?? polygonData?.market_capitalization);
+    const estimatedShareFloat = estimateFloatFromMarketCap(marketCap);
+    if (estimatedShareFloat != null) {
+      setCachedShareFloat(normalizedSymbol, estimatedShareFloat);
+      logShareFloat('resolved_from_market_cap_estimate', {
+        symbol: normalizedSymbol,
+        marketCap,
+        shareFloat: estimatedShareFloat,
+      });
+      return estimatedShareFloat;
+    }
+
+    // Match calculator behavior: if API doesn't provide enough signal, use
+    // a conservative default so journal-created trades still get float context.
+    return resolveFallbackShareFloat(normalizedSymbol, polygonData?.error || 'insufficient_polygon_fields');
+  })();
+
+  inFlightShareFloatRequests.set(normalizedSymbol, fetchPromise);
+
+  try {
+    return await fetchPromise;
+  } finally {
+    inFlightShareFloatRequests.delete(normalizedSymbol);
+  }
 }
 
 export async function hydrateTradeShareFloat(trade) {

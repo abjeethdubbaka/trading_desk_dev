@@ -6,6 +6,7 @@ export class TradeCreator {
       symbol,
       entryPrice,
       direction,
+      comment,
       calculation,
       shares,
       floatData,
@@ -32,6 +33,7 @@ export class TradeCreator {
     const shareFloatRange = shareFloat != null || normalizedFloatCategory
       ? resolvedShareFloatRange.key
       : null;
+    const normalizedComment = String(comment || '').trim();
 
     const newTrade = {
       symbol: symbol.toUpperCase(),
@@ -50,7 +52,7 @@ export class TradeCreator {
       share_float_range: shareFloatRange,
       fee: 0,
       setup_type: 'Calculator Entry',
-      notes: '',
+      notes: normalizedComment,
       // Keep shape aligned with Journal submission format
       emotions: ['neutral'],
       followed_plan: true,

@@ -3,6 +3,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 const STEP_1_ITEMS = [
   { key: 'smoothVWAPPullback', label: 'Price pulls into VWAP smoothly' },
@@ -25,6 +32,7 @@ const STEP_3_ITEMS = [
 ];
 
 const SETUP_GRADES = [
+  { value: 'A++', label: 'A++ (Exceptional execution)' },
   { value: 'A+', label: 'A+ (Perfect - all boxes checked)' },
   { value: 'A', label: 'A (Clean - minor deviation)' },
   { value: 'B', label: 'B (Decent - one step weak)' },
@@ -33,11 +41,97 @@ const SETUP_GRADES = [
   { value: 'F', label: 'F (Revenge/tilt trade)' }
 ];
 
-const getStrategyStepFollowed = (value) => {
-  if (value?.followed === true || value === true) return true;
-  if (value?.followed === false || value === false) return false;
-  return null;
+const normalizeStepGrade = (value) => String(value ?? '').trim().toUpperCase();
+
+const buildStepGradeOptions = ({ stepLabel, stepGrade, relativeGrades, selectedStepGrade }) => {
+  const options = [];
+  const usedGrades = new Set();
+
+  const addOption = (grade, label) => {
+    const normalizedGrade = normalizeStepGrade(grade);
+    if (!normalizedGrade) return;
+    if (usedGrades.has(normalizedGrade)) return;
+    usedGrades.add(normalizedGrade);
+    options.push({
+      value: normalizedGrade,
+      label: String(label || normalizedGrade).trim(),
+    });
+  };
+
+  if (stepGrade) {
+    addOption(stepGrade, `${stepGrade}: ${stepLabel || 'Target execution'}`);
+  }
+
+  relativeGrades.forEach((mapping) => {
+    const mappingGrade = normalizeStepGrade(mapping?.grade);
+    const mappingLabel = String(mapping?.label ?? '').trim();
+    if (!mappingGrade) return;
+    addOption(mappingGrade, mappingLabel ? `${mappingGrade}: ${mappingLabel}` : mappingGrade);
+  });
+
+  SETUP_GRADES.forEach((grade) => {
+    addOption(grade.value, grade.label);
+  });
+
+  if (selectedStepGrade && !usedGrades.has(selectedStepGrade)) {
+    addOption(selectedStepGrade, selectedStepGrade);
+  }
+
+  return options;
 };
+
+const normalizeRelativeGradeMappings = (mappings) => (
+  Array.isArray(mappings)
+    ? mappings.map((mapping) => {
+      if (mapping && typeof mapping === 'object' && !Array.isArray(mapping)) {
+        const label = String(mapping.label ?? mapping.step ?? '').trim();
+        const grade = String(mapping.grade ?? '').trim().toUpperCase();
+        if (!label && !grade) return null;
+        return {
+          label,
+          grade,
+        };
+      }
+
+      const label = String(mapping ?? '').trim();
+      if (!label) return null;
+      return {
+        label,
+        grade: '',
+      };
+    }).filter(Boolean)
+    : []
+);
+
+const normalizeStrategySteps = (steps) => (
+  Array.isArray(steps)
+    ? steps.map((step) => {
+      if (step && typeof step === 'object' && !Array.isArray(step)) {
+        const label = String(step.label ?? step.step ?? '').trim();
+        if (!label) return null;
+        return {
+          label,
+          grade: String(step.grade ?? '').trim().toUpperCase(),
+          relativeGrades: normalizeRelativeGradeMappings(
+            step.relativeGrades
+            ?? step.relative_grades
+            ?? step.relatedGrades
+            ?? step.related_grades
+            ?? []
+          ),
+        };
+      }
+
+      const label = String(step ?? '').trim();
+      if (!label) return null;
+      return {
+        label,
+        grade: '',
+        relativeGrades: [],
+      };
+    }).filter(Boolean)
+    : []
+);
 
 const ChecklistStep = ({
   title,
@@ -120,9 +214,7 @@ const NotesFields = ({
   onBreakoutMetaChange
 }) => {
   const isVWAPPullback = (setupType || '').toLowerCase().trim() === 'vwap pullback';
-  const normalizedStrategySteps = Array.isArray(strategySteps)
-    ? strategySteps.map((step) => String(step ?? '').trim()).filter(Boolean)
-    : [];
+  const normalizedStrategySteps = normalizeStrategySteps(strategySteps);
   const numericQualityScore = Number(setupQualityScore);
   const hasQualityScore = Number.isFinite(numericQualityScore);
   const showGenericStrategyChecklist = normalizedStrategySteps.length > 0;
@@ -163,7 +255,7 @@ const NotesFields = ({
             {setupGrade ? <span className="ml-1.5 text-cyan-100/90">({setupGrade})</span> : null}
           </p>
           <p className="mt-1 text-[10px] text-cyan-100/70">
-            Auto-score from steps followed, plan adherence, and risk compliance.
+            Auto-score from step grades, plan adherence, and risk compliance.
           </p>
         </div>
       </div>
@@ -180,30 +272,61 @@ const NotesFields = ({
               const currentValue = Array.isArray(strategyStepResults)
                 ? strategyStepResults[index]
                 : null;
-              const followed = getStrategyStepFollowed(currentValue);
-              const isYes = followed === true;
-              const isNo = followed === false;
+              const stepLabel = String(step?.label ?? '').trim();
+              const stepGrade = String(step?.grade ?? '').trim();
+              const selectedStepGrade = String(currentValue?.grade ?? '').trim().toUpperCase();
+              const relativeGrades = Array.isArray(step?.relativeGrades) ? step.relativeGrades : [];
+              const stepGradeOptions = buildStepGradeOptions({
+                stepLabel,
+                stepGrade,
+                relativeGrades,
+                selectedStepGrade,
+              });
 
               return (
-                <div key={`strategy-step-${index}`} className="grid grid-cols-[1fr_auto_auto] items-center gap-3 rounded-md border border-white/10 bg-white/5 px-2.5 py-2">
+                <div key={`strategy-step-${index}`} className="grid grid-cols-[1fr_220px] items-center gap-3 rounded-md border border-white/10 bg-white/5 px-2.5 py-2">
                   <p className="text-xs text-white/85">
                     <span className="text-white/55 mr-1.5">Step {index + 1}:</span>
-                    {step}
+                    {stepLabel}
+                    {stepGrade ? (
+                      <span className="ml-2 inline-flex items-center rounded border border-cyan-400/30 bg-cyan-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-cyan-200">
+                        Target {stepGrade}
+                      </span>
+                    ) : null}
+                    {relativeGrades.length > 0 ? (
+                      <span className="mt-1 block text-[10px] text-cyan-100/70">
+                        {relativeGrades.map((mapping, mappingIndex) => {
+                          const mappingLabel = String(mapping?.label ?? '').trim();
+                          const mappingGrade = String(mapping?.grade ?? '').trim();
+                          if (!mappingLabel && !mappingGrade) return null;
+                          const summaryText = mappingGrade
+                            ? `${mappingGrade}: ${mappingLabel}`
+                            : mappingLabel;
+                          const suffix = mappingIndex < relativeGrades.length - 1 ? ' · ' : '';
+                          return `${summaryText}${suffix}`;
+                        }).filter(Boolean)}
+                      </span>
+                    ) : null}
                   </p>
-                  <label className="flex items-center gap-1 text-[11px] text-emerald-300">
-                    <Checkbox
-                      checked={isYes}
-                      onCheckedChange={() => onStrategyStepResultChange(index, true)}
-                    />
-                    YES
-                  </label>
-                  <label className="flex items-center gap-1 text-[11px] text-red-300">
-                    <Checkbox
-                      checked={isNo}
-                      onCheckedChange={() => onStrategyStepResultChange(index, false)}
-                    />
-                    NO
-                  </label>
+                  <Select
+                    value={selectedStepGrade || 'none'}
+                    onValueChange={(value) => onStrategyStepResultChange(index, { grade: value === 'none' ? '' : value })}
+                  >
+                    <SelectTrigger className="h-8 bg-white/5 border-white/10 text-[11px]">
+                      <SelectValue placeholder="Actual grade" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-[#1a1a24] border-white/10">
+                      <SelectItem value="none">No grade</SelectItem>
+                      {stepGradeOptions.map((gradeOption) => (
+                        <SelectItem
+                          key={`strategy-step-result-grade-${index}-${gradeOption.value}`}
+                          value={gradeOption.value}
+                        >
+                          {gradeOption.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
               );
             })}

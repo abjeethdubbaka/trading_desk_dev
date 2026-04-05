@@ -22,6 +22,26 @@ const normalizeBoolean = (value) => {
   return null;
 };
 
+const normalizeStepGrade = (value) => {
+  const normalized = String(value ?? '').trim().toUpperCase();
+  if (!normalized) return '';
+  if (normalized === 'A++' || normalized === 'A+' || ['A', 'B', 'C', 'D', 'F'].includes(normalized)) return normalized;
+  return '';
+};
+
+const STEP_GRADE_POINTS_MAP = {
+  'A++': 10,
+  'A+': 9,
+  'A': 8,
+  'B': 6,
+  'C': 4,
+  'D': 2,
+  'F': 0,
+};
+const STEP_MAX_POINTS = 10;
+const STEP_FOLLOWED_POINTS = 10;
+const STEP_PASS_POINTS_THRESHOLD = 6;
+
 const toFiniteNumber = (value, fallback = null) => {
   const numeric = Number(value);
   return Number.isFinite(numeric) ? numeric : fallback;
@@ -51,18 +71,41 @@ const getStepScore = (trade) => {
     ? trade.strategy_step_results
     : [];
 
-  const normalizedResults = strategyStepResults
-    .map((item) => normalizeBoolean(item?.followed ?? item))
-    .filter((value) => value === true || value === false);
+  const normalizedResults = strategyStepResults.map((item) => {
+    const followed = normalizeBoolean(item?.followed ?? item);
+    const grade = normalizeStepGrade(item?.grade);
+    const gradePoints = grade ? STEP_GRADE_POINTS_MAP[grade] : null;
+    const hasGradePoints = Number.isFinite(gradePoints);
+    const hasFollowedSignal = followed === true || followed === false;
+    const points = hasGradePoints
+      ? gradePoints
+      : followed === true
+        ? STEP_FOLLOWED_POINTS
+        : followed === false
+          ? 0
+          : 0;
+
+    return {
+      followed,
+      grade,
+      points,
+      isRated: hasGradePoints || hasFollowedSignal,
+    };
+  });
 
   if (normalizedResults.length > 0) {
-    const followed = normalizedResults.filter(Boolean).length;
     const total = normalizedResults.length;
+    const maxPoints = total * STEP_MAX_POINTS;
+    const earnedPoints = normalizedResults.reduce((sum, item) => sum + (item.points || 0), 0);
+    const score = maxPoints > 0 ? round((earnedPoints / maxPoints) * 100, 1) : 0;
+    const followed = normalizedResults.filter((item) => (item.points || 0) >= STEP_PASS_POINTS_THRESHOLD).length;
     return {
       hasSignal: true,
-      score: total > 0 ? round((followed / total) * 100, 1) : 0,
+      score,
       followed,
       total,
+      pointsEarned: earnedPoints,
+      pointsMax: maxPoints,
     };
   }
 
@@ -91,6 +134,8 @@ const getStepScore = (trade) => {
     score: total > 0 ? round((followed / total) * 100, 1) : 0,
     followed,
     total,
+    pointsEarned: null,
+    pointsMax: null,
   };
 };
 
@@ -171,6 +216,8 @@ export function computeTradeSetupQuality(trade = {}, options = {}) {
       stepScore: step.score,
       stepsFollowed: step.followed,
       stepsTotal: step.total,
+      stepPointsEarned: step.pointsEarned,
+      stepPointsMax: step.pointsMax,
       planScore: plan.score,
       followedPlan: plan.followedPlan,
       riskScore: risk.score,

@@ -13,6 +13,8 @@ import AccountTierSelector from '@/components/settings/AccountTierSelector';
 import Field from '@/components/settings/Field';
 import InfoHint from '@/components/ui/InfoHint';
 
+const STRATEGY_STEP_GRADE_OPTIONS = ['A++', 'A+', 'A', 'B', 'C', 'D', 'F'];
+
 export default function AccountSettingsTab({
   getDisplayValue,
   handleFieldChange,
@@ -29,9 +31,12 @@ export default function AccountSettingsTab({
   strategySetupCount,
   strategyStepsDraft,
   handleStrategyStepChange,
-  handleStrategyStepBlur,
+  handleStrategyStepBlur: _handleStrategyStepBlur,
   handleAddStrategyStep,
   handleRemoveStrategyStep,
+  handleStrategyRelativeGradeChange,
+  handleAddStrategyRelativeGrade,
+  handleRemoveStrategyRelativeGrade,
   strategyStepCount,
 }) {
   const compactInputClass = 'h-9 rounded-lg px-2.5 bg-white/5 border-white/10';
@@ -165,27 +170,114 @@ export default function AccountSettingsTab({
 
           <div className="space-y-2">
             {(strategyStepsDraft || ['']).map((step, index) => (
-              <div key={`strategy-step-${index}`} className="flex items-center gap-2">
-                <span className="w-12 flex-shrink-0 text-[11px] text-white/45">Step {index + 1}</span>
-                <Input
-                  value={step}
-                  onChange={(event) => handleStrategyStepChange(index, event.target.value)}
-                  onBlur={handleStrategyStepBlur}
-                  placeholder="Describe this step..."
-                  className={compactInputClass}
-                  disabled={isLoading}
-                />
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => handleRemoveStrategyStep(index)}
-                  disabled={isLoading}
-                  className="h-9 w-9 text-white/45 hover:text-rose-300 hover:bg-rose-500/10"
-                  title="Remove step"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </Button>
+              <div key={`strategy-step-${index}`} className="space-y-2 rounded-lg border border-white/10 bg-white/[0.02] p-2.5">
+                <div className="grid grid-cols-1 md:grid-cols-[56px_minmax(0,1fr)_140px_auto] gap-2 items-center">
+                  <span className="text-[11px] text-white/45">Step {index + 1}</span>
+                  <Input
+                    value={typeof step === 'string' ? step : (step?.label || '')}
+                    onChange={(event) => handleStrategyStepChange(index, event.target.value, 'label')}
+                    placeholder="Describe this step..."
+                    className={compactInputClass}
+                    disabled={isLoading}
+                  />
+                  <Select
+                    value={
+                      typeof step === 'string'
+                        ? 'none'
+                        : (step?.grade || 'none')
+                    }
+                    onValueChange={(value) => {
+                      handleStrategyStepChange(index, value === 'none' ? '' : value, 'grade');
+                    }}
+                    disabled={isLoading}
+                  >
+                    <SelectTrigger className={compactInputClass}>
+                      <SelectValue placeholder="Grade" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-[#1a1a24] border-white/10">
+                      <SelectItem value="none">No grade</SelectItem>
+                      {STRATEGY_STEP_GRADE_OPTIONS.map((grade) => (
+                        <SelectItem key={`strategy-step-grade-${grade}`} value={grade}>
+                          Grade {grade}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => handleRemoveStrategyStep(index)}
+                    disabled={isLoading}
+                    className="h-9 w-9 text-white/45 hover:text-rose-300 hover:bg-rose-500/10"
+                    title="Remove step"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
+                </div>
+
+                {Array.isArray(step?.relativeGrades) && step.relativeGrades.length > 0 && (
+                  <div className="space-y-1.5 md:pl-[56px]">
+                    {step.relativeGrades.map((mapping, mappingIndex) => (
+                      <div key={`strategy-step-${index}-relative-${mappingIndex}`} className="grid grid-cols-1 md:grid-cols-[56px_minmax(0,1fr)_140px_auto] gap-2 items-center">
+                        <span className="text-[10px] text-cyan-200/70">Alt {mappingIndex + 1}</span>
+                        <Input
+                          value={mapping?.label || ''}
+                          onChange={(event) => handleStrategyRelativeGradeChange(index, mappingIndex, event.target.value, 'label')}
+                          placeholder="Relative graded wording..."
+                          className={compactInputClass}
+                          disabled={isLoading}
+                        />
+                        <Select
+                          value={mapping?.grade || 'none'}
+                          onValueChange={(value) => {
+                            handleStrategyRelativeGradeChange(index, mappingIndex, value === 'none' ? '' : value, 'grade');
+                          }}
+                          disabled={isLoading}
+                        >
+                          <SelectTrigger className={compactInputClass}>
+                            <SelectValue placeholder="Grade" />
+                          </SelectTrigger>
+                          <SelectContent className="bg-[#1a1a24] border-white/10">
+                            <SelectItem value="none">No grade</SelectItem>
+                            {STRATEGY_STEP_GRADE_OPTIONS.map((grade) => (
+                              <SelectItem key={`strategy-step-relative-grade-${index}-${mappingIndex}-${grade}`} value={grade}>
+                                Grade {grade}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => {
+                            handleRemoveStrategyRelativeGrade(index, mappingIndex);
+                          }}
+                          disabled={isLoading}
+                          className="h-9 w-9 text-white/45 hover:text-rose-300 hover:bg-rose-500/10"
+                          title="Remove relative grade"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                <div className="md:pl-[56px]">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleAddStrategyRelativeGrade(index)}
+                    disabled={isLoading}
+                    className="h-8 text-cyan-200/80 hover:text-cyan-100 hover:bg-cyan-500/10"
+                  >
+                    <Plus className="w-3.5 h-3.5 mr-1.5" />
+                    Map Relative Grade
+                  </Button>
+                </div>
               </div>
             ))}
           </div>

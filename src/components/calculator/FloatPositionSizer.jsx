@@ -13,7 +13,6 @@ import {
   MemoizedFloatInputForm,
   MemoizedResultsDisplay,
 } from './memoized';
-import { SummaryPanel } from './float-position-sizer/SummaryPanel';
 import { FloatSmartPlanCard } from './float-position-sizer/FloatSmartPlanCard';
 import { useFloatPositionSizerController } from './float-position-sizer/hooks/useFloatPositionSizerController';
 
@@ -25,14 +24,6 @@ export default function FloatPositionSizer({ historyData, onCalculationSaved = (
 
   return (
     <div className="space-y-4 w-full">
-      <SummaryPanel
-        accountSize={controller.accountSize}
-        riskAmount={controller.riskAmount}
-        positionSizingPct={controller.positionSizingPct}
-        targetProfitDollars={controller.targetProfitDollars}
-        statusPills={controller.statusPills}
-      />
-
       <Card className="border-white/10 bg-gradient-to-br from-[#1a1a24] to-[#131c2a] shadow-[0_10px_30px_-18px_rgba(59,130,246,0.5)]">
         <CardContent className="p-6 space-y-6">
           <MemoizedFloatInputForm
@@ -42,8 +33,8 @@ export default function FloatPositionSizer({ historyData, onCalculationSaved = (
             setEntryPrice={controller.updateEntryPrice}
             customStopLossPrice={controller.customStop}
             setCustomStopLossPrice={controller.updateCustomStop}
-            direction={controller.direction}
-            setDirection={controller.updateDirection}
+            comment={controller.comment}
+            setComment={controller.updateComment}
             loading={controller.loadingFloat}
             fetchShareFloat={controller.fetchShareFloat}
             onCalculate={controller.handleCalculate}

@@ -48,6 +48,7 @@ export function useFloatPositionSizerController({ historyData, onCalculationSave
   const [calculation, setCalculation] = useState(() => (
     initialState.calculation && typeof initialState.calculation === 'object' ? initialState.calculation : null
   ));
+  const [comment, setComment] = useState(() => String(initialState.comment || ''));
 
   const clearCalculation = useCallback(() => {
     setCalculation((prev) => (prev == null ? prev : null));
@@ -75,6 +76,10 @@ export function useFloatPositionSizerController({ historyData, onCalculationSave
     setDirection((prev) => (prev === value ? prev : value));
     clearCalculation();
   }, [clearCalculation]);
+
+  const updateComment = useCallback((value) => {
+    setComment((prev) => (prev === value ? prev : value));
+  }, []);
 
   const resolveCategory = useCallback((floatSize) => {
     if (!floatSize || !floatCategories) return null;
@@ -187,6 +192,7 @@ export function useFloatPositionSizerController({ historyData, onCalculationSave
       symbol,
       entryPrice,
       customStop,
+      comment,
       direction,
       shareFloat,
       floatCategory,
@@ -194,7 +200,7 @@ export function useFloatPositionSizerController({ historyData, onCalculationSave
       calculation,
       updatedAt: new Date().toISOString(),
     });
-  }, [symbol, entryPrice, customStop, direction, shareFloat, floatCategory, floatData, calculation]);
+  }, [symbol, entryPrice, customStop, comment, direction, shareFloat, floatCategory, floatData, calculation]);
 
   const fetchShareFloat = useCallback(async () => {
     const symbolToFetch = symbol?.trim().toUpperCase();
@@ -396,6 +402,7 @@ export function useFloatPositionSizerController({ historyData, onCalculationSave
         symbol: normalizedSymbol,
         entryPrice,
         direction,
+        comment,
         calculation,
         floatData,
         floatCategory,
@@ -414,12 +421,13 @@ export function useFloatPositionSizerController({ historyData, onCalculationSave
     } catch (error) {
       toast.error(`Failed: ${error.message}`);
     }
-  }, [symbol, entryPrice, direction, calculation, floatData, floatCategory, floatCategories, createTrade]);
+  }, [symbol, entryPrice, direction, comment, calculation, floatData, floatCategory, floatCategories, createTrade]);
 
   const handleReset = useCallback(() => {
     setSymbol('');
     setEntryPrice('');
     setCustomStop('');
+    setComment('');
     setShareFloat(null);
     setFloatCategory(null);
     setFloatData(null);
@@ -450,6 +458,7 @@ export function useFloatPositionSizerController({ historyData, onCalculationSave
     symbol,
     entryPrice,
     customStop,
+    comment,
     direction,
     shareFloat,
     floatCategory,
@@ -462,6 +471,7 @@ export function useFloatPositionSizerController({ historyData, onCalculationSave
     updateSymbol,
     updateEntryPrice,
     updateCustomStop,
+    updateComment,
     updateDirection,
     fetchShareFloat,
     handleApplyFloatSmartPlan,

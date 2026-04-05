@@ -158,6 +158,8 @@ export class TradeService {
           : null;
         const normalizedExistingShareFloatRange = trade?.share_float_range ?? null;
         const normalizedEnrichedShareFloatRange = enrichedTrade?.share_float_range ?? null;
+        const normalizedExistingFloatCategory = trade?.float_category ?? null;
+        const normalizedEnrichedFloatCategory = enrichedTrade?.float_category ?? null;
 
         if (normalizedExistingShareFloat !== normalizedEnrichedShareFloat) {
           updates.share_float = normalizedEnrichedShareFloat;
@@ -165,6 +167,10 @@ export class TradeService {
 
         if (normalizedExistingShareFloatRange !== normalizedEnrichedShareFloatRange) {
           updates.share_float_range = normalizedEnrichedShareFloatRange;
+        }
+
+        if (normalizedExistingFloatCategory !== normalizedEnrichedFloatCategory) {
+          updates.float_category = normalizedEnrichedFloatCategory;
         }
 
         if (Object.keys(updates).length === 0) {

@@ -19,7 +19,7 @@ export default function ExitStrategySettings({
         <div>
           <h3 className="text-sm font-semibold text-white/80">Exit strategy</h3>
           <p className="text-[11px] text-white/45 mt-0.5">
-            Configure R-multiple targets and share allocation for calculator exits.
+            Configure R-multiple targets and share allocation for calculator exits (global across all account tiers).
           </p>
         </div>
         <button
@@ -102,4 +102,3 @@ export default function ExitStrategySettings({
     </div>
   );
 }
-

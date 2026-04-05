@@ -20,9 +20,64 @@ import { buildSetupTypeOptions } from '../constants/tradeConstants';
 const USER_ID = 'user-123';
 const SYMBOL_PATTERN = /^[A-Z]{1,5}$/;
 const ALERT_PRIORITIES = ['warning', 'focus'];
+const normalizeStrategyStepGrade = (value) => String(value ?? '').trim().toUpperCase();
+const deriveFollowedFromGrade = (grade) => {
+  const normalized = normalizeStrategyStepGrade(grade);
+  if (!normalized) return null;
+  if (['A++', 'A+', 'A', 'B'].includes(normalized)) return true;
+  if (['C', 'D', 'F'].includes(normalized)) return false;
+  return null;
+};
+const normalizeRelativeGradeMappings = (mappings) => (
+  Array.isArray(mappings)
+    ? mappings.map((mapping) => {
+      if (mapping && typeof mapping === 'object' && !Array.isArray(mapping)) {
+        const label = String(mapping.label ?? mapping.step ?? '').trim();
+        const grade = normalizeStrategyStepGrade(mapping.grade);
+        if (!label && !grade) return null;
+        return {
+          label,
+          grade,
+        };
+      }
+
+      const label = String(mapping ?? '').trim();
+      if (!label) return null;
+      return {
+        label,
+        grade: '',
+      };
+    }).filter(Boolean)
+    : []
+);
+
 const normalizeStrategySteps = (steps) => (
   Array.isArray(steps)
-    ? steps.map((step) => String(step ?? '').trim()).filter(Boolean)
+    ? steps.map((step) => {
+      if (step && typeof step === 'object' && !Array.isArray(step)) {
+        const label = String(step.label ?? step.step ?? '').trim();
+        if (!label) return null;
+        return {
+          label,
+          grade: normalizeStrategyStepGrade(step.grade),
+          relativeGrades: normalizeRelativeGradeMappings(
+            step.relativeGrades
+            ?? step.relative_grades
+            ?? step.relatedGrades
+            ?? step.related_grades
+            ?? []
+          ),
+        };
+      }
+
+      const label = String(step ?? '').trim();
+      if (!label) return null;
+      return {
+        label,
+        grade: '',
+        relativeGrades: [],
+      };
+    }).filter(Boolean)
     : []
 );
 
@@ -42,20 +97,24 @@ const resolveStrategyStepsForSetup = (stepsBySetup, setupType, fallbackSteps = [
   return normalizeStrategySteps(map[matchedKey]);
 };
 
-const normalizeStrategyStepResults = (results, stepLabels) => {
+const normalizeStrategyStepResults = (results, stepDefinitions) => {
   const source = Array.isArray(results) ? results : [];
 
-  return stepLabels.map((stepLabel, index) => {
+  return stepDefinitions.map((stepDefinition, index) => {
     const value = source[index];
     const followed = value?.followed === true || value === true
       ? true
       : value?.followed === false || value === false
         ? false
         : null;
+    const stepLabel = String(stepDefinition?.label ?? stepDefinition ?? '').trim();
+    const persistedGrade = normalizeStrategyStepGrade(value?.grade);
+    const followedFromGrade = deriveFollowedFromGrade(persistedGrade);
 
     return {
-      step: String(stepLabel ?? '').trim(),
-      followed,
+      step: stepLabel,
+      grade: persistedGrade || '',
+      followed: followed ?? followedFromGrade ?? null,
     };
   });
 };
@@ -191,7 +250,13 @@ export function useAddTradeModalController({ open, onSave, initialData }) {
                 ? false
                 : null;
 
-        return currentStep === nextValue?.step && currentFollowed === nextValue?.followed;
+        const currentGrade = normalizeStrategyStepGrade(value?.grade);
+        const nextGrade = normalizeStrategyStepGrade(nextValue?.grade);
+        return (
+          currentStep === nextValue?.step
+          && currentFollowed === nextValue?.followed
+          && currentGrade === nextGrade
+        );
       });
 
     if (isSame) return;
@@ -291,9 +356,28 @@ export function useAddTradeModalController({ open, onSave, initialData }) {
       formData.strategy_step_results,
       strategyStepsForSetup
     );
+
+    const gradeValue = normalizeStrategyStepGrade(value?.grade);
+    const hasGradeUpdate = value && typeof value === 'object' && !Array.isArray(value)
+      && Object.prototype.hasOwnProperty.call(value, 'grade');
+    const followedFromInput = value === true
+      ? true
+      : value === false
+        ? false
+        : value?.followed === true
+          ? true
+          : value?.followed === false
+            ? false
+            : null;
+    const derivedFromGrade = deriveFollowedFromGrade(gradeValue);
     next[index] = {
       ...next[index],
-      followed: value === true,
+      ...(value && typeof value === 'object' && !Array.isArray(value)
+        ? {
+            ...(hasGradeUpdate ? { grade: gradeValue } : {}),
+          }
+        : {}),
+      followed: followedFromInput ?? (hasGradeUpdate ? derivedFromGrade : (next[index]?.followed ?? null)) ?? null,
     };
     updateField('strategy_step_results', next);
   }, [formData.strategy_step_results, strategyStepsForSetup, updateField]);

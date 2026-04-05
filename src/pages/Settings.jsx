@@ -32,6 +32,7 @@ export default function SettingsPage() {
   const fieldDrafts = useSettingsFieldDrafts({ settings, updateFields });
   const exitStrategyDraft = useExitStrategyDraft({ settings, updateFields });
   const strategyDraft = useStrategySettingsDraft({ settings, updateFields });
+  const flushStrategyStepDraft = strategyDraft.flushStrategyStepDraft;
   const maintenanceActions = useSettingsMaintenanceActions({ signOut, refetch });
 
   const handleSave = useCallback(async () => {
@@ -39,20 +40,22 @@ export default function SettingsPage() {
       fieldDrafts.commitDraftFields(SETTINGS_INPUT_FIELDS);
     }
 
+    flushStrategyStepDraft();
+
     try {
       await savePending();
       toast.success('Settings saved successfully!');
     } catch (error) {
       toast.error(`Failed to save: ${error.message}`);
     }
-  }, [fieldDrafts, savePending]);
+  }, [fieldDrafts, flushStrategyStepDraft, savePending]);
 
   return (
     <div className="space-y-6 max-w-[1040px]">
       <SettingsHeader
         handleSave={handleSave}
         isSaving={isSaving}
-        hasChanges={hasPendingChanges || fieldDrafts.hasLocalDraftChanges}
+        hasChanges={hasPendingChanges || fieldDrafts.hasLocalDraftChanges || strategyDraft.hasLocalStepDraftChanges}
         user={user}
         handleSignOut={maintenanceActions.handleSignOut}
       />
@@ -85,6 +88,9 @@ export default function SettingsPage() {
             handleStrategyStepBlur={strategyDraft.handleStrategyStepBlur}
             handleAddStrategyStep={strategyDraft.handleAddStrategyStep}
             handleRemoveStrategyStep={strategyDraft.handleRemoveStrategyStep}
+            handleStrategyRelativeGradeChange={strategyDraft.handleStrategyRelativeGradeChange}
+            handleAddStrategyRelativeGrade={strategyDraft.handleAddStrategyRelativeGrade}
+            handleRemoveStrategyRelativeGrade={strategyDraft.handleRemoveStrategyRelativeGrade}
             strategyStepCount={strategyDraft.strategyStepCount}
           />
         </TabsContent>
