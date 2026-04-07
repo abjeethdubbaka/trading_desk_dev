@@ -3,6 +3,25 @@ import { calculatePnL } from '../utils/calculationUtils';
 import { getCurrentLocalDateTime, utcToLocalDateTime } from '../utils/dateUtils';
 import { buildTradeNotes, stripCalculatorAutoNote } from '../../utils/notes';
 
+const DEFAULT_EMOTION = 'neutral';
+const parseOptionalPositiveNumber = (value) => {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+};
+
+const normalizeEmotionValue = (value) => {
+  if (Array.isArray(value)) {
+    const firstValue = value.find((item) => typeof item === 'string' && item.trim());
+    return firstValue ? firstValue.trim() : DEFAULT_EMOTION;
+  }
+
+  if (typeof value === 'string' && value.trim()) {
+    return value.trim();
+  }
+
+  return DEFAULT_EMOTION;
+};
+
 const normalizeStrategyStepFollowed = (value) => {
   if (value?.followed === true || value === true) return true;
   if (value?.followed === false || value === false) return false;
@@ -72,7 +91,7 @@ export const useTradeForm = (initialData, userId = 'user-123') => {
     setup_type: '',
     custom_setup_type: '',
     notes: '',
-    emotions: 'neutral',
+    emotions: DEFAULT_EMOTION,
     followed_plan: true,
     mistakes: [],
     lessons: '',
@@ -111,7 +130,10 @@ export const useTradeForm = (initialData, userId = 'user-123') => {
       symbol: initialData.symbol || '',
       direction: initialData.direction || 'long',
       entry_price: initialData.entry_price?.toString() || '',
-      exit_price: initialData.exit_price?.toString() || '',
+      exit_price: (() => {
+        const parsed = parseOptionalPositiveNumber(initialData.exit_price);
+        return parsed == null ? '' : parsed.toString();
+      })(),
       stop_loss: initialData.stop_loss?.toString() || '',
       position_size: (initialData.position_size ?? initialData.quantity)?.toString() || '',
       entry_time: entryTimeLocal || getCurrentLocalDateTime(),
@@ -120,7 +142,7 @@ export const useTradeForm = (initialData, userId = 'user-123') => {
       setup_type: initialData.setup_type || '',
       custom_setup_type: initialData.custom_setup_type || '',
       notes: stripCalculatorAutoNote(initialData.notes),
-      emotions: initialData.emotions || 'neutral',
+      emotions: normalizeEmotionValue(initialData.emotions),
       followed_plan: initialData.followed_plan ?? true,
       mistakes: initialData.mistakes || [],
       lessons: initialData.lessons || '',
@@ -160,9 +182,7 @@ export const useTradeForm = (initialData, userId = 'user-123') => {
       risk_amount: Number.isFinite(Number(initialData.risk_amount))
         ? Number(initialData.risk_amount)
         : null,
-      target_price: Number.isFinite(Number(initialData.target_price))
-        ? Number(initialData.target_price)
-        : null,
+      target_price: parseOptionalPositiveNumber(initialData.target_price),
       risk_reward_ratio: Number.isFinite(Number(initialData.risk_reward_ratio))
         ? Number(initialData.risk_reward_ratio)
         : null,
@@ -178,7 +198,42 @@ export const useTradeForm = (initialData, userId = 'user-123') => {
   useEffect(() => {
     if (initialFormData) {
       setFormData(initialFormData);
+      return;
     }
+
+    setFormData({
+      symbol: '',
+      direction: 'long',
+      entry_price: '',
+      exit_price: '',
+      stop_loss: '',
+      position_size: '',
+      entry_time: getCurrentLocalDateTime(),
+      exit_time: '',
+      fee: '',
+      setup_type: '',
+      custom_setup_type: '',
+      notes: '',
+      emotions: DEFAULT_EMOTION,
+      followed_plan: true,
+      mistakes: [],
+      lessons: '',
+      reflection_answers: getDefaultReflectionAnswers(),
+      setup_grade: '',
+      setup_quality_score: null,
+      breakout_checklist: defaultBreakoutChecklist,
+      strategy_step_results: [],
+      screenshots: [],
+      trade_plan_id: null,
+      strategy_preset_id: null,
+      dos_donts_rule_ids: [],
+      risk_amount: null,
+      target_price: null,
+      risk_reward_ratio: null,
+      share_float: null,
+      float_category: null,
+      share_float_range: null
+    });
   }, [initialFormData]);
 
   const updateField = useCallback((field, value) => {
@@ -199,7 +254,7 @@ export const useTradeForm = (initialData, userId = 'user-123') => {
       setup_type: '',
       custom_setup_type: '',
       notes: '',
-      emotions: 'neutral',
+      emotions: DEFAULT_EMOTION,
       followed_plan: true,
       mistakes: [],
       lessons: '',
@@ -245,6 +300,10 @@ export const useTradeForm = (initialData, userId = 'user-123') => {
       fee: formData.fee
     });
 
+    const normalizedEmotion = normalizeEmotionValue(formData.emotions);
+    const normalizedExitPrice = parseOptionalPositiveNumber(formData.exit_price);
+    const normalizedTargetPrice = parseOptionalPositiveNumber(formData.target_price);
+
     const reflectionAnswers = formData.reflection_answers || {};
     const normalizedReflectionAnswers = {
       what_went_wrong: String(reflectionAnswers.what_went_wrong || '').trim(),
@@ -268,7 +327,7 @@ export const useTradeForm = (initialData, userId = 'user-123') => {
       direction: detectedDirection, // Use detected direction
       symbol: formData.symbol.toUpperCase().trim(),
       entry_price: parseFloat(formData.entry_price) || 0,
-      exit_price: formData.exit_price ? parseFloat(formData.exit_price) : null,
+      exit_price: normalizedExitPrice,
       stop_loss: formData.stop_loss ? parseFloat(formData.stop_loss) : null,
       position_size: parseInt(formData.position_size, 10) || 0,
       quantity: parseInt(formData.position_size, 10) || 0, // Map position_size to quantity
@@ -282,7 +341,7 @@ export const useTradeForm = (initialData, userId = 'user-123') => {
       lessons: formData.lessons || null,
       screenshots: formData.screenshots.length > 0 ? formData.screenshots : null,
       notes: notesFromReflection,
-      emotions: formData.emotions ? [formData.emotions] : [], // Convert string to array
+      emotions: normalizedEmotion ? [normalizedEmotion] : [],
       reflection_answers: normalizedReflectionAnswers,
       setup_quality_score: Number.isFinite(Number(formData.setup_quality_score))
         ? Math.round(Number(formData.setup_quality_score))
@@ -296,9 +355,7 @@ export const useTradeForm = (initialData, userId = 'user-123') => {
       risk_amount: Number.isFinite(Number(formData.risk_amount))
         ? Number(formData.risk_amount)
         : null,
-      target_price: Number.isFinite(Number(formData.target_price))
-        ? Number(formData.target_price)
-        : null,
+      target_price: normalizedTargetPrice,
       risk_reward_ratio: Number.isFinite(Number(formData.risk_reward_ratio))
         ? Number(formData.risk_reward_ratio)
         : null,

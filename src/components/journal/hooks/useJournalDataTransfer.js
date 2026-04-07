@@ -70,10 +70,6 @@ export function useJournalDataTransfer({ filteredTrades, accountTier, bulkCreate
         type: skippedCount > 0 ? 'warning' : 'success',
         message: `Import complete: ${importedCount} imported${skippedCount > 0 ? `, ${skippedCount} skipped` : ''}.`,
       });
-
-      if (errors.length > 0) {
-        console.warn('[Journal][CSV Import] Skipped rows', errors);
-      }
     } catch (error) {
       setImportStatus({
         type: 'error',

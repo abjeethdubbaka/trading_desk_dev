@@ -18,12 +18,6 @@ export function createTradeCRUD(service) {
       const validation = service.validate(tradeData);
       
       if (!validation.isValid) {
-        console.error('[TradeService] create validation failed', {
-          errors: validation.errors,
-          symbol: tradeData?.symbol,
-          quantity: tradeData?.quantity,
-          direction: tradeData?.direction,
-        });
         throw new ValidationError(validation.errors, tradeData);
       }
 
@@ -39,17 +33,6 @@ export function createTradeCRUD(service) {
 
       // Calculate derived fields
       const enrichedTrade = enrichTrade(tradeWithShareFloat, { floatCategories, riskLimit });
-      console.info('[TradeService] create share-float enrichment', {
-        symbol: enrichedTrade.symbol,
-        share_float: enrichedTrade.share_float ?? null,
-        float_category: enrichedTrade.float_category ?? null,
-        share_float_range: enrichedTrade.share_float_range ?? null,
-      });
-      console.info('[TradeService] create validation passed', {
-        symbol: enrichedTrade.symbol,
-        quantity: enrichedTrade.quantity,
-        direction: enrichedTrade.direction,
-      });
 
       return await service.db.trades.create(enrichedTrade);
     },
@@ -105,13 +88,6 @@ export function createTradeCRUD(service) {
       const riskLimit = await service.getRiskLimit();
 
       const enrichedTrade = enrichTrade(updatedTrade, { floatCategories, riskLimit });
-      console.info('[TradeService] update share-float enrichment', {
-        id,
-        symbol: enrichedTrade.symbol,
-        share_float: enrichedTrade.share_float ?? null,
-        float_category: enrichedTrade.float_category ?? null,
-        share_float_range: enrichedTrade.share_float_range ?? null,
-      });
 
       return await service.db.trades.update(id, enrichedTrade);
     },

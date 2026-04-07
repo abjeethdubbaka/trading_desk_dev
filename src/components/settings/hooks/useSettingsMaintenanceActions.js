@@ -21,29 +21,6 @@ export function useSettingsMaintenanceActions({ signOut, refetch }) {
       const { createTradeService } = await import('@/lib/services/TradeService.js');
       const tradeService = createTradeService(db);
       const result = await tradeService.backfillShareFloatEnrichment();
-      const debugRows = Array.isArray(result?.debugRows) ? result.debugRows : [];
-      const maxConsoleRows = 200;
-
-      console.groupCollapsed('[Settings] Re-enrich Trades Debug');
-      console.info('Summary:', {
-        scanned: result?.scanned,
-        eligible: result?.eligible,
-        updated: result?.updated,
-        skipped: result?.skipped,
-        failed: result?.failed,
-        debugMeta: result?.debugMeta,
-      });
-      if (debugRows.length > 0) {
-        console.table(debugRows.slice(0, maxConsoleRows));
-        if (debugRows.length > maxConsoleRows) {
-          console.info(
-            `Showing first ${maxConsoleRows} debug rows of ${debugRows.length}.`
-          );
-        }
-      } else {
-        console.info('No debug rows returned.');
-      }
-      console.groupEnd();
 
       if (result.updated > 0) {
         toast.success(
@@ -56,8 +33,7 @@ export function useSettingsMaintenanceActions({ signOut, refetch }) {
       }
 
       if (result.failed > 0) {
-        toast.warning(`${result.failed} trades failed during re-enrich. Check console for details.`);
-        console.warn('[Settings] backfillShareFloatEnrichment failures', result.failures);
+        toast.warning(`${result.failed} trades failed during re-enrich.`);
       }
     } catch (error) {
       toast.error(`Failed to re-enrich trades: ${error?.message || 'Unknown error'}`);

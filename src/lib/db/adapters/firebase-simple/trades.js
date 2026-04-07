@@ -92,28 +92,13 @@ export function createTradesAdapter(db) {
     async create(data) {
       try {
         const clean = addCreateTimestamps(data);
-        console.info('[FirebaseSimple][trades.create] write start', {
-          symbol: clean?.symbol,
-          quantity: clean?.quantity,
-          direction: clean?.direction,
-          entry_time: clean?.entry_time,
-        });
         
         const docRef = await addDoc(collection(db, 'trades'), clean);
         const result = { ...clean, id: docRef.id };
-        console.info('[FirebaseSimple][trades.create] write success', {
-          id: result.id,
-          symbol: result.symbol,
-        });
         
         broadcast('trades-updated', { action: 'create', trade: result });
         return result;
       } catch (error) {
-        console.error('[FirebaseSimple][trades.create] write failed', {
-          code: error?.code,
-          message: error?.message,
-          name: error?.name,
-        });
         throw error;
       }
     },

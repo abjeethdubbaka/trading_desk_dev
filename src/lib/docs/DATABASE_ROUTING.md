@@ -118,7 +118,7 @@ try {
   await TradeService.create(data)
 } catch (e) {
   if (e instanceof ValidationError) {
-    console.log(e.errors) // ['Symbol is required', 'Entry price must be positive']
+    const errors = e.errors // ['Symbol is required', 'Entry price must be positive']
   }
 }
 ```

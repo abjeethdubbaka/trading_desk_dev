@@ -441,7 +441,7 @@ export function useAddTradeModalController({ open, onSave, initialData }) {
         toast.warning('Trade was saved, but rule usage count could not be updated.');
       }
     } catch {
-      // Parent handler (Journal) already surfaces save errors via toast.
+      // Parent handler (Journal) surfaces save errors via toast.
     } finally {
       setLoading(false);
     }

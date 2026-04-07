@@ -26,10 +26,4 @@ export function isFirebaseConfigured() {
   );
 }
 
-if (typeof window !== 'undefined' && !isFirebaseConfigured()) {
-  console.warn(
-    '[Firebase] Missing configuration. Set VITE_FIREBASE_* in .env.local'
-  );
-}
-
 export { firebaseConfig };

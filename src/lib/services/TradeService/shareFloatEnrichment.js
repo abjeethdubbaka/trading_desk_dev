@@ -11,30 +11,12 @@ const polygonClient = new PolygonClient();
 const SHARE_FLOAT_CACHE_TTL_MS = 12 * 60 * 60 * 1000;
 const DEFAULT_FALLBACK_SHARE_FLOAT = 100_000_000;
 const DEFAULT_RATE_LIMIT_BACKOFF_MS = 60 * 1000;
-const SHARE_FLOAT_DEBUG_KEY = 'debug.shareFloatEnrichment';
 const shareFloatCache = new Map();
 const inFlightShareFloatRequests = new Map();
 let polygonRateLimitedUntil = 0;
 let polygonFinancialsUnavailable = false;
 
-function isShareFloatDebugEnabled() {
-  if (typeof window === 'undefined') return false;
-
-  try {
-    const explicitFlag = window.localStorage?.getItem(SHARE_FLOAT_DEBUG_KEY);
-    if (explicitFlag === '1') return true;
-    if (explicitFlag === '0') return false;
-  } catch {
-    // Ignore localStorage access errors.
-  }
-
-  return Boolean(import.meta?.env?.DEV);
-}
-
-function logShareFloat(stage, payload = {}) {
-  if (!isShareFloatDebugEnabled()) return;
-  console.info(`[ShareFloat][${stage}]`, payload);
-}
+const logShareFloat = () => {};
 
 function parseNumber(value) {
   if (value == null) return null;

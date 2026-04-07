@@ -68,13 +68,6 @@ export function useJournalTradeManagement({ createTrade, updateTrade, deleteTrad
         await updateTrade({ id: editingTrade.id, data });
         toast.success(`${data.symbol} updated`);
       } else {
-        console.info('[Journal] create trade requested', {
-          symbol: data?.symbol,
-          entry_price: data?.entry_price,
-          quantity: data?.quantity,
-          share_float: data?.share_float ?? null,
-          share_float_range: data?.share_float_range ?? null,
-        });
         await createTrade(data);
         toast.success(`${data.symbol} logged`);
       }
