@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { createPageUrl } from './utils';
 import { useElectron } from '@/lib/hooks/useElectron';
@@ -22,6 +22,8 @@ import {
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { formatAnalysisTimer, useAnalysisTimer } from '@/lib/context/AnalysisTimerContext';
+
+const ChatDock = lazy(() => import('@/components/chat/ChatDock'));
 
 const navItems = [
   {
@@ -83,6 +85,14 @@ const navItems = [
 export default function Layout({ children, currentPageName }) {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [isChatOpen, setIsChatOpen] = useState(() => {
+    try {
+      const raw = localStorage.getItem('aiChat.dockOpen.v1');
+      return raw == null ? true : JSON.parse(raw) === true;
+    } catch {
+      return true;
+    }
+  });
 
   const { isElectron, closeApp } = useElectron();
   const {
@@ -98,6 +108,14 @@ export default function Layout({ children, currentPageName }) {
     () => navItems.find((item) => item.page === currentPageName) ?? navItems[0],
     [currentPageName]
   );
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('aiChat.dockOpen.v1', JSON.stringify(isChatOpen));
+    } catch {
+      // Best effort persistence only.
+    }
+  }, [isChatOpen]);
 
   return (
     <div className="app-shell relative isolate min-h-screen text-white">
@@ -312,13 +330,18 @@ export default function Layout({ children, currentPageName }) {
       <main
         className={cn(
           'min-h-screen pt-16 transition-[padding] duration-300 lg:pt-0',
-          collapsed ? 'lg:pl-[88px]' : 'lg:pl-[280px]'
+          collapsed ? 'lg:pl-[88px]' : 'lg:pl-[280px]',
+          isChatOpen ? 'lg:pr-[380px]' : 'lg:pr-[24px]'
         )}
       >
         <div className="px-4 pb-8 pt-4 lg:px-8 lg:pt-7">
           <div className="animate-fade-up">{children}</div>
         </div>
       </main>
+
+      <Suspense fallback={null}>
+        <ChatDock isOpen={isChatOpen} onToggle={() => setIsChatOpen((prev) => !prev)} />
+      </Suspense>
     </div>
   );
 }

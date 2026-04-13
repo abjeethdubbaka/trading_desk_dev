@@ -45,7 +45,7 @@ export default function AnalysisCard({
           {isLoading && (
             <div className="absolute inset-0 bg-black/60 backdrop-blur-[2px] flex flex-col items-center justify-center gap-2">
               <Loader2 className="w-7 h-7 text-blue-400 animate-spin" />
-              <p className="text-xs text-blue-300">Claude Vision analyzing…</p>
+              <p className="text-xs text-blue-300">Gemma 4 analyzing...</p>
             </div>
           )}
 
@@ -125,5 +125,3 @@ export default function AnalysisCard({
     </Card>
   );
 }
-
-

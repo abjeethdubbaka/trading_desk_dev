@@ -15,6 +15,8 @@ export default function CompactView({
   reviewLoading,
   onReviewTrade,
   onClearReview,
+  reviewUsefulness,
+  onRateReviewUsefulness,
 }) {
   const { urlsById: screenshotUrls, statusById: screenshotStatuses } = useTradeScreenshotUrls(trades);
   const [lightboxImage, setLightboxImage] = React.useState(null);
@@ -37,6 +39,8 @@ export default function CompactView({
             reviewLoading={reviewLoading?.[trade.id]}
             onReviewTrade={onReviewTrade}
             onClearReview={onClearReview}
+            reviewUsefulness={reviewUsefulness?.[trade.id] ?? null}
+            onRateReviewUsefulness={onRateReviewUsefulness}
             screenshotUrls={screenshotUrls}
             screenshotStatuses={screenshotStatuses}
             onOpenImage={(url) => setLightboxImage(url)}

@@ -11,6 +11,7 @@ import { clearCalculatorState, loadCalculatorState, saveCalculatorState } from '
 import { buildFloatSmartPlan } from '../floatSmartPlan';
 
 const floatDataService = new FloatDataService();
+const CALCULATOR_DECISION_EVENT = 'calculator-decision-context';
 
 export function useFloatPositionSizerController({ historyData, onCalculationSaved }) {
   const { selectedSymbol, selectedEntryPrice } = useTradingContext();
@@ -120,7 +121,11 @@ export function useFloatPositionSizerController({ historyData, onCalculationSave
   ]);
 
   const runCalculation = useCallback((overrides = {}, source = null) => {
-    const result = calcPosition(buildCalculationParams(overrides));
+    const useFloatDynamic = source === 'smart';
+    const result = calcPosition(buildCalculationParams({
+      ...overrides,
+      allowFloatDynamic: useFloatDynamic,
+    }));
     const normalizedResult = source
       ? { ...result, _viewSource: source }
       : result;
@@ -318,7 +323,7 @@ export function useFloatPositionSizerController({ historyData, onCalculationSave
 
     try {
       runCalculation(overrides, 'smart');
-      toast.success('Applied float-smart risk and exit plan.');
+      toast.success('Applied float-smart dynamic risk and exit plan.');
     } catch (error) {
       toast.error(`Failed to apply smart plan: ${error.message}`);
     }
@@ -348,10 +353,11 @@ export function useFloatPositionSizerController({ historyData, onCalculationSave
 
     try {
       const result = runCalculation({ direction: effectiveDirection }, 'snapshot');
+      const normalizedSymbol = String(symbol || '').trim().toUpperCase();
 
       const historyItem = {
         timestamp: new Date().toISOString(),
-        symbol: symbol || 'N/A',
+        symbol: normalizedSymbol || 'N/A',
         entryPrice: result.entryPrice,
         shares: result.shares,
         stopLossPrice: result.stopLossPrice,
@@ -360,17 +366,44 @@ export function useFloatPositionSizerController({ historyData, onCalculationSave
         actualRisk: result.actualRisk,
         potentialProfit: result.targetProfit,
         riskLevel: result.riskLevel,
+        requestedRisk: result.requestedRisk,
+        riskUtilizationPct: result.riskUtilizationPct,
+        capReason: result.capReason,
         riskRewardRatio: 3,
         direction: result.direction,
         mode: result.mode,
       };
 
       onCalculationSaved?.(historyItem);
-      toast.success('Position calculated!');
+
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(
+          new CustomEvent(CALCULATOR_DECISION_EVENT, {
+            detail: {
+              source: 'calculator',
+              timestamp: new Date().toISOString(),
+              symbol: normalizedSymbol,
+              direction: result.direction,
+              entry: result.entryPrice,
+              stop: result.stopLossPrice,
+              target: result.targetPrice,
+              max_risk_dollars: result.actualRisk,
+              position_size_shares: result.shares,
+              risk_reward_ratio: result.riskRewardRatio,
+              notes: String(comment || '').trim(),
+            },
+          })
+        );
+      }
+
+      toast.success('Position calculated using static risk settings.');
+      if (result.capReason) {
+        toast.info(`Risk capped by ${result.capReason}`);
+      }
     } catch (error) {
       toast.error(error.message);
     }
-  }, [entryPrice, customStop, direction, runCalculation, symbol, onCalculationSaved]);
+  }, [entryPrice, customStop, direction, runCalculation, symbol, comment, onCalculationSaved]);
 
   const handleRefreshSettings = useCallback(async () => {
     try {

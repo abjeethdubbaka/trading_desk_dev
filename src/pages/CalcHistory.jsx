@@ -152,15 +152,34 @@ export default function CalcHistory() {
                         ['Entry', fmt(item.entryPrice)],
                         ['Shares', (item.shares ?? 0).toLocaleString()],
                         ['Position', fmt(item.positionValue)],
-                        ['Risk', <span className="text-red-300">{fmt(item.actualRisk)}</span>],
+                        ['Risk', (
+                          <div className="leading-tight">
+                            <span className="text-red-300">{fmt(item.actualRisk)}</span>
+                            <p className="mt-0.5 text-[10px] text-white/45">
+                              Target {fmt(item.requestedRisk ?? item.actualRisk)}
+                            </p>
+                          </div>
+                        )],
                         ['Potential', <span className="text-emerald-300">{fmt(item.potentialProfit)}</span>],
                       ].map(([label, val]) => (
                         <div key={label}>
                           <p className="text-xs text-white/45">{label}</p>
-                          <p className="mt-0.5 font-medium text-white">{val}</p>
+                          <div className="mt-0.5 font-medium text-white">{val}</div>
                         </div>
                       ))}
                     </div>
+
+                    {(item.requestedRisk || item.capReason) && (
+                      <div className="mt-2 text-[11px] text-white/45">
+                        <span>Target Risk: {fmt(item.requestedRisk ?? item.actualRisk)}</span>
+                        {Number.isFinite(Number(item.riskUtilizationPct)) && (
+                          <span className="ml-3">Usage: {Number(item.riskUtilizationPct).toFixed(1)}%</span>
+                        )}
+                        {item.capReason && (
+                          <span className="ml-3 text-amber-300/85">Limited by {item.capReason}</span>
+                        )}
+                      </div>
+                    )}
 
                     <div className="mt-3 flex items-center gap-4 text-xs text-white/35">
                       <span>{new Date(item.timestamp).toLocaleString()}</span>

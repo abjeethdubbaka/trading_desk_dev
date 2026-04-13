@@ -123,7 +123,14 @@ export default function Journal() {
     deleteTrade,
   });
 
-  const { reviews, loading: reviewLoading, reviewTrade, clearReview } = useTradeReview();
+  const {
+    reviews,
+    loading: reviewLoading,
+    reviewTrade,
+    clearReview,
+    usefulnessById,
+    rateReviewUsefulness,
+  } = useTradeReview();
 
   useEffect(() => {
     const handleTradesUpdated = () => {
@@ -181,6 +188,8 @@ export default function Journal() {
               reviewLoading={reviewLoading}
               onReviewTrade={reviewTrade}
               onClearReview={clearReview}
+              reviewUsefulness={usefulnessById}
+              onRateReviewUsefulness={rateReviewUsefulness}
             />
           ) : (
             <DetailedView

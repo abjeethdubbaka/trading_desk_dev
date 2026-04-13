@@ -5,7 +5,7 @@
  * All analytics use src/lib/calculations/trades.js pure functions.
  */
 
-import React, { useState, useMemo } from 'react';
+import React, { lazy, Suspense, useState, useMemo } from 'react';
 import { useTrades } from '@/lib/hooks/useTrades';
 import { useSettings }      from '@/lib/context/SettingsContext';
 import { useTradeEvents }   from '@/components/journal';
@@ -17,13 +17,15 @@ import {
 } from '@/lib/calculations/trades';
 import { buildDisciplineSnapshot } from '@/lib/calculations/discipline';
 
-import TradingCalendar    from '@/components/dashboard/TradingCalendar';
-import PerformanceBreakdown from '@/components/dashboard/PerformanceBreakdown';
 import DashboardHeader    from '@/components/dashboard/DashboardHeader';
-import DisciplineCoachCard from '@/components/dashboard/DisciplineCoachCard';
-import MorningBrief        from '@/components/dashboard/MorningBrief';
 import DailyImprovements   from '@/components/dashboard/DailyImprovements';
 import DayPanel            from '@/components/dashboard/DayPanel';
+import TradingCalendar from '@/components/dashboard/TradingCalendar';
+import DisciplineCoachCard from '@/components/dashboard/DisciplineCoachCard';
+
+const MorningBrief = lazy(() => import('@/components/dashboard/MorningBrief'));
+const AIModelScorecard = lazy(() => import('@/components/dashboard/AIModelScorecard'));
+const PerformanceBreakdown = lazy(() => import('@/components/dashboard/PerformanceBreakdown'));
 
 const toFiniteNumber = (value, fallback = 0) => {
   const numericValue = Number(value);
@@ -103,13 +105,26 @@ export default function Dashboard() {
           <DayPanel day={selectedDay} trades={trades} onClose={() => setSelectedDay(null)} />
         ) : (
           <div className="space-y-5">
-            <MorningBrief trades={trades} />
+            <Suspense
+              fallback={<div className="h-[210px] animate-pulse rounded-2xl border border-white/10 bg-white/[0.04]" />}
+            >
+              <MorningBrief trades={trades} />
+            </Suspense>
+            <Suspense
+              fallback={<div className="h-[200px] animate-pulse rounded-2xl border border-white/10 bg-white/[0.04]" />}
+            >
+              <AIModelScorecard />
+            </Suspense>
             <DailyImprovements />
           </div>
         )}
       </div>
 
-      <PerformanceBreakdown data={curve} />
+      <Suspense
+        fallback={<div className="h-[300px] animate-pulse rounded-2xl border border-white/10 bg-white/[0.04]" />}
+      >
+        <PerformanceBreakdown data={curve} />
+      </Suspense>
     </div>
   );
 }

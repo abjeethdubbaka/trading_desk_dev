@@ -47,10 +47,10 @@
  *
  * The mainPage value must match a key in the PAGES object exactly.
  */
-import Calculator from './pages/Calculator';
 import { lazy } from 'react';
 
 // Lazy load non-critical pages for faster startup
+const Calculator = lazy(() => import('./pages/Calculator'));
 const Dashboard = lazy(() => import('./pages/Dashboard'));
 const Journal = lazy(() => import('./pages/Journal'));
 const Settings = lazy(() => import('./pages/Settings'));

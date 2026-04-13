@@ -14,14 +14,28 @@ export function calcPosition({
   maxPositionValue = 0,
   maxDollars = 0,
   riskRewardRatio = 3,
+  allowFloatDynamic = false,
 }) {
   const entry = Number(entryPrice);
   const account = Number(accountSize);
   if (!entry || !account) throw new Error('Entry price and account size are required');
 
   const isLong = direction === 'long';
+  const normalizedPositionPct = (() => {
+    const value = Number(positionPct);
+    if (!Number.isFinite(value) || value <= 0) return 0.01;
+    return value > 1 ? value / 100 : value;
+  })();
+  const normalizedRiskAmount = (() => {
+    const value = Number(riskAmount);
+    return Number.isFinite(value) && value > 0 ? value : null;
+  })();
   const maxSharesByBalance = Math.floor(account / entry);
-  const accountPositionValue = (account * positionPct) / 100;
+  const accountPositionValue = account * normalizedPositionPct;
+  const resolvedRiskAmount = normalizedRiskAmount ?? accountPositionValue;
+  const hasFloatCategory = Boolean(shareFloat && floatCategory && floatCategories[floatCategory]);
+  const isFloatAware = Boolean(allowFloatDynamic && hasFloatCategory);
+  const category = isFloatAware ? floatCategories[floatCategory] : null;
   const configuredMaxPositionValue = Number(maxPositionValue);
   const legacyMaxPositionValue = Number(maxDollars);
   const resolvedMaxPositionValue = Number.isFinite(configuredMaxPositionValue) && configuredMaxPositionValue > 0
@@ -34,6 +48,10 @@ export function calcPosition({
   let riskPerShare;
   let shares;
   let mode;
+  let cappedByBalance = false;
+  let cappedByPositionValue = false;
+  let cappedByFloat = false;
+  let cappedByFloatAdjustment = false;
 
   if (stopLossPrice) {
     stop = Number(stopLossPrice);
@@ -42,13 +60,33 @@ export function calcPosition({
       throw new Error('Stop loss must be below entry for long, above for short');
     }
 
-    const risk = riskAmount ?? accountPositionValue;
-    const riskShares = Math.max(1, Math.round(risk / riskPerShare));
-    shares = Math.min(riskShares, maxSharesByBalance);
+    const riskShares = Math.max(1, Math.round(resolvedRiskAmount / riskPerShare));
+    let resolvedShares = Math.min(riskShares, maxSharesByBalance);
+    if (resolvedShares < riskShares && resolvedShares === maxSharesByBalance) {
+      cappedByBalance = true;
+    }
+
+    if (isFloatAware) {
+      const categoryMaxFloatPercent = category?.max_float_percent ?? category?.maxFloatPercent;
+      if (Number.isFinite(Number(categoryMaxFloatPercent)) && Number(categoryMaxFloatPercent) > 0) {
+        const maxByFloat = Math.max(1, Math.floor(shareFloat * (Number(categoryMaxFloatPercent) / 100)));
+        if (resolvedShares > maxByFloat) {
+          cappedByFloat = true;
+        }
+        resolvedShares = Math.min(resolvedShares, maxByFloat);
+      }
+      if (resolvedMaxPositionValue != null) {
+        const maxByPositionValue = Math.max(1, Math.floor(resolvedMaxPositionValue / entry));
+        if (resolvedShares > maxByPositionValue) {
+          cappedByPositionValue = true;
+        }
+        resolvedShares = Math.min(resolvedShares, maxByPositionValue);
+      }
+    }
+
+    shares = Math.max(1, resolvedShares);
     mode = 'custom-stop';
   } else {
-    const isFloatAware = shareFloat && floatCategory && floatCategories[floatCategory];
-    const category = isFloatAware ? floatCategories[floatCategory] : null;
     const categoryStopLossPercent = category?.stop_loss_percent ?? category?.stopLossPercent;
     const categoryPositionMultiplier = category?.position_multiplier ?? category?.positionMultiplier;
     const categoryMaxFloatPercent = category?.max_float_percent ?? category?.maxFloatPercent;
@@ -56,7 +94,7 @@ export function calcPosition({
     stop = isLong ? entry * (1 - stopPctValue) : entry * (1 + stopPctValue);
     riskPerShare = Math.abs(entry - stop);
 
-    const riskShares = Math.floor((riskAmount || 1500) / riskPerShare);
+    const riskShares = Math.max(1, Math.floor(resolvedRiskAmount / riskPerShare));
 
     if (isFloatAware) {
       const baseShares = Math.floor(accountPositionValue / entry);
@@ -70,18 +108,32 @@ export function calcPosition({
         1,
         Math.min(riskShares, adjustedShares, maxByFloat, maxByPositionValue, maxSharesByBalance)
       );
+      if (shares < riskShares && shares === maxSharesByBalance) cappedByBalance = true;
+      if (shares < riskShares && Number.isFinite(maxByPositionValue) && shares === maxByPositionValue) {
+        cappedByPositionValue = true;
+      }
+      if (shares < riskShares && shares === maxByFloat) cappedByFloat = true;
+      if (shares < riskShares && shares === adjustedShares) cappedByFloatAdjustment = true;
       mode = 'float-aware';
     } else {
-      const allowedPositionValue =
-        resolvedMaxPositionValue != null ? Math.min(accountPositionValue, resolvedMaxPositionValue) : accountPositionValue;
-      const maxSharesByPosition = Math.floor(allowedPositionValue / entry);
-      shares = Math.max(1, Math.min(riskShares, maxSharesByPosition, maxSharesByBalance));
+      shares = Math.max(1, Math.min(riskShares, maxSharesByBalance));
+      if (shares < riskShares && shares === maxSharesByBalance) {
+        cappedByBalance = true;
+      }
       mode = 'entry-only';
     }
   }
 
   const positionValue = shares * entry;
   const actualRisk = shares * riskPerShare;
+  const requestedRisk = resolvedRiskAmount;
+  const riskUtilizationPct = requestedRisk > 0 ? (actualRisk / requestedRisk) * 100 : 100;
+  const capReasons = [];
+  if (cappedByBalance) capReasons.push('account buying power');
+  if (cappedByPositionValue) capReasons.push('max position value');
+  if (cappedByFloat) capReasons.push('float liquidity cap');
+  if (cappedByFloatAdjustment) capReasons.push('float multiplier');
+  const capReason = capReasons.length > 0 ? capReasons.join(', ') : null;
   const target = isLong
     ? entry + riskPerShare * riskRewardRatio
     : entry - riskPerShare * riskRewardRatio;
@@ -98,6 +150,13 @@ export function calcPosition({
     positionValue: round(positionValue, 2),
     actualRisk: round(actualRisk, 2),
     actualRiskPct: round(actualRiskPct, 2),
+    requestedRisk: round(requestedRisk, 2),
+    riskUtilizationPct: round(riskUtilizationPct, 2),
+    cappedByBalance,
+    cappedByPositionValue,
+    cappedByFloat,
+    cappedByFloatAdjustment,
+    capReason,
     riskLevel,
     targetProfit: round(targetProfit, 2),
     riskRewardRatio,

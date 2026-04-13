@@ -85,6 +85,9 @@ export default function ResultsDisplay({
   shares,
   positionValue,
   actualRisk,
+  requestedRisk,
+  riskUtilizationPct,
+  capReason,
   riskRewardRatio,
   direction,
   mode,
@@ -161,6 +164,21 @@ export default function ResultsDisplay({
   const riskLevelPct = Number.isFinite(Number(actualRisk)) && Number.isFinite(Number(positionValue)) && Number(positionValue) > 0
     ? ((Number(actualRisk) / Number(positionValue)) * 100).toFixed(1)
     : null;
+  const riskUsageSubtext = (() => {
+    const targetRisk = Number(requestedRisk);
+    const utilization = Number(riskUtilizationPct);
+    const hasTargetRisk = Number.isFinite(targetRisk) && targetRisk > 0;
+    const hasUtilization = Number.isFinite(utilization) && utilization >= 0;
+    const hasCapReason = Boolean(String(capReason || '').trim());
+
+    if (!hasTargetRisk && !hasCapReason) return null;
+
+    const parts = [];
+    if (hasTargetRisk) parts.push(`Target ${asMoney(targetRisk)}`);
+    if (hasUtilization) parts.push(`${utilization.toFixed(1)}% used`);
+    if (hasCapReason) parts.push(`Limited by ${capReason}`);
+    return parts.join(' | ');
+  })();
   const timerButtonLabel = isTimerRunning
     ? 'Pause Timer'
     : isExpired
@@ -342,7 +360,12 @@ export default function ResultsDisplay({
         <MetricCard label="Entry" value={asMoney(entryPrice)} tone="success" />
         <MetricCard label="Stop" value={asMoney(stopLossPrice)} tone="danger" />
         <MetricCard label="Total Cost" value={asWholeMoney(positionValue)} />
-        <MetricCard label="Risk Amount" value={asMoney(actualRisk)} tone="danger" />
+        <MetricCard
+          label="Risk Deployed"
+          value={asMoney(actualRisk)}
+          subtext={riskUsageSubtext}
+          tone="danger"
+        />
 
         <div
           className={cn(

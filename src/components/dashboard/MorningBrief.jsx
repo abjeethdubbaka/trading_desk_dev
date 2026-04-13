@@ -1,106 +1,175 @@
-/**
- * @file src/components/dashboard/MorningBrief.jsx
- *
- * Phase 2 — receives trades as a prop (already fetched from Firebase by Dashboard).
- * Uses calcCoreStats from calculations/trades.js instead of its own import.
- * Retains the AI morning brief functionality.
- */
-
 import React, { useState, useEffect, useCallback } from 'react';
-import { Sparkles, RefreshCw, Loader2 }             from 'lucide-react';
-import { calcCoreStats }                             from '@/lib/calculations/trades';
+import { Sparkles, RefreshCw, Loader2 } from 'lucide-react';
+import { calcCoreStats } from '@/lib/calculations/trades';
+import {
+  requestMorningBrief,
+  getDefaultMorningBriefModel,
+} from '@/lib/ai/services/assistantChatService';
 
 const CACHE_KEY = 'morningBrief';
-const todayKey  = () => new Date().toISOString().slice(0, 10);
-
-async function fetchBrief(_trades) {
-  // DISABLED: Direct API calls from browser are blocked by CORS and expose API keys
-  // This should be moved to a backend API endpoint
-  
-  throw new Error('AI functionality disabled - requires backend API');
-  
-  // Original code (commented out for security):
-  /*
-  const recent = trades.slice(0, 10);
-  const s      = calcCoreStats(recent);
-
-  const res = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      model:      'claude-sonnet-4-20250514',
-      max_tokens: 300,
-      messages: [{
-        role:    'user',
-        content: `You are a trading coach. Give exactly 3 short data-driven observations about this trader's recent performance.
-Win rate: ${s.winRate.toFixed(0)}% | Avg R: ${s.avgR.toFixed(2)} | P&L: $${s.totalPnL.toFixed(0)} | Avg win: $${s.avgWin.toFixed(0)} | Avg loss: $${Math.abs(s.avgLoss).toFixed(0)}
-Setups: ${[...new Set(recent.map(t => t.setup_type).filter(Boolean))].join(', ') || 'varied'}
-Emotions: ${[...new Set(recent.map(t => t.emotions).filter(Boolean))].join(', ') || 'not logged'}
-Plan followed: ${recent.length ? ((recent.filter(t => t.followed_plan).length / recent.length) * 100).toFixed(0) : 0}%
-Return ONLY JSON array: [{"type":"positive"|"warning"|"focus","text":"<max 20 words, specific>"}]`,
-      }],
-    }),
-  });
-
-  const data = await res.json();
-  const raw  = data.content?.find(b => b.type === 'text')?.text ?? '[]';
-  return JSON.parse(raw.replace(/```json\n?|```\n?/g, '').trim());
-  */
-}
+const todayKey = () => new Date().toISOString().slice(0, 10);
+const MORNING_BRIEF_MODEL =
+  import.meta.env.VITE_OLLAMA_MORNING_BRIEF_MODEL ||
+  getDefaultMorningBriefModel();
 
 const STYLE = {
-  positive: { border:'border-emerald-500/25 bg-emerald-500/8', dot:'bg-emerald-400', text:'text-emerald-300/90' },
-  warning:  { border:'border-amber-500/25 bg-amber-500/8',     dot:'bg-amber-400',   text:'text-amber-300/90'   },
-  focus:    { border:'border-blue-500/25 bg-blue-500/8',       dot:'bg-blue-400',    text:'text-blue-300/90'    },
+  positive: {
+    border: 'border-emerald-500/25 bg-emerald-500/8',
+    dot: 'bg-emerald-400',
+    text: 'text-emerald-300/90',
+  },
+  warning: {
+    border: 'border-amber-500/25 bg-amber-500/8',
+    dot: 'bg-amber-400',
+    text: 'text-amber-300/90',
+  },
+  focus: {
+    border: 'border-blue-500/25 bg-blue-500/8',
+    dot: 'bg-blue-400',
+    text: 'text-blue-300/90',
+  },
 };
 
+function toFiniteNumber(value, fallback = 0) {
+  const numericValue = Number(value);
+  return Number.isFinite(numericValue) ? numericValue : fallback;
+}
+
+function getTopValues(values = [], limit = 4) {
+  const counts = new Map();
+
+  values
+    .map((item) => String(item ?? '').trim())
+    .filter(Boolean)
+    .forEach((item) => counts.set(item, (counts.get(item) || 0) + 1));
+
+  return [...counts.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, limit)
+    .map(([value]) => value);
+}
+
+function collectEmotions(trades = []) {
+  const values = [];
+
+  trades.forEach((trade) => {
+    if (Array.isArray(trade?.emotions)) {
+      trade.emotions.forEach((item) => values.push(item));
+      return;
+    }
+
+    if (trade?.emotions) {
+      values.push(trade.emotions);
+    }
+  });
+
+  return values;
+}
+
+function buildBriefContext(trades = []) {
+  const recentTrades = trades.slice(0, 10);
+  const stats = calcCoreStats(recentTrades);
+  const planFollowedCount = recentTrades.filter((trade) => trade?.followed_plan === true).length;
+  const planFollowedPct = recentTrades.length
+    ? (planFollowedCount / recentTrades.length) * 100
+    : 0;
+
+  return {
+    trade_count: recentTrades.length,
+    win_rate: toFiniteNumber(stats?.winRate, 0),
+    avg_r: toFiniteNumber(stats?.avgR, 0),
+    total_pnl: toFiniteNumber(stats?.totalPnL, 0),
+    avg_win: toFiniteNumber(stats?.avgWin, 0),
+    avg_loss: toFiniteNumber(stats?.avgLoss, 0),
+    plan_followed_pct: planFollowedPct,
+    top_setups: getTopValues(recentTrades.map((trade) => trade?.setup_type), 4),
+    top_emotions: getTopValues(collectEmotions(recentTrades), 4),
+  };
+}
+
+function buildFallbackBrief(briefContext = {}) {
+  const winRate = toFiniteNumber(briefContext.win_rate, 0);
+  const tradeCount = Math.max(0, Math.round(toFiniteNumber(briefContext.trade_count, 0)));
+  const totalPnl = toFiniteNumber(briefContext.total_pnl, 0);
+  const avgR = toFiniteNumber(briefContext.avg_r, 0);
+
+  return [
+    {
+      type: 'focus',
+      text: `Win rate ${winRate.toFixed(0)}% across ${tradeCount} recent trades. Stay selective.`,
+    },
+    {
+      type: totalPnl >= 0 ? 'positive' : 'warning',
+      text: `Recent P&L ${totalPnl >= 0 ? '+' : '-'}$${Math.abs(totalPnl).toFixed(0)}. Keep risk consistent.`,
+    },
+    {
+      type: 'focus',
+      text: `Average R ${avgR.toFixed(2)}. Keep targeting setups above 1.5R.`,
+    },
+  ];
+}
+
 export default function MorningBrief({ trades = [] }) {
-  const [brief,   setBrief]   = useState(null);
+  const [brief, setBrief] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [error,   setError]   = useState(null);
+  const [error, setError] = useState(null);
 
-  const load = useCallback(async (force = false) => {
-    if (!trades.length) return;
+  const load = useCallback(
+    async (force = false) => {
+      if (!trades.length) {
+        setBrief(null);
+        setError(null);
+        return;
+      }
 
-    if (!force) {
+      const briefContext = buildBriefContext(trades);
+
+      if (!force) {
+        try {
+          const cached = JSON.parse(localStorage.getItem(CACHE_KEY) || '{}');
+          if (
+            cached?.date === todayKey() &&
+            cached?.model === MORNING_BRIEF_MODEL &&
+            Array.isArray(cached?.items) &&
+            cached.items.length
+          ) {
+            setBrief(cached.items);
+            return;
+          }
+        } catch {}
+      }
+
+      setLoading(true);
+      setError(null);
+
       try {
-        const c = JSON.parse(localStorage.getItem(CACHE_KEY) || '{}');
-        if (c.date === todayKey() && c.items?.length) { setBrief(c.items); return; }
-      } catch {}
-    }
+        const result = await requestMorningBrief({
+          briefContext,
+          model: MORNING_BRIEF_MODEL,
+        });
 
-    setLoading(true);
-    setError(null);
-    
-    try {
-      const result = await fetchBrief(trades);
-      setBrief(result);
-      localStorage.setItem(CACHE_KEY, JSON.stringify({ date: todayKey(), items: result }));
-    } catch {
-      
-      // Show placeholder insights based on basic stats
-      const stats = calcCoreStats(trades.slice(0, 10));
-      setBrief([
-        {
-          type: "focus",
-          text: `Review your recent ${stats.winRate.toFixed(0)}% win rate strategy`
-        },
-        {
-          type: stats.totalPnL > 0 ? "positive" : "warning",
-          text: `Current P&L trend: $${stats.totalPnL.toFixed(0)} this period`
-        },
-        {
-          type: "focus", 
-          text: `Average R-multiple: ${stats.avgR.toFixed(2)} - aim for 1.5+`
-        }
-      ]);
-      setError('AI insights unavailable - showing basic analysis');
-    } finally {
-      setLoading(false);
-    }
-  }, [trades]);
+        setBrief(result);
+        localStorage.setItem(
+          CACHE_KEY,
+          JSON.stringify({
+            date: todayKey(),
+            model: MORNING_BRIEF_MODEL,
+            items: result,
+          })
+        );
+      } catch (requestError) {
+        setBrief(buildFallbackBrief(briefContext));
+        setError(requestError?.message || 'AI insights unavailable - showing basic analysis');
+      } finally {
+        setLoading(false);
+      }
+    },
+    [trades]
+  );
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    load();
+  }, [load]);
 
   return (
     <div className="bg-[#13131e] border border-white/8 rounded-2xl p-5 flex flex-col gap-4">
@@ -108,7 +177,7 @@ export default function MorningBrief({ trades = [] }) {
         <div className="flex items-center gap-2">
           <Sparkles className="w-4 h-4 text-purple-400" />
           <span className="text-sm font-semibold">Morning Brief</span>
-          <span className="text-[10px] text-white/30">AI · updates daily</span>
+          <span className="text-[10px] text-white/30">Ollama | updates daily</span>
         </div>
         <button
           onClick={() => load(true)}
@@ -123,7 +192,7 @@ export default function MorningBrief({ trades = [] }) {
       {loading && (
         <div className="flex flex-col items-center justify-center gap-2 py-6 text-white/40">
           <Loader2 className="w-5 h-5 animate-spin" />
-          <p className="text-xs">Claude is reading your trades…</p>
+          <p className="text-xs">AI is reading your trades...</p>
         </div>
       )}
 
@@ -141,12 +210,12 @@ export default function MorningBrief({ trades = [] }) {
 
       {!loading && brief && (
         <div className="flex flex-col gap-2">
-          {brief.map((item, i) => {
-            const s = STYLE[item.type] ?? STYLE.focus;
+          {brief.map((item, index) => {
+            const style = STYLE[item.type] ?? STYLE.focus;
             return (
-              <div key={i} className={`rounded-lg border px-3 py-2.5 flex items-start gap-2.5 ${s.border}`}>
-                <div className={`w-1.5 h-1.5 rounded-full mt-1.5 flex-shrink-0 ${s.dot}`} />
-                <p className={`text-xs leading-relaxed ${s.text}`}>{item.text}</p>
+              <div key={index} className={`rounded-lg border px-3 py-2.5 flex items-start gap-2.5 ${style.border}`}>
+                <div className={`w-1.5 h-1.5 rounded-full mt-1.5 flex-shrink-0 ${style.dot}`} />
+                <p className={`text-xs leading-relaxed ${style.text}`}>{item.text}</p>
               </div>
             );
           })}
@@ -155,5 +224,3 @@ export default function MorningBrief({ trades = [] }) {
     </div>
   );
 }
-
-

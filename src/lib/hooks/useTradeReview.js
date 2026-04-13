@@ -1,7 +1,19 @@
 import { useState, useCallback } from 'react';
+import {
+  requestTradeReview,
+  getDefaultTradeReviewModel,
+} from '@/lib/ai/services/assistantChatService';
+import {
+  getTradeReviewUsefulness,
+  setTradeReviewUsefulness,
+  upsertTradeReviewLearning,
+} from '@/lib/ai/services/learningLoopService';
 
 const CACHE_KEY = 'tradeReviewCache';
 const TTL = 24 * 60 * 60 * 1000;
+const TRADE_REVIEW_MODEL =
+  import.meta.env.VITE_OLLAMA_TRADE_REVIEW_MODEL ||
+  getDefaultTradeReviewModel();
 
 function readCache(id) {
   try {
@@ -24,80 +36,55 @@ function writeCache(id, data) {
 export function useTradeReview() {
   const [reviews, setReviews] = useState({});
   const [loading, setLoading] = useState({});
+  const [usefulnessById, setUsefulnessById] = useState({});
+
+  const syncLearningRecord = useCallback((trade, review) => {
+    const learningRecord = upsertTradeReviewLearning({
+      trade,
+      review,
+      model: TRADE_REVIEW_MODEL,
+    });
+
+    const tradeId = String(trade?.id || '');
+    if (!tradeId) return;
+
+    const usefulness =
+      learningRecord && typeof learningRecord.usefulness === 'boolean'
+        ? learningRecord.usefulness
+        : getTradeReviewUsefulness(tradeId);
+
+    if (usefulness == null) return;
+    setUsefulnessById((prev) => ({ ...prev, [tradeId]: usefulness }));
+  }, []);
 
   const reviewTrade = useCallback(async (trade) => {
-    const id = trade.id;
+    const id = String(trade?.id || '');
+    if (!id) return;
+
     const cached = readCache(id);
     if (cached) {
+      syncLearningRecord(trade, cached);
       setReviews((p) => ({ ...p, [id]: cached }));
       return;
     }
 
     setLoading((p) => ({ ...p, [id]: true }));
     try {
-      // Placeholder data instead of API call to avoid CORS issues
-      await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate API delay
+      const parsed = await requestTradeReview({
+        trade,
+        model: TRADE_REVIEW_MODEL,
+      });
 
-      // Generate placeholder review based on trade data
-      const pnl = trade.pnl || 0;
-      const isProfit = pnl >= 0;
-      const rMultiple = parseFloat(trade.r_multiple) || 0;
-
-      let grade = 'C';
-      let verdict = 'breakeven';
-      let whatWentWell = 'Entry timing was reasonable';
-      let whatToImprove = 'Risk management needs work';
-      let keyLesson = 'Always set proper stop losses';
-      let nextTime = 'Focus on discipline';
-
-      // Generate dynamic placeholder based on trade performance
-      if (isProfit && rMultiple >= 2) {
-        grade = 'A';
-        verdict = 'win';
-        whatWentWell = 'Excellent risk/reward ratio';
-        whatToImprove = 'Consider position sizing';
-        keyLesson = 'Patience pays off';
-        nextTime = 'Maintain strategy';
-      } else if (isProfit && rMultiple >= 1) {
-        grade = 'B';
-        verdict = 'win';
-        whatWentWell = 'Good trade execution';
-        whatToImprove = 'Better entry timing';
-        keyLesson = 'Stick to plan';
-        nextTime = 'Be more patient';
-      } else if (!isProfit && rMultiple < 1) {
-        grade = 'D';
-        verdict = 'loss';
-        whatWentWell = 'Quick exit saved capital';
-        whatToImprove = 'Better stop loss placement';
-        keyLesson = 'Risk management is key';
-        nextTime = 'Set tighter stops';
-      } else if (!isProfit) {
-        grade = 'F';
-        verdict = 'loss';
-        whatWentWell = 'Accepted the loss';
-        whatToImprove = 'Better trade selection';
-        keyLesson = 'Cut losses quickly';
-        nextTime = 'Be more selective';
-      }
-
-      const parsed = {
-        grade,
-        verdict,
-        what_went_well: whatWentWell,
-        what_to_improve: whatToImprove,
-        key_lesson: keyLesson,
-        next_time: nextTime
-      };
-
+      syncLearningRecord(trade, parsed);
       setReviews((p) => ({ ...p, [id]: parsed }));
       writeCache(id, parsed);
-    } catch {
-      setReviews((p) => ({ ...p, [id]: { error: 'Review failed. Check API connection.' } }));
+    } catch (error) {
+      const message = String(error?.message || 'Review failed. Check Ollama connection and model.');
+      setReviews((p) => ({ ...p, [id]: { error: message } }));
     } finally {
       setLoading((p) => ({ ...p, [id]: false }));
     }
-  }, []);
+  }, [syncLearningRecord]);
 
   const clearReview = useCallback((id) => {
     setReviews((p) => {
@@ -112,7 +99,26 @@ export function useTradeReview() {
     } catch {}
   }, []);
 
-  return { reviews, loading, reviewTrade, clearReview };
+  const rateReviewUsefulness = useCallback((tradeId, usefulness) => {
+    const id = String(tradeId || '');
+    if (!id) return;
+
+    const nextValue = usefulness == null ? null : Boolean(usefulness);
+    setTradeReviewUsefulness(id, nextValue);
+    setUsefulnessById((prev) => ({
+      ...prev,
+      [id]: nextValue,
+    }));
+  }, []);
+
+  return {
+    reviews,
+    loading,
+    reviewTrade,
+    clearReview,
+    usefulnessById,
+    rateReviewUsefulness,
+  };
 }
 
 

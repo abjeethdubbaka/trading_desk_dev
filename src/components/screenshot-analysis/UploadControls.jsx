@@ -49,7 +49,7 @@ export default function UploadControls({
             className="gap-2"
           >
             <Sparkles className="w-4 h-4" />
-            {isAnalyzing ? 'Analyzing…' : 'Run AI Analysis'}
+            {isAnalyzing ? 'Analyzing...' : 'Run AI Analysis'}
           </Button>
 
           <Button variant="outline" onClick={onSave} disabled={!canSave} className="gap-2">
@@ -72,12 +72,12 @@ export default function UploadControls({
 
           {analysisProgress && (
             <span className="text-blue-400">
-              Analyzing {analysisProgress.done}/{analysisProgress.total}…
+              Analyzing {analysisProgress.done}/{analysisProgress.total}...
             </span>
           )}
         </div>
 
-        {/* Live progress bar — only visible during analysis */}
+        {/* Live progress bar - only visible during analysis */}
         {analysisProgress && (
           <div className="space-y-1">
             <div className="h-1.5 bg-white/10 rounded-full overflow-hidden">
@@ -87,7 +87,7 @@ export default function UploadControls({
               />
             </div>
             <p className="text-xs text-white/30">
-              Claude Vision is reading each chart — results appear card by card
+              Gemma 4 is reading each chart - results appear card by card
             </p>
           </div>
         )}
@@ -95,12 +95,10 @@ export default function UploadControls({
         {/* Tip when no images yet */}
         {uploadedCount === 0 && (
           <p className="text-xs text-white/30">
-            Upload one or more chart screenshots, then click "Run AI Analysis" — Claude will read each image and pre-fill all fields.
+            Upload one or more chart screenshots, then click "Run AI Analysis" - Gemma 4 will read each image and pre-fill all fields.
           </p>
         )}
       </CardContent>
     </Card>
   );
 }
-
-

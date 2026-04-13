@@ -20,6 +20,8 @@ export function CompactTradeRow({
   reviewLoading,
   onReviewTrade,
   onClearReview,
+  reviewUsefulness,
+  onRateReviewUsefulness,
   screenshotUrls,
   screenshotStatuses,
   onOpenImage,
@@ -339,6 +341,8 @@ export function CompactTradeRow({
             isOpen={reviewOpen}
             onToggle={() => setReviewOpen((open) => !open)}
             onClear={onClearReview}
+            usefulness={reviewUsefulness}
+            onSetUsefulness={onRateReviewUsefulness}
           />
         </div>
       )}
