@@ -1,3 +1,5 @@
+import { requestSecureAI, SECURE_AI_KINDS } from './secureAIBridge';
+
 const OLLAMA_BASE_URL = import.meta.env.VITE_OLLAMA_BASE_URL || 'http://localhost:11434/api/chat';
 const DEFAULT_CHAT_MODEL =
   import.meta.env.VITE_OLLAMA_CHAT_MODEL ||
@@ -399,6 +401,22 @@ async function requestTradeReviewViaEndpoint({
   model = DEFAULT_TRADE_REVIEW_MODEL,
 }) {
   const resolvedModel = resolveModelName(model);
+  const requestBody = {
+    task: 'trade_review',
+    model: resolvedModel,
+    trade: sanitizeTradeForReviewPrompt(trade),
+  };
+
+  const secureResponse = await requestSecureAI(
+    SECURE_AI_KINDS.TRADE_REVIEW,
+    requestBody,
+    { timeoutMs: TRADE_REVIEW_TIMEOUT_MS, allowFallback: true }
+  );
+
+  if (secureResponse) {
+    return normalizeTradeReviewResult(secureResponse?.review ?? secureResponse?.result ?? secureResponse);
+  }
+
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), TRADE_REVIEW_TIMEOUT_MS);
 
@@ -412,11 +430,7 @@ async function requestTradeReviewViaEndpoint({
       method: 'POST',
       headers,
       signal: controller.signal,
-      body: JSON.stringify({
-        task: 'trade_review',
-        model: resolvedModel,
-        trade: sanitizeTradeForReviewPrompt(trade),
-      }),
+      body: JSON.stringify(requestBody),
     });
 
     if (!response.ok) {
@@ -441,6 +455,22 @@ async function requestMorningBriefViaEndpoint({
   model = DEFAULT_MORNING_BRIEF_MODEL,
 }) {
   const resolvedModel = resolveModelName(model);
+  const requestBody = {
+    task: 'morning_brief',
+    model: resolvedModel,
+    context: sanitizeMorningBriefContext(briefContext),
+  };
+
+  const secureResponse = await requestSecureAI(
+    SECURE_AI_KINDS.MORNING_BRIEF,
+    requestBody,
+    { timeoutMs: MORNING_BRIEF_TIMEOUT_MS, allowFallback: true }
+  );
+
+  if (secureResponse) {
+    return normalizeMorningBriefItems(secureResponse?.items ?? secureResponse?.brief ?? secureResponse, briefContext);
+  }
+
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), MORNING_BRIEF_TIMEOUT_MS);
 
@@ -454,11 +484,7 @@ async function requestMorningBriefViaEndpoint({
       method: 'POST',
       headers,
       signal: controller.signal,
-      body: JSON.stringify({
-        task: 'morning_brief',
-        model: resolvedModel,
-        context: sanitizeMorningBriefContext(briefContext),
-      }),
+      body: JSON.stringify(requestBody),
     });
 
     if (!response.ok) {
@@ -485,6 +511,28 @@ async function requestOllama({
   format,
 }) {
   const resolvedModel = resolveModelName(model);
+
+  const body = {
+    model: resolvedModel,
+    stream: false,
+    options: { temperature },
+    messages,
+  };
+
+  if (format) {
+    body.format = format;
+  }
+
+  const securePayload = await requestSecureAI(
+    SECURE_AI_KINDS.OLLAMA_CHAT,
+    body,
+    { timeoutMs: OLLAMA_TIMEOUT_MS, allowFallback: true }
+  );
+
+  if (securePayload) {
+    return securePayload;
+  }
+
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), OLLAMA_TIMEOUT_MS);
 
@@ -492,17 +540,6 @@ async function requestOllama({
     const headers = { 'Content-Type': 'application/json' };
     if (OLLAMA_API_KEY) {
       headers.Authorization = `Bearer ${OLLAMA_API_KEY}`;
-    }
-
-    const body = {
-      model: resolvedModel,
-      stream: false,
-      options: { temperature },
-      messages,
-    };
-
-    if (format) {
-      body.format = format;
     }
 
     const response = await fetch(OLLAMA_BASE_URL, {

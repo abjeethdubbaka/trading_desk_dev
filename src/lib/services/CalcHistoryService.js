@@ -16,7 +16,8 @@ export class CalcHistoryService {
   _readFromStorage() {
     try {
       const data = localStorage.getItem(this.storageKey);
-      return data ? JSON.parse(data) : [];
+      const parsed = data ? JSON.parse(data) : [];
+      return Array.isArray(parsed) ? parsed : [];
     } catch {
       return [];
     }
@@ -35,16 +36,16 @@ export class CalcHistoryService {
   // Create calculation record
   async create(calcData) {
     try {
+      // Enrich first so required defaults (like timestamp) are present before validation.
+      const enrichedCalc = this._enrichCalculation(calcData);
+
       // Validate the calculation data
-      const validation = validateSchema(CalcHistorySchema, calcData);
+      const validation = validateSchema(CalcHistorySchema, enrichedCalc);
       
       if (!validation.isValid) {
         throw new Error(`Calculation validation failed: ${validation.errors.join(', ')}`);
       }
 
-      // Enrich with metadata
-      const enrichedCalc = this._enrichCalculation(calcData);
-      
       // Generate ID and timestamp
       const record = {
         ...enrichedCalc,
@@ -66,6 +67,20 @@ export class CalcHistoryService {
     }
   }
 
+  async getByType(calculationType, options = {}) {
+    if (!calculationType) return [];
+    return this.list({ ...options, calculation_type: calculationType });
+  }
+
+  async getBySymbol(symbol, options = {}) {
+    if (!symbol) return [];
+    return this.list({ ...options, symbol });
+  }
+
+  async getRecent(limit = 50, options = {}) {
+    return this.list({ ...options, limit });
+  }
+
   // Get calculation by ID
   async get(id) {
     try {
@@ -79,25 +94,32 @@ export class CalcHistoryService {
   // List all calculations
   async list(options = {}) {
     try {
+      const normalizedOptions = this._normalizeListOptions(options);
       let calculations = this._readFromStorage();
       
       // Apply filters if provided
-      if (options.symbol) {
+      if (normalizedOptions.symbol) {
         calculations = calculations.filter(calc => 
-          calc.symbol?.toLowerCase() === options.symbol.toLowerCase()
+          String(calc.symbol || '').toLowerCase() === normalizedOptions.symbol
+        );
+      }
+
+      if (normalizedOptions.calculation_type) {
+        calculations = calculations.filter(calc =>
+          String(calc.calculation_type || '').toLowerCase() === normalizedOptions.calculation_type
         );
       }
       
-      if (options.from) {
-        const fromDate = new Date(options.from);
+      if (normalizedOptions.from) {
+        const fromDate = new Date(normalizedOptions.from);
         calculations = calculations.filter(calc => {
           const calcDate = new Date(calc.timestamp || calc.created_at || 0);
           return calcDate >= fromDate;
         });
       }
       
-      if (options.to) {
-        const toDate = new Date(options.to);
+      if (normalizedOptions.to) {
+        const toDate = new Date(normalizedOptions.to);
         calculations = calculations.filter(calc => {
           const calcDate = new Date(calc.timestamp || calc.created_at || 0);
           return calcDate <= toDate;
@@ -112,8 +134,8 @@ export class CalcHistoryService {
       });
       
       // Apply limit if provided
-      if (options.limit) {
-        calculations = calculations.slice(0, options.limit);
+      if (normalizedOptions.limit) {
+        calculations = calculations.slice(0, normalizedOptions.limit);
       }
       
       return calculations;
@@ -224,7 +246,7 @@ export class CalcHistoryService {
       cutoffDate.setDate(cutoffDate.getDate() - daysOld);
       
       const oldCalculations = await this.list({
-        date_to: cutoffDate.toISOString()
+        to: cutoffDate.toISOString()
       });
       
       const deletedCount = oldCalculations.length;
@@ -292,6 +314,14 @@ export class CalcHistoryService {
   // Private helper methods
   _enrichCalculation(calcData) {
     const enriched = { ...calcData };
+    const defaults = CalcHistorySchema.defaults || {};
+
+    // Apply schema defaults without overriding explicit user values.
+    for (const [key, value] of Object.entries(defaults)) {
+      if (enriched[key] === undefined || enriched[key] === null) {
+        enriched[key] = value;
+      }
+    }
     
     // Add timestamps if missing (support both timestamp and created_at)
     if (!enriched.timestamp && !enriched.created_at) {
@@ -316,6 +346,49 @@ export class CalcHistoryService {
     };
     
     return enriched;
+  }
+
+  _normalizeListOptions(options = {}) {
+    const symbol = String(options.symbol || '').trim().toLowerCase();
+    const calculationType = String(options.calculation_type || '').trim().toLowerCase();
+
+    const from = this._normalizeDateOption(options.from || options.date_from, { endOfDay: false });
+    const to = this._normalizeDateOption(options.to || options.date_to, { endOfDay: true });
+
+    const numericLimit = Number.parseInt(options.limit, 10);
+    const limit = Number.isFinite(numericLimit) && numericLimit > 0 ? numericLimit : null;
+
+    return {
+      symbol: symbol || null,
+      calculation_type: calculationType || null,
+      from,
+      to,
+      limit
+    };
+  }
+
+  _normalizeDateOption(value, { endOfDay = false } = {}) {
+    if (value === undefined || value === null || value === '') return null;
+
+    const normalized = String(value).trim();
+    if (!normalized) return null;
+
+    const isDateOnly = /^\d{4}-\d{2}-\d{2}$/.test(normalized);
+    const date = isDateOnly
+      ? new Date(`${normalized}T00:00:00`)
+      : new Date(normalized);
+
+    if (!Number.isFinite(date.getTime())) return null;
+
+    if (isDateOnly) {
+      if (endOfDay) {
+        date.setHours(23, 59, 59, 999);
+      } else {
+        date.setHours(0, 0, 0, 0);
+      }
+    }
+
+    return date.toISOString();
   }
 
   _broadcast(event, detail) {

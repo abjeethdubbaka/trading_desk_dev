@@ -51,6 +51,12 @@ const navItems = [
     page: 'CalcHistory',
   },
   {
+    name: 'Playbook',
+    description: 'Define setup entry, exit, invalidations, and expected R.',
+    icon: BookOpen,
+    page: 'Playbook',
+  },
+  {
     name: 'Knowledge Base',
     description: 'Reference playbooks, notes, and process docs.',
     icon: Book,

@@ -11,6 +11,8 @@ import { AnalysisTimerProvider } from './lib/context/AnalysisTimerContext';
 import { AuthProvider } from './lib/context/AuthContext';
 import { Suspense } from 'react';
 import LimitNotificationsWatcher from '@/components/notifications/LimitNotificationsWatcher';
+import AppErrorBoundary from '@/lib/components/AppErrorBoundary';
+import GlobalErrorWatcher from '@/lib/components/GlobalErrorWatcher';
 
 const { Pages, Layout, mainPage } = pagesConfig;
 const mainPageKey = mainPage ?? Object.keys(Pages)[0];
@@ -66,25 +68,28 @@ const App = () => {
 
 function RootApp() {
   return (
-    <QueryClientProvider client={queryClientInstance}>
-      <AuthProvider>
-        <SettingsProvider>
-          <AnalysisTimerProvider>
-            <TradingProvider>
-              <Router future={{
-                v7_startTransition: true,
-                v7_relativeSplatPath: true
-              }}>
-                <NavigationTracker />
-                <LimitNotificationsWatcher />
-                <App />
-              </Router>
-              <Toaster />
-            </TradingProvider>
-          </AnalysisTimerProvider>
-        </SettingsProvider>
-      </AuthProvider>
-    </QueryClientProvider>
+    <AppErrorBoundary>
+      <QueryClientProvider client={queryClientInstance}>
+        <AuthProvider>
+          <SettingsProvider>
+            <AnalysisTimerProvider>
+              <TradingProvider>
+                <Router future={{
+                  v7_startTransition: true,
+                  v7_relativeSplatPath: true
+                }}>
+                  <GlobalErrorWatcher />
+                  <NavigationTracker />
+                  <LimitNotificationsWatcher />
+                  <App />
+                </Router>
+                <Toaster />
+              </TradingProvider>
+            </AnalysisTimerProvider>
+          </SettingsProvider>
+        </AuthProvider>
+      </QueryClientProvider>
+    </AppErrorBoundary>
   )
 }
 

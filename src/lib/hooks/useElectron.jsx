@@ -12,15 +12,21 @@ export const useElectron = () => {
     setIsElectron(electron);
     
     if (electron && window.electronAPI) {
-      // Check if getAppVersion method exists before calling it
-      if (typeof window.electronAPI.getAppVersion === 'function') {
-        window.electronAPI.getAppVersion().then(setAppVersion).catch(() => {
-          setAppVersion('Unknown');
-        });
-      } else {
-        // Electron API exists but doesn't have getAppVersion method
+      const getVersionFn =
+        typeof window.electronAPI.getVersion === 'function'
+          ? window.electronAPI.getVersion
+          : typeof window.electronAPI.getAppVersion === 'function'
+            ? window.electronAPI.getAppVersion
+            : null;
+
+      if (!getVersionFn) {
         setAppVersion('Unknown');
+        return;
       }
+
+      getVersionFn().then(setAppVersion).catch(() => {
+        setAppVersion('Unknown');
+      });
     } else if (!electron) {
       // Not running in Electron - set web version
       setAppVersion('Web Version');

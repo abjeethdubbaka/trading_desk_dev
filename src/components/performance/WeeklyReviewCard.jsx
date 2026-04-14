@@ -1,5 +1,6 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { ChevronDown, ChevronRight } from 'lucide-react';
+import { toast } from 'sonner';
 import { cn } from '@/lib/utils/general';
 import InfoHint from '@/components/ui/InfoHint';
 import { buildEquityCurve, calcCoreStats, calcMaxDrawdown } from '@/lib/calculations/trades';
@@ -52,8 +53,69 @@ const isValidTradeDate = (value) => {
   return !Number.isNaN(date.getTime());
 };
 
+const WEEKLY_REVIEW_STORAGE_KEY = 'weeklyReview.workflow.v1';
+const EMPTY_WORKFLOW = Object.freeze({
+  wins: '',
+  improvements: '',
+  nextFocus: '',
+  completed: false,
+  completedAt: '',
+  updatedAt: '',
+});
+
+function getIsoWeekKey(date = new Date()) {
+  const utcDate = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+  const dayNum = utcDate.getUTCDay() || 7;
+  utcDate.setUTCDate(utcDate.getUTCDate() + 4 - dayNum);
+  const yearStart = new Date(Date.UTC(utcDate.getUTCFullYear(), 0, 1));
+  const weekNo = Math.ceil((((utcDate - yearStart) / 86400000) + 1) / 7);
+  return `${utcDate.getUTCFullYear()}-W${String(weekNo).padStart(2, '0')}`;
+}
+
+function readWorkflowStore() {
+  if (typeof window === 'undefined') return {};
+
+  try {
+    const parsed = JSON.parse(localStorage.getItem(WEEKLY_REVIEW_STORAGE_KEY) || '{}');
+    return parsed && typeof parsed === 'object' ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function saveWorkflowStore(store) {
+  if (typeof window === 'undefined') return;
+  localStorage.setItem(WEEKLY_REVIEW_STORAGE_KEY, JSON.stringify(store));
+}
+
+function toWorkflowEntry(value = {}) {
+  return {
+    wins: String(value.wins || ''),
+    improvements: String(value.improvements || ''),
+    nextFocus: String(value.nextFocus || ''),
+    completed: Boolean(value.completed),
+    completedAt: String(value.completedAt || ''),
+    updatedAt: String(value.updatedAt || ''),
+  };
+}
+
+function getCompletedHistory(store = {}, currentWeekKey = '') {
+  return Object.entries(store)
+    .filter(([weekKey, entry]) => weekKey !== currentWeekKey && entry?.completed)
+    .map(([weekKey, entry]) => ({
+      weekKey,
+      ...toWorkflowEntry(entry),
+    }))
+    .sort((left, right) => Date.parse(right.updatedAt || 0) - Date.parse(left.updatedAt || 0))
+    .slice(0, 6);
+}
+
 export default function WeeklyReviewCard({ reviews = [], trades = [], initialBalance = 50000 }) {
   const [isOpen, setIsOpen] = useState(false);
+  const currentWeekKey = useMemo(() => getIsoWeekKey(), []);
+  const [workflow, setWorkflow] = useState(EMPTY_WORKFLOW);
+  const [completedHistory, setCompletedHistory] = useState([]);
+
   const normalized = Array.isArray(reviews) ? reviews : [];
   const monthReview = useMemo(() => {
     const sourceTrades = Array.isArray(trades) ? trades : [];
@@ -99,6 +161,30 @@ export default function WeeklyReviewCard({ reviews = [], trades = [], initialBal
       },
     };
   }, [initialBalance, trades]);
+
+  useEffect(() => {
+    const store = readWorkflowStore();
+    setWorkflow(toWorkflowEntry(store[currentWeekKey]));
+    setCompletedHistory(getCompletedHistory(store, currentWeekKey));
+  }, [currentWeekKey]);
+
+  const saveWorkflow = (markCompleted = false) => {
+    const nextWorkflow = {
+      ...workflow,
+      completed: markCompleted ? true : workflow.completed,
+      completedAt: markCompleted ? new Date().toISOString() : workflow.completedAt,
+      updatedAt: new Date().toISOString(),
+    };
+
+    const store = readWorkflowStore();
+    store[currentWeekKey] = nextWorkflow;
+    saveWorkflowStore(store);
+
+    setWorkflow(nextWorkflow);
+    setCompletedHistory(getCompletedHistory(store, currentWeekKey));
+
+    toast.success(markCompleted ? 'Weekly review marked complete' : 'Weekly review saved');
+  };
 
   if (normalized.length === 0 && !monthReview) return null;
 
@@ -226,6 +312,94 @@ export default function WeeklyReviewCard({ reviews = [], trades = [], initialBal
                 </div>
               );
             })}
+          </div>
+
+          <div className="rounded-xl border border-white/10 bg-black/20 p-3">
+            <div className="mb-2.5 flex items-center justify-between gap-3">
+              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-white/70">
+                Weekly Workflow ({currentWeekKey})
+              </p>
+              <span
+                className={cn(
+                  'rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em]',
+                  workflow.completed
+                    ? 'border-emerald-300/35 bg-emerald-500/15 text-emerald-200'
+                    : 'border-amber-300/35 bg-amber-500/12 text-amber-200'
+                )}
+              >
+                {workflow.completed ? 'Complete' : 'In progress'}
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 gap-2.5 md:grid-cols-3">
+              <label className="space-y-1">
+                <span className="text-[10px] uppercase tracking-[0.14em] text-white/40">Biggest Wins</span>
+                <textarea
+                  value={workflow.wins}
+                  onChange={(event) => setWorkflow((prev) => ({ ...prev, wins: event.target.value }))}
+                  placeholder="What worked best this week?"
+                  className="min-h-[90px] w-full resize-none rounded-lg border border-white/12 bg-white/[0.03] px-2.5 py-2 text-xs text-white outline-none placeholder:text-white/35 focus:border-emerald-300/45"
+                />
+              </label>
+
+              <label className="space-y-1">
+                <span className="text-[10px] uppercase tracking-[0.14em] text-white/40">Main Improvements</span>
+                <textarea
+                  value={workflow.improvements}
+                  onChange={(event) => setWorkflow((prev) => ({ ...prev, improvements: event.target.value }))}
+                  placeholder="Where did execution break down?"
+                  className="min-h-[90px] w-full resize-none rounded-lg border border-white/12 bg-white/[0.03] px-2.5 py-2 text-xs text-white outline-none placeholder:text-white/35 focus:border-emerald-300/45"
+                />
+              </label>
+
+              <label className="space-y-1">
+                <span className="text-[10px] uppercase tracking-[0.14em] text-white/40">Next Week Focus</span>
+                <textarea
+                  value={workflow.nextFocus}
+                  onChange={(event) => setWorkflow((prev) => ({ ...prev, nextFocus: event.target.value }))}
+                  placeholder="1-3 non-negotiable process goals"
+                  className="min-h-[90px] w-full resize-none rounded-lg border border-white/12 bg-white/[0.03] px-2.5 py-2 text-xs text-white outline-none placeholder:text-white/35 focus:border-emerald-300/45"
+                />
+              </label>
+            </div>
+
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => saveWorkflow(false)}
+                className="rounded-lg border border-cyan-300/35 bg-cyan-500/15 px-3 py-1.5 text-xs font-semibold text-cyan-100 hover:bg-cyan-500/25"
+              >
+                Save Draft
+              </button>
+              <button
+                type="button"
+                onClick={() => saveWorkflow(true)}
+                className="rounded-lg border border-emerald-300/35 bg-emerald-500/15 px-3 py-1.5 text-xs font-semibold text-emerald-100 hover:bg-emerald-500/25"
+              >
+                Mark Week Complete
+              </button>
+              {workflow.updatedAt ? (
+                <span className="text-[11px] text-white/45">
+                  Last updated: {new Date(workflow.updatedAt).toLocaleString()}
+                </span>
+              ) : null}
+            </div>
+
+            {completedHistory.length > 0 ? (
+              <div className="mt-3 rounded-lg border border-white/10 bg-white/[0.03] p-2.5">
+                <p className="text-[10px] uppercase tracking-[0.14em] text-white/45">Recent completed weeks</p>
+                <div className="mt-1.5 flex flex-wrap gap-1.5">
+                  {completedHistory.map((item) => (
+                    <span
+                      key={`completed-${item.weekKey}`}
+                      className="rounded-full border border-emerald-300/30 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-medium text-emerald-200"
+                    >
+                      {item.weekKey}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            ) : null}
           </div>
         </>
       ) : null}

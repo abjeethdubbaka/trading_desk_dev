@@ -154,6 +154,7 @@ export const FieldValidations = {
   exit_strategy: [ValidationTypes.OBJECT],
   strategy_steps: [ValidationTypes.ARRAY],
   strategy_steps_by_setup: [ValidationTypes.OBJECT],
+  strategy_playbook: [ValidationTypes.ARRAY],
   
   // Media fields
   file_name: [ValidationTypes.REQUIRED, ValidationTypes.STRING],

@@ -21,6 +21,7 @@ import NotesFields from './NotesFields';
 import ScreenshotUpload from './ScreenshotUpload';
 import DosAndDontsSelector from './DosAndDontsSelector';
 import StrategySignal from './StrategySignal';
+import PlaybookReferenceCard from './PlaybookReferenceCard';
 import { SETUP_TYPE_OPTIONS as DEFAULT_SETUP_TYPE_OPTIONS } from '../constants/tradeConstants';
 
 const CAP_OPTIONS = [
@@ -48,6 +49,7 @@ export default function AddTradeForm({
     strategyRecommendation,
     strategyRecommendedNow,
     setupTypeOptions = DEFAULT_SETUP_TYPE_OPTIONS,
+    selectedPlaybookEntry = null,
     strategyStepsForSetup = [],
     strategyStepResults = [],
     loading,
@@ -173,6 +175,8 @@ export default function AddTradeForm({
         recommendation={strategyRecommendation}
         recommendedNow={strategyRecommendedNow}
       />
+
+      <PlaybookReferenceCard entry={selectedPlaybookEntry} />
 
       {presets.length > 0 && (
         <div className="space-y-2">

@@ -713,21 +713,54 @@ export default function ChatDock({ isOpen = true, onToggle }) {
   }, []);
 
   const applyLiveContext = useCallback(() => {
-    setDecisionForm((prev) => ({
-      ...prev,
-      symbol: isBlank(prev.symbol) ? String(liveDecisionDefaults.symbol || '').toUpperCase() : prev.symbol,
-      setup: isBlank(prev.setup) ? String(liveDecisionDefaults.setup || '') : prev.setup,
-      direction: isBlank(prev.direction) ? String(liveDecisionDefaults.direction || 'long') : prev.direction,
-      entry: isBlank(prev.entry) ? String(liveDecisionDefaults.entry ?? '') : prev.entry,
-      stop: isBlank(prev.stop) ? String(liveDecisionDefaults.stop ?? '') : prev.stop,
-      target: isBlank(prev.target) ? String(liveDecisionDefaults.target ?? '') : prev.target,
-      account_balance: isBlank(prev.account_balance) ? String(liveDecisionDefaults.account_balance ?? '') : prev.account_balance,
-      max_risk_dollars: isBlank(prev.max_risk_dollars) ? String(liveDecisionDefaults.max_risk_dollars ?? '') : prev.max_risk_dollars,
-      today_pnl: isBlank(prev.today_pnl) ? String(liveDecisionDefaults.today_pnl ?? '') : prev.today_pnl,
-      max_daily_loss: isBlank(prev.max_daily_loss) ? String(liveDecisionDefaults.max_daily_loss ?? '') : prev.max_daily_loss,
-      trades_taken_today: isBlank(prev.trades_taken_today) ? String(liveDecisionDefaults.trades_taken_today ?? '') : prev.trades_taken_today,
-      max_daily_trades: isBlank(prev.max_daily_trades) ? String(liveDecisionDefaults.max_daily_trades ?? '') : prev.max_daily_trades,
-    }));
+    setDecisionForm((prev) => {
+      const nextSymbol = isBlank(prev.symbol) ? String(liveDecisionDefaults.symbol || '').toUpperCase() : prev.symbol;
+      const nextSetup = isBlank(prev.setup) ? String(liveDecisionDefaults.setup || '') : prev.setup;
+      const nextDirection = isBlank(prev.direction) ? String(liveDecisionDefaults.direction || 'long') : prev.direction;
+      const nextEntry = isBlank(prev.entry) ? String(liveDecisionDefaults.entry ?? '') : prev.entry;
+      const nextStop = isBlank(prev.stop) ? String(liveDecisionDefaults.stop ?? '') : prev.stop;
+      const nextTarget = isBlank(prev.target) ? String(liveDecisionDefaults.target ?? '') : prev.target;
+      const nextAccountBalance = isBlank(prev.account_balance) ? String(liveDecisionDefaults.account_balance ?? '') : prev.account_balance;
+      const nextMaxRiskDollars = isBlank(prev.max_risk_dollars) ? String(liveDecisionDefaults.max_risk_dollars ?? '') : prev.max_risk_dollars;
+      const nextTodayPnl = isBlank(prev.today_pnl) ? String(liveDecisionDefaults.today_pnl ?? '') : prev.today_pnl;
+      const nextMaxDailyLoss = isBlank(prev.max_daily_loss) ? String(liveDecisionDefaults.max_daily_loss ?? '') : prev.max_daily_loss;
+      const nextTradesTakenToday = isBlank(prev.trades_taken_today) ? String(liveDecisionDefaults.trades_taken_today ?? '') : prev.trades_taken_today;
+      const nextMaxDailyTrades = isBlank(prev.max_daily_trades) ? String(liveDecisionDefaults.max_daily_trades ?? '') : prev.max_daily_trades;
+
+      const hasChanges =
+        nextSymbol !== prev.symbol ||
+        nextSetup !== prev.setup ||
+        nextDirection !== prev.direction ||
+        nextEntry !== prev.entry ||
+        nextStop !== prev.stop ||
+        nextTarget !== prev.target ||
+        nextAccountBalance !== prev.account_balance ||
+        nextMaxRiskDollars !== prev.max_risk_dollars ||
+        nextTodayPnl !== prev.today_pnl ||
+        nextMaxDailyLoss !== prev.max_daily_loss ||
+        nextTradesTakenToday !== prev.trades_taken_today ||
+        nextMaxDailyTrades !== prev.max_daily_trades;
+
+      if (!hasChanges) {
+        return prev;
+      }
+
+      return {
+        ...prev,
+        symbol: nextSymbol,
+        setup: nextSetup,
+        direction: nextDirection,
+        entry: nextEntry,
+        stop: nextStop,
+        target: nextTarget,
+        account_balance: nextAccountBalance,
+        max_risk_dollars: nextMaxRiskDollars,
+        today_pnl: nextTodayPnl,
+        max_daily_loss: nextMaxDailyLoss,
+        trades_taken_today: nextTradesTakenToday,
+        max_daily_trades: nextMaxDailyTrades,
+      };
+    });
   }, [liveDecisionDefaults]);
 
   useEffect(() => {

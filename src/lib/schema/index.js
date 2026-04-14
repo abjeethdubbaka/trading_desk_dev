@@ -128,6 +128,7 @@ export const SettingsSchema = {
     'trading_rules',
     'strategy_steps',
     'strategy_steps_by_setup',
+    'strategy_playbook',
     'pdt_status',
     
     // Performance Tracking
@@ -206,6 +207,7 @@ export const SettingsSchema = {
     },
     strategy_steps: [],
     strategy_steps_by_setup: {},
+    strategy_playbook: [],
     pdt_status: 'enabled', // 'enabled', 'disabled', 'pattern_day_trader'
     
     // Performance Tracking

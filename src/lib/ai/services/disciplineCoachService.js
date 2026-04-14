@@ -1,3 +1,5 @@
+import { requestSecureAI, hasSecureAIBridge, SECURE_AI_KINDS } from './secureAIBridge';
+
 /**
  * Optional LLM overlay service for discipline coaching.
  * Uses a backend endpoint when configured.
@@ -8,11 +10,24 @@ const COACH_API_KEY = import.meta.env.VITE_DISCIPLINE_COACH_API_KEY;
 const COACH_TIMEOUT_MS = Number(import.meta.env.VITE_DISCIPLINE_COACH_TIMEOUT_MS || 12000);
 
 export function isDisciplineCoachEnabled() {
-  return Boolean(COACH_ENDPOINT);
+  return Boolean(COACH_ENDPOINT) || hasSecureAIBridge();
 }
 
 export async function requestDisciplineCoach(snapshot) {
-  if (!isDisciplineCoachEnabled()) {
+  const secureResponse = await requestSecureAI(
+    SECURE_AI_KINDS.DISCIPLINE_COACH,
+    {
+      task: 'discipline_coach_overlay',
+      snapshot: sanitizeSnapshot(snapshot),
+    },
+    { timeoutMs: COACH_TIMEOUT_MS, allowFallback: true }
+  );
+
+  if (secureResponse) {
+    return normalizeCoachResponse(secureResponse);
+  }
+
+  if (!COACH_ENDPOINT) {
     throw new Error('Discipline coach endpoint not configured');
   }
 

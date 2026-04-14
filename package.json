@@ -8,6 +8,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "test": "node --test --experimental-test-isolation=none",
     "build": "vite build",
     "lint": "eslint src --ext .js,.jsx",
     "lint:fix": "eslint src --ext .js,.jsx --fix",
@@ -72,7 +73,7 @@
     },
     "files": [
       "dist/**/*",
-      "public/electron.js",
+      "public/electron.cjs",
       "public/preload.js",
       "node_modules/**/*"
     ],

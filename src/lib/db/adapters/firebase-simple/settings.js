@@ -4,7 +4,7 @@
  * Settings collection operations for Firebase Simple adapter.
  */
 
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { deleteDoc, doc, getDoc, setDoc } from 'firebase/firestore';
 import { broadcast, addUpdateTimestamp } from './utils.js';
 
 export function createSettingsAdapter(db) {
@@ -32,6 +32,16 @@ export function createSettingsAdapter(db) {
         return result;
       } catch (error) {
         
+        throw error;
+      }
+    },
+
+    async clear() {
+      try {
+        await deleteDoc(doc(db, 'settings', 'main'));
+        broadcast('settings-updated', { action: 'clear' });
+        return true;
+      } catch (error) {
         throw error;
       }
     }

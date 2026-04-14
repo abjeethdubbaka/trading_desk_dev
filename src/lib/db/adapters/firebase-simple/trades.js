@@ -7,11 +7,13 @@
 import { 
   collection, doc,
   getDoc, getDocs, addDoc, updateDoc, deleteDoc,
-  query, orderBy, limit as fsLimit,
+  query, where, orderBy, startAfter, limit as fsLimit,
 } from 'firebase/firestore';
 import { broadcast, addCreateTimestamps, addUpdateTimestamp } from './utils.js';
 
-const FIRESTORE_INDEXED_SORT_FIELDS = Object.freeze({
+const DATE_ONLY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+
+export const FIRESTORE_INDEXED_SORT_FIELDS = Object.freeze({
   entry_time: 'entry_time',
   created_date: 'created_date',
   updated_date: 'updated_date',
@@ -23,63 +25,221 @@ const FIRESTORE_INDEXED_SORT_FIELDS = Object.freeze({
   r_multiple: 'r_multiple',
 });
 
+function normalizeText(value) {
+  const normalized = String(value ?? '').trim();
+  return normalized || null;
+}
+
+function toPositiveInteger(value) {
+  const parsed = Number.parseInt(value, 10);
+  if (!Number.isFinite(parsed) || parsed <= 0) return null;
+  return parsed;
+}
+
+export function normalizeDateFilterValue(value, { endOfDay = false } = {}) {
+  if (value === undefined || value === null || value === '') return null;
+
+  if (value instanceof Date) {
+    if (!Number.isFinite(value.getTime())) return null;
+    return value.toISOString();
+  }
+
+  const rawValue = String(value).trim();
+  if (!rawValue) return null;
+
+  const isDateOnly = DATE_ONLY_PATTERN.test(rawValue);
+  const parsedDate = isDateOnly
+    ? new Date(`${rawValue}T00:00:00`)
+    : new Date(rawValue);
+
+  if (!Number.isFinite(parsedDate.getTime())) return null;
+
+  if (isDateOnly) {
+    if (endOfDay) {
+      parsedDate.setHours(23, 59, 59, 999);
+    } else {
+      parsedDate.setHours(0, 0, 0, 0);
+    }
+  }
+
+  return parsedDate.toISOString();
+}
+
+function toTimestamp(value) {
+  const parsed = Date.parse(String(value ?? '').trim());
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function normalizeCursorValue(value, sortBy) {
+  if (value === undefined || value === null || value === '') return null;
+
+  if (sortBy === 'entry_time' || sortBy === 'created_date' || sortBy === 'updated_date') {
+    return normalizeDateFilterValue(value);
+  }
+
+  if (sortBy === 'pnl' || sortBy === 'r_multiple') {
+    const numericValue = Number(value);
+    return Number.isFinite(numericValue) ? numericValue : null;
+  }
+
+  return normalizeText(value) ?? value;
+}
+
+export function normalizeTradeListOptions(options = {}) {
+  const requestedSortBy = normalizeText(options.sortBy) || 'entry_time';
+  let sortBy = FIRESTORE_INDEXED_SORT_FIELDS[requestedSortBy] || 'entry_time';
+  const sortDir = options.sortDir === 'asc' ? 'asc' : 'desc';
+
+  const normalizedOptions = {
+    sortBy,
+    sortDir,
+    limit: toPositiveInteger(options.limit),
+    account_tier: normalizeText(options.account_tier),
+    symbol: normalizeText(options.symbol)?.toUpperCase() || null,
+    direction: normalizeText(options.direction)?.toLowerCase() || null,
+    setup_type: normalizeText(options.setup_type),
+    date_from: normalizeDateFilterValue(options.date_from),
+    date_to: normalizeDateFilterValue(options.date_to, { endOfDay: true }),
+  };
+
+  // Keep range filters queryable on Firestore without requiring extra sort indexes.
+  if ((normalizedOptions.date_from || normalizedOptions.date_to) && sortBy !== 'entry_time') {
+    normalizedOptions.sortBy = 'entry_time';
+  }
+
+  normalizedOptions.after = normalizeCursorValue(options.after, normalizedOptions.sortBy);
+
+  return normalizedOptions;
+}
+
+export function applyTradeClientFilters(trades = [], options = {}) {
+  const normalizedOptions = normalizeTradeListOptions(options);
+  const fromTimestamp = normalizedOptions.date_from ? Date.parse(normalizedOptions.date_from) : null;
+  const toTimestampValue = normalizedOptions.date_to ? Date.parse(normalizedOptions.date_to) : null;
+
+  return trades.filter((trade) => {
+    if (normalizedOptions.account_tier && trade.account_tier !== normalizedOptions.account_tier) {
+      return false;
+    }
+
+    if (normalizedOptions.symbol && String(trade.symbol || '').toUpperCase() !== normalizedOptions.symbol) {
+      return false;
+    }
+
+    if (normalizedOptions.direction && String(trade.direction || '').toLowerCase() !== normalizedOptions.direction) {
+      return false;
+    }
+
+    if (normalizedOptions.setup_type && String(trade.setup_type || '') !== normalizedOptions.setup_type) {
+      return false;
+    }
+
+    if (fromTimestamp || toTimestampValue) {
+      const tradeTimestamp = toTimestamp(trade.entry_time);
+      if (tradeTimestamp === null) return false;
+      if (fromTimestamp && tradeTimestamp < fromTimestamp) return false;
+      if (toTimestampValue && tradeTimestamp > toTimestampValue) return false;
+    }
+
+    return true;
+  });
+}
+
+export function isLikelyFirestoreIndexError(error) {
+  const code = String(error?.code || '').toLowerCase();
+  const message = String(error?.message || '').toLowerCase();
+
+  return (
+    code.includes('failed-precondition') ||
+    message.includes('requires an index') ||
+    message.includes('create it here')
+  );
+}
+
+function hasServerSideFilters(options) {
+  return Boolean(
+    options.account_tier ||
+      options.symbol ||
+      options.direction ||
+      options.setup_type ||
+      options.date_from ||
+      options.date_to
+  );
+}
+
+function buildTradesQuery(tradesRef, options, { includeFilters = true, includeLimit = true } = {}) {
+  const constraints = [];
+
+  if (includeFilters) {
+    if (options.account_tier) constraints.push(where('account_tier', '==', options.account_tier));
+    if (options.symbol) constraints.push(where('symbol', '==', options.symbol));
+    if (options.direction) constraints.push(where('direction', '==', options.direction));
+    if (options.setup_type) constraints.push(where('setup_type', '==', options.setup_type));
+    if (options.date_from) constraints.push(where('entry_time', '>=', options.date_from));
+    if (options.date_to) constraints.push(where('entry_time', '<=', options.date_to));
+  }
+
+  constraints.push(orderBy(options.sortBy, options.sortDir));
+
+  if (options.after !== null && options.after !== undefined) {
+    constraints.push(startAfter(options.after));
+  }
+
+  if (includeLimit && options.limit) {
+    constraints.push(fsLimit(options.limit));
+  }
+
+  return query(tradesRef, ...constraints);
+}
+
 export function createTradesAdapter(db) {
   return {
     async list(options = {}) {
+      const normalizedOptions = normalizeTradeListOptions(options);
+      const tradesRef = collection(db, 'trades');
+
       try {
-        const tradesRef = collection(db, 'trades');
-        let q = query(tradesRef);
-        
-        // For now, fetch all trades and filter client-side to avoid index requirements.
-        const requestedSortBy = options.sortBy || 'entry_time';
-        const sortBy = FIRESTORE_INDEXED_SORT_FIELDS[requestedSortBy] || 'entry_time';
-        const sortDir = options.sortDir === 'asc' ? 'asc' : 'desc';
-        q = query(q, orderBy(sortBy, sortDir));
-        
-        // Add limit if specified
-        if (options.limit) {
-          q = query(q, fsLimit(options.limit));
+        const primaryQuery = buildTradesQuery(tradesRef, normalizedOptions, {
+          includeFilters: true,
+          includeLimit: true,
+        });
+
+        const snap = await getDocs(primaryQuery);
+        let results = snap.docs.map((item) => ({
+          ...item.data(),
+          id: item.id,
+        }));
+
+        // Defensive post-filtering keeps behavior stable across mixed data quality.
+        results = applyTradeClientFilters(results, normalizedOptions);
+        if (normalizedOptions.limit) {
+          results = results.slice(0, normalizedOptions.limit);
         }
 
-        const snap = await getDocs(q);
-        let results = snap.docs.map((doc) => ({
-          ...doc.data(),
-          id: doc.id,
-        }));
-        
-        // Apply client-side filtering
-        if (options.account_tier) {
-          results = results.filter(trade => trade.account_tier === options.account_tier);
-        }
-        
-        if (options.symbol) {
-          results = results.filter(trade => trade.symbol === options.symbol);
-        }
-        
-        if (options.direction) {
-          results = results.filter(trade => trade.direction === options.direction);
-        }
-        
-        // Apply date range filters
-        if (options.date_from) {
-          const fromDate = new Date(options.date_from);
-          results = results.filter(trade => {
-            const entryDate = new Date(trade.entry_time);
-            return entryDate >= fromDate;
-          });
-        }
-        
-        if (options.date_to) {
-          const toDate = new Date(options.date_to);
-          results = results.filter(trade => {
-            const entryDate = new Date(trade.entry_time);
-            return entryDate <= toDate;
-          });
-        }
-        
         return results;
       } catch (error) {
-        throw error;
+        // Graceful fallback for missing composite indexes.
+        if (!isLikelyFirestoreIndexError(error)) {
+          throw error;
+        }
+
+        const fallbackQuery = buildTradesQuery(tradesRef, normalizedOptions, {
+          includeFilters: false,
+          includeLimit: !hasServerSideFilters(normalizedOptions),
+        });
+
+        const fallbackSnap = await getDocs(fallbackQuery);
+        let fallbackResults = fallbackSnap.docs.map((item) => ({
+          ...item.data(),
+          id: item.id,
+        }));
+
+        fallbackResults = applyTradeClientFilters(fallbackResults, normalizedOptions);
+        if (normalizedOptions.limit) {
+          fallbackResults = fallbackResults.slice(0, normalizedOptions.limit);
+        }
+
+        return fallbackResults;
       }
     },
 

@@ -2,6 +2,104 @@ const { app, BrowserWindow, Menu, ipcMain, shell } = require('electron');
 const path = require('path');
 const isDev = !app.isPackaged; // Better way to detect development mode
 
+function readEnv(...keys) {
+  for (const key of keys) {
+    const value = process.env[key];
+    if (typeof value === 'string' && value.trim()) {
+      return value.trim();
+    }
+  }
+  return '';
+}
+
+function readTimeout(defaultValue, ...keys) {
+  const raw = readEnv(...keys);
+  const numericValue = Number(raw);
+  return Number.isFinite(numericValue) && numericValue > 0 ? numericValue : defaultValue;
+}
+
+const SECURE_AI_PROXY = Object.freeze({
+  ollama_chat: {
+    endpoint: readEnv('OLLAMA_BASE_URL', 'VITE_OLLAMA_BASE_URL') || 'http://localhost:11434/api/chat',
+    apiKey: readEnv('OLLAMA_API_KEY', 'VITE_OLLAMA_API_KEY'),
+    timeoutMs: readTimeout(90000, 'OLLAMA_TIMEOUT_MS', 'VITE_OLLAMA_TIMEOUT_MS'),
+  },
+  trade_review: {
+    endpoint: readEnv('TRADE_REVIEW_ENDPOINT', 'VITE_TRADE_REVIEW_ENDPOINT'),
+    apiKey: readEnv('TRADE_REVIEW_API_KEY', 'VITE_TRADE_REVIEW_API_KEY'),
+    timeoutMs: readTimeout(20000, 'TRADE_REVIEW_TIMEOUT_MS', 'VITE_TRADE_REVIEW_TIMEOUT_MS'),
+  },
+  morning_brief: {
+    endpoint: readEnv('MORNING_BRIEF_ENDPOINT', 'VITE_MORNING_BRIEF_ENDPOINT'),
+    apiKey: readEnv('MORNING_BRIEF_API_KEY', 'VITE_MORNING_BRIEF_API_KEY'),
+    timeoutMs: readTimeout(20000, 'MORNING_BRIEF_TIMEOUT_MS', 'VITE_MORNING_BRIEF_TIMEOUT_MS'),
+  },
+  discipline_coach: {
+    endpoint: readEnv('DISCIPLINE_COACH_ENDPOINT', 'VITE_DISCIPLINE_COACH_ENDPOINT'),
+    apiKey: readEnv('DISCIPLINE_COACH_API_KEY', 'VITE_DISCIPLINE_COACH_API_KEY'),
+    timeoutMs: readTimeout(12000, 'DISCIPLINE_COACH_TIMEOUT_MS', 'VITE_DISCIPLINE_COACH_TIMEOUT_MS'),
+  },
+});
+
+async function requestSecureAI(kind, body, timeoutOverrideMs) {
+  const config = SECURE_AI_PROXY[kind];
+
+  if (!config) {
+    throw new Error(`Secure AI unsupported kind: ${kind}`);
+  }
+
+  if (!config.endpoint) {
+    throw new Error(`Secure AI endpoint not configured for kind: ${kind}`);
+  }
+
+  const timeoutMs =
+    Number.isFinite(Number(timeoutOverrideMs)) && Number(timeoutOverrideMs) > 0
+      ? Number(timeoutOverrideMs)
+      : config.timeoutMs;
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    const headers = { 'Content-Type': 'application/json' };
+    if (config.apiKey) {
+      headers.Authorization = `Bearer ${config.apiKey}`;
+    }
+
+    const response = await fetch(config.endpoint, {
+      method: 'POST',
+      headers,
+      signal: controller.signal,
+      body: JSON.stringify(body || {}),
+    });
+
+    const responseText = await response.text();
+
+    if (!response.ok) {
+      throw new Error(
+        `Secure AI ${kind} error ${response.status}: ${String(responseText || '').slice(0, 500)}`
+      );
+    }
+
+    if (!responseText) {
+      return null;
+    }
+
+    try {
+      return JSON.parse(responseText);
+    } catch {
+      return { response: responseText };
+    }
+  } catch (error) {
+    if (error?.name === 'AbortError') {
+      throw new Error(`Secure AI request timed out after ${timeoutMs}ms`);
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 // Keep a global reference of the window object
 let mainWindow;
 let splashWindow;
@@ -322,6 +420,16 @@ ipcMain.handle('show-message-box', async (event, options) => {
 ipcMain.handle('close-app', async () => {
   shutdownApp();
   return true;
+});
+
+ipcMain.handle('secure-ai-request', async (_event, payload = {}) => {
+  const kind = String(payload?.kind || '').trim();
+
+  if (!kind) {
+    throw new Error('Secure AI request is missing kind');
+  }
+
+  return requestSecureAI(kind, payload?.body || {}, payload?.timeoutMs);
 });
 
 // Security: prevent new window creation

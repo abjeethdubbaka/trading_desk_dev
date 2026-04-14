@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react';
+import { requestSecureAI, SECURE_AI_KINDS } from '@/lib/ai/services/secureAIBridge';
 
 const OLLAMA_BASE_URL = import.meta.env.VITE_OLLAMA_BASE_URL || 'http://localhost:11434/api/chat';
 const OLLAMA_MODEL =
@@ -200,6 +201,48 @@ async function analyzeImageWithOllama(base64Data) {
   const timeout = setTimeout(() => controller.abort(), OLLAMA_TIMEOUT_MS);
 
   try {
+    const requestBody = {
+      model: OLLAMA_MODEL,
+      stream: false,
+      format: SCREENSHOT_ANALYSIS_SCHEMA,
+      options: {
+        temperature: 0.2,
+      },
+      messages: [
+        {
+          role: 'system',
+          content: SYSTEM_PROMPT,
+        },
+        {
+          role: 'user',
+          content: USER_PROMPT,
+          images: [base64Data],
+        },
+      ],
+    };
+
+    const secureResponse = await requestSecureAI(
+      SECURE_AI_KINDS.OLLAMA_CHAT,
+      requestBody,
+      { timeoutMs: OLLAMA_TIMEOUT_MS, allowFallback: true }
+    );
+
+    if (secureResponse) {
+      const secureRawContent = secureResponse?.message?.content ?? secureResponse?.response ?? '';
+
+      if (secureRawContent && typeof secureRawContent === 'object') {
+        return secureRawContent;
+      }
+
+      const secureText = String(secureRawContent || '').trim();
+      if (!secureText) {
+        throw new Error('Ollama returned an empty response');
+      }
+
+      const cleanedSecureText = secureText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+      return JSON.parse(cleanedSecureText);
+    }
+
     const headers = {
       'Content-Type': 'application/json',
     };
@@ -212,25 +255,7 @@ async function analyzeImageWithOllama(base64Data) {
       method: 'POST',
       headers,
       signal: controller.signal,
-      body: JSON.stringify({
-        model: OLLAMA_MODEL,
-        stream: false,
-        format: SCREENSHOT_ANALYSIS_SCHEMA,
-        options: {
-          temperature: 0.2,
-        },
-        messages: [
-          {
-            role: 'system',
-            content: SYSTEM_PROMPT,
-          },
-          {
-            role: 'user',
-            content: USER_PROMPT,
-            images: [base64Data],
-          },
-        ],
-      }),
+      body: JSON.stringify(requestBody),
     });
 
     if (!response.ok) {

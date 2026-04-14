@@ -20,23 +20,32 @@ export function createTradeSearch(service) {
     },
 
     async getBySymbol(symbol) {
-      const trades = await service.list();
-      return trades.filter(trade => trade.symbol === symbol);
+      const normalizedSymbol = String(symbol || '').trim().toUpperCase();
+      if (!normalizedSymbol) return [];
+      return service.list({
+        symbol: normalizedSymbol,
+        sortBy: 'entry_time',
+        sortDir: 'desc',
+      });
     },
 
     async getBySetup(setupType) {
-      const trades = await service.list();
-      return trades.filter(trade => trade.setup_type === setupType);
+      const normalizedSetupType = String(setupType || '').trim();
+      if (!normalizedSetupType) return [];
+      return service.list({
+        setup_type: normalizedSetupType,
+        sortBy: 'entry_time',
+        sortDir: 'desc',
+      });
     },
 
     async getByDateRange(startDate, endDate) {
-      const trades = await service.list();
-      const start = new Date(startDate);
-      const end = new Date(endDate);
-      
-      return trades.filter(trade => {
-        const tradeDate = new Date(trade.entry_time);
-        return tradeDate >= start && tradeDate <= end;
+      if (!startDate || !endDate) return [];
+      return service.list({
+        date_from: startDate,
+        date_to: endDate,
+        sortBy: 'entry_time',
+        sortDir: 'desc',
       });
     }
   };

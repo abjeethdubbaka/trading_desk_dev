@@ -12,6 +12,10 @@ import {
   buildStrategyEngineSnapshot,
   computeTradeSetupQuality,
 } from '@/lib/calculations/trades';
+import {
+  getPlaybookEntryBySetupName,
+  normalizePlaybookEntries,
+} from '@/lib/playbook/utils';
 import { useTradeForm } from './useTradeForm';
 import { localToUTCISO, isValidExitTime } from '../utils/dateUtils';
 import { calculatePnL } from '../utils/calculationUtils';
@@ -220,16 +224,36 @@ export function useAddTradeModalController({ open, onSave, initialData }) {
     ? formData.dos_donts_rule_ids
     : [];
 
+  const playbookEntries = useMemo(
+    () => normalizePlaybookEntries(settings?.strategy_playbook),
+    [settings?.strategy_playbook]
+  );
+
   const setupTypeOptions = useMemo(() => {
     const configuredSetupTypes = settings?.journal_preferences?.default_setup_types;
-    const options = buildSetupTypeOptions(configuredSetupTypes);
+    const activePlaybookSetupTypes = playbookEntries
+      .filter((entry) => entry.is_active)
+      .map((entry) => entry.name);
+    const options = buildSetupTypeOptions([
+      ...activePlaybookSetupTypes,
+      ...(Array.isArray(configuredSetupTypes) ? configuredSetupTypes : []),
+    ]);
     const selectedSetup = String(formData.setup_type || '').trim();
 
     if (!selectedSetup || selectedSetup.toLowerCase() === 'manual') return options;
     if (options.some((option) => option.toLowerCase() === selectedSetup.toLowerCase())) return options;
 
     return [...options, selectedSetup];
-  }, [formData.setup_type, settings?.journal_preferences?.default_setup_types]);
+  }, [
+    formData.setup_type,
+    playbookEntries,
+    settings?.journal_preferences?.default_setup_types,
+  ]);
+
+  const selectedPlaybookEntry = useMemo(
+    () => getPlaybookEntryBySetupName(playbookEntries, formData.setup_type),
+    [formData.setup_type, playbookEntries]
+  );
 
   const strategyStepsForSetup = useMemo(() => {
     return resolveStrategyStepsForSetup(
@@ -468,6 +492,7 @@ export function useAddTradeModalController({ open, onSave, initialData }) {
     strategyRecommendation,
     strategyRecommendedNow,
     setupTypeOptions,
+    selectedPlaybookEntry,
     strategyStepsForSetup,
     strategyStepResults,
     symbolError,
