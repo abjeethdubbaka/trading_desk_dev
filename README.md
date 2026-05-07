@@ -1,4 +1,15 @@
 # TradeDesk Pro
+<img width="2559" height="1027" alt="Screenshot 2026-05-07 134601" src="https://github.com/user-attachments/assets/3f07a2d9-6f70-4b6f-bfb5-d5478658f6dd" />
+<img width="2559" height="1023" alt="Screenshot 2026-05-07 134531" src="https://github.com/user-attachments/assets/51ab42e6-ca12-465a-a963-60dd186d6048" />
+<img width="2552" height="1027" alt="Screenshot 2026-05-07 134517" src="https://github.com/user-attachments/assets/86237b88-7d6d-4351-948a-0d4b20567e74" />
+<img width="2559" height="1031" alt="Screenshot 2026-05-07 134500" src="https://github.com/user-attachments/assets/0a89200a-50d8-4803-b43c-12652c663dad" />
+<img width="2556" height="1026" alt="Screenshot 2026-05-07 134444" src="https://github.com/user-attachments/assets/7b98a136-60ab-42f1-b82c-5eb10ef90bdb" />
+<img width="2534" height="1029" alt="Screenshot 2026-05-07 134425" src="https://github.com/user-attachments/assets/e86237af-ab0e-4b79-b545-134ea6717c99" />
+<img width="2540" height="1022" alt="Screenshot 2026-05-07 134405" src="https://github.com/user-attachments/assets/38e3c41c-217c-4dce-a050-d99f96150e3f" />
+<img width="2537" height="1012" alt="Screenshot 2026-05-07 133150" src="https://github.com/user-attachments/assets/18b6e6a9-6b3b-44f7-9136-e92b49e2371c" />
+<img width="2552" height="1033" alt="Screenshot 2026-05-07 134618" src="https://github.com/user-attachments/assets/a966a78b-4736-493f-bab8-8e0cac1806b4" />
+<img width="2554" height="1033" alt="Screenshot 2026-05-07 134547" src="https://github.com/user-attachments/assets/0c4406cf-cfbd-467b-82f9-1f0085d8ee8b" />
+
 
 A React + Vite + Electron trading journal and analysis desktop/web app.
 
