@@ -22,8 +22,13 @@ import WeeklyReviewCard from '@/components/performance/WeeklyReviewCard';
 import SetupQualityPerTradeCard from '@/components/performance/SetupQualityPerTradeCard';
 import MistakePatternInsights from '@/components/performance/MistakePatternInsights';
 import StrategyEngineCard from '@/components/performance/StrategyEngineCard';
+import PnLCalendarHeatmap from '@/components/performance/PnLCalendarHeatmap';
+import EquityCurveChart from '@/components/performance/EquityCurveChart';
+import WinRateBySetupChart from '@/components/performance/WinRateBySetupChart';
+import TimeOfDayHeatmap from '@/components/performance/TimeOfDayHeatmap';
 import AnalysisPanel from '@/components/journal/analysis/AnalysisPanel';
 import InfoHint from '@/components/ui/InfoHint';
+import { Skeleton } from '@/components/ui/skeleton';
 import { useSettings } from '@/lib/context/SettingsContext';
 import { useTrades } from '@/lib/hooks/useTrades';
 import { useTradesWithQuality } from '@/lib/hooks/useTradesWithQuality';
@@ -207,10 +212,52 @@ export default function PerformancePage() {
 
   if (isLoading) {
     return (
-      <div className="space-y-4 p-8">
-        {[1, 2, 3].map((i) => (
-          <div key={i} className="h-32 animate-pulse rounded-2xl bg-white/5" />
-        ))}
+      <div className="space-y-5">
+        {/* StatPill row: 8 pills, grid-cols-2 → 4 → 8 */}
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 xl:grid-cols-8">
+          {Array.from({ length: 8 }).map((_, i) => (
+            <div key={i} className="rounded-xl border border-white/10 bg-white/[0.03] p-3 space-y-2">
+              <Skeleton className="h-2 w-14 rounded-full" />
+              <Skeleton className="h-5 w-18 rounded" />
+            </div>
+          ))}
+        </div>
+
+        {/* WeeklyReviewCard shape */}
+        <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <Skeleton className="h-3 w-32 rounded-full" />
+            <Skeleton className="h-5 w-20 rounded-full" />
+          </div>
+          <div className="grid grid-cols-3 gap-3">
+            {[1, 2, 3].map((j) => (
+              <div key={j} className="rounded-xl border border-white/8 p-3 space-y-2">
+                <Skeleton className="h-2 w-12 rounded-full" />
+                <Skeleton className="h-5 w-16 rounded" />
+                <Skeleton className="h-2 w-20 rounded-full" />
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Period filter + chart area */}
+        <div className="flex gap-1.5">
+          {[1, 2, 3, 4, 5].map((i) => (
+            <Skeleton key={i} className="h-7 w-14 rounded-lg" />
+          ))}
+        </div>
+        <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-4 space-y-3">
+          <Skeleton className="h-3 w-40 rounded-full" />
+          <div className="flex items-end gap-1" style={{ height: 200 }}>
+            {Array.from({ length: 20 }).map((_, i) => (
+              <Skeleton
+                key={i}
+                className="flex-1 rounded-t"
+                style={{ height: `${20 + Math.abs(Math.sin(i * 0.85)) * 80}%` }}
+              />
+            ))}
+          </div>
+        </div>
       </div>
     );
   }
@@ -254,8 +301,27 @@ export default function PerformancePage() {
 
       <WeeklyReviewCard reviews={weeklyReview} trades={periodTrades} initialBalance={accountSize} />
 
+      {/* Period filter */}
+      <div className="flex flex-wrap gap-1.5">
+        {PERIOD_OPTIONS.map((opt) => (
+          <button
+            key={opt.value}
+            type="button"
+            onClick={() => setPeriod(opt.value)}
+            className={cn(
+              'rounded-lg border px-3 py-1 text-xs font-medium transition-colors',
+              period === opt.value
+                ? 'border-emerald-400/40 bg-emerald-500/20 text-emerald-200'
+                : 'border-white/10 bg-white/[0.03] text-white/50 hover:border-white/20 hover:text-white/70'
+            )}
+          >
+            {opt.label}
+          </button>
+        ))}
+      </div>
+
       <Tabs defaultValue="behavior">
-        <TabsList className="grid w-full grid-cols-2 gap-1.5 rounded-2xl border border-white/10 bg-[#13131e]/90 p-1.5 sm:grid-cols-4">
+        <TabsList className="grid w-full grid-cols-3 gap-1.5 rounded-2xl border border-white/10 bg-[#13131e]/90 p-1.5 sm:grid-cols-5">
           <TabsTrigger
             value="behavior"
             className="rounded-xl text-xs font-semibold tracking-wide text-white/60 data-[state=active]:border data-[state=active]:border-emerald-400/30 data-[state=active]:bg-gradient-to-r data-[state=active]:from-emerald-500/25 data-[state=active]:to-blue-500/20 data-[state=active]:text-white"
@@ -279,6 +345,12 @@ export default function PerformancePage() {
             className="rounded-xl text-xs font-semibold tracking-wide text-white/60 data-[state=active]:border data-[state=active]:border-amber-300/35 data-[state=active]:bg-gradient-to-r data-[state=active]:from-amber-400/25 data-[state=active]:to-orange-500/20 data-[state=active]:text-white"
           >
             Analysis
+          </TabsTrigger>
+          <TabsTrigger
+            value="charts"
+            className="rounded-xl text-xs font-semibold tracking-wide text-white/60 data-[state=active]:border data-[state=active]:border-cyan-400/35 data-[state=active]:bg-gradient-to-r data-[state=active]:from-cyan-500/25 data-[state=active]:to-blue-500/20 data-[state=active]:text-white"
+          >
+            Charts
           </TabsTrigger>
         </TabsList>
 
@@ -398,6 +470,15 @@ export default function PerformancePage() {
           <div className="rounded-2xl border border-white/10 bg-gradient-to-br from-[#141423] to-[#101016] p-1">
             <AnalysisPanel trades={periodTrades} isCollapsed={false} />
           </div>
+        </TabsContent>
+
+        <TabsContent value="charts" className="mt-4 space-y-4">
+          <PnLCalendarHeatmap trades={periodTrades} />
+          <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+            <EquityCurveChart curve={curve} initialBalance={accountSize} />
+            <WinRateBySetupChart data={bySetup} />
+          </div>
+          <TimeOfDayHeatmap trades={periodTrades} />
         </TabsContent>
       </Tabs>
     </div>

@@ -3,14 +3,16 @@ import { X } from 'lucide-react';
 import { cn } from '@/lib/utils/general';
 import { TagsService } from '@/lib/services/TagsService';
 
-export function TagChip({ name, color, onRemove, size = 'sm', className }) {
+export function TagChip({ name, color, onRemove, onClick, size = 'sm', className }) {
   const resolvedColor = color ?? TagsService.findOrCreate(name)?.color ?? '#06b6d4';
 
   return (
     <span
+      onClick={onClick ? (e) => { e.stopPropagation(); onClick(name); } : undefined}
       className={cn(
         'inline-flex items-center gap-0.5 rounded-full font-medium leading-none whitespace-nowrap',
         size === 'xs' ? 'px-1.5 py-0.5 text-[9px]' : 'px-2 py-1 text-[10px]',
+        onClick && 'cursor-pointer transition-opacity hover:opacity-75',
         className,
       )}
       style={{

@@ -13,7 +13,12 @@ const csvEscape = (value) => {
   return text;
 };
 
-export function useJournalDataTransfer({ filteredTrades, accountTier, bulkCreateTrades }) {
+const dedupeKey = (t) => {
+  const dateStr = new Date(t.entry_time || t.created_date || 0).toISOString().slice(0, 10);
+  return `${String(t.symbol || '').toUpperCase()}_${dateStr}_${Math.round(Number(t.entry_price || 0) * 100)}`;
+};
+
+export function useJournalDataTransfer({ filteredTrades, accountTier, bulkCreateTrades, existingTrades }) {
   const [isImporting, setIsImporting] = useState(false);
   const [importStatus, setImportStatus] = useState(null);
 
@@ -54,11 +59,28 @@ export function useJournalDataTransfer({ filteredTrades, accountTier, bulkCreate
         return;
       }
 
+      // Duplicate detection
+      let tradesToCreate = importedTrades;
+      if (Array.isArray(existingTrades) && existingTrades.length > 0) {
+        const existingKeys = new Set(existingTrades.map(dedupeKey));
+        const duplicates = importedTrades.filter((t) => existingKeys.has(dedupeKey(t)));
+        if (duplicates.length > 0) {
+          const symbols = [...new Set(duplicates.map((t) => t.symbol))].slice(0, 4).join(', ');
+          toast.warning(`${duplicates.length} possible duplicate${duplicates.length === 1 ? '' : 's'} skipped (${symbols})`);
+          tradesToCreate = importedTrades.filter((t) => !existingKeys.has(dedupeKey(t)));
+        }
+      }
+
+      if (tradesToCreate.length === 0) {
+        setImportStatus({ type: 'warning', message: 'All rows were duplicates — nothing imported.' });
+        return;
+      }
+
       // Register any new tag names so they get a color assigned
-      const allTagNames = [...new Set(importedTrades.flatMap((t) => Array.isArray(t.tags) ? t.tags : []))];
+      const allTagNames = [...new Set(tradesToCreate.flatMap((t) => Array.isArray(t.tags) ? t.tags : []))];
       allTagNames.forEach((name) => TagsService.findOrCreate(name));
 
-      const createdTrades = await bulkCreateTrades(importedTrades);
+      const createdTrades = await bulkCreateTrades(tradesToCreate);
       const importedCount = Array.isArray(createdTrades) ? createdTrades.length : 0;
       const writeFailures = Math.max(0, importedTrades.length - importedCount);
       const skippedCount = errors.length + writeFailures;

@@ -14,6 +14,7 @@ import {
   MemoizedResultsDisplay,
 } from './memoized';
 import { FloatSmartPlanCard } from './float-position-sizer/FloatSmartPlanCard';
+import { StopStructureAnalysis } from './position-sizing/StopStructureAnalysis';
 import { useFloatPositionSizerController } from './float-position-sizer/hooks/useFloatPositionSizerController';
 
 export default function FloatPositionSizer({ historyData, onCalculationSaved = () => {} }) {
@@ -23,7 +24,7 @@ export default function FloatPositionSizer({ historyData, onCalculationSaved = (
   });
 
   const isStale = Boolean(controller.calculation?._stale);
-  const showResults = controller.calculation?._viewSource === 'snapshot';
+  const showResults = Boolean(controller.calculation?._viewSource);
 
   return (
     <div className="space-y-4 w-full">
@@ -53,6 +54,11 @@ export default function FloatPositionSizer({ historyData, onCalculationSaved = (
         smartFloatPlan={controller.smartFloatPlan}
         onRefreshShareFloat={controller.fetchShareFloat}
         onApplyFloatSmartPlan={controller.handleApplyFloatSmartPlan}
+      />
+
+      <StopStructureAnalysis
+        entryPrice={controller.entryPrice}
+        stopLoss={controller.customStop}
       />
 
       {showResults && (

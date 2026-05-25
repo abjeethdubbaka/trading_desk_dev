@@ -5,6 +5,7 @@
  */
 
 import React, { useMemo } from 'react';
+import { Skeleton } from '@/components/ui/skeleton';
 import { useNavigate } from 'react-router-dom';
 import { useConfirm } from '@/components/ui/ConfirmDialog';
 import { Trash2, TrendingUp, TrendingDown, Calculator } from 'lucide-react';
@@ -70,13 +71,7 @@ export default function CalcHistory() {
 
   const loadItem = (item) =>
     navigate(createPageUrl('Calculator'), {
-      state: {
-        historyItem: {
-          symbol: item.symbol,
-          entryPrice: item.entryPrice,
-          direction: item.direction,
-        },
-      },
+      state: { historyItem: item },
     });
 
   return (
@@ -116,7 +111,30 @@ export default function CalcHistory() {
       {isLoading ? (
         <div className="space-y-2">
           {[1, 2, 3].map((i) => (
-            <div key={i} className="h-24 animate-pulse rounded-xl bg-white/5" />
+            <div key={i} className="rounded-xl border border-white/10 bg-white/[0.03] p-4 space-y-3">
+              {/* Symbol + direction icon + badges */}
+              <div className="flex items-center gap-2">
+                <Skeleton className="h-5 w-14 rounded" />
+                <Skeleton className="h-4 w-4 rounded-full" />
+                <Skeleton className="h-4 w-14 rounded-full" />
+                <Skeleton className="h-4 w-18 rounded-full" />
+              </div>
+              {/* 5-column metrics grid */}
+              <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
+                {[1, 2, 3, 4, 5].map((j) => (
+                  <div key={j} className="space-y-1.5">
+                    <Skeleton className="h-2 w-10 rounded-full" />
+                    <Skeleton className="h-4 w-16 rounded" />
+                  </div>
+                ))}
+              </div>
+              {/* Timestamp + SL + TP */}
+              <div className="flex items-center gap-4">
+                <Skeleton className="h-2.5 w-32 rounded-full" />
+                <Skeleton className="h-2.5 w-16 rounded-full" />
+                <Skeleton className="h-2.5 w-16 rounded-full" />
+              </div>
+            </div>
           ))}
         </div>
       ) : history.length === 0 ? (

@@ -7,31 +7,45 @@ import { tradeKeys } from '@/lib/hooks/useTrades/queryKeys';
 import { useJournalModal } from './useJournalModal';
 import { useJournalBulkActions } from './useJournalBulkActions';
 
-export function useJournalTradeManagement({ createTrade, updateTrade, deleteTrade, confirmFn }) {
-  const confirm = useCallback(async (opts) => {
-    if (confirmFn) return confirmFn(opts);
-    return window.confirm(opts?.title ?? 'Are you sure?');
-  }, [confirmFn]);
-
+export function useJournalTradeManagement({ createTrade, updateTrade, deleteTrade }) {
   const queryClient = useQueryClient();
   const modal = useJournalModal({ createTrade, updateTrade });
   const bulkActions = useJournalBulkActions({ updateTrade, deleteTrade });
 
-  const handleDelete = useCallback(async (id) => {
-    const ok = await confirm({
-      title: 'Delete this trade?',
-      description: 'This cannot be undone.',
-      confirmLabel: 'Delete',
-      destructive: true,
+  const handleDelete = useCallback(async (trade) => {
+    if (!trade?.id) return;
+
+    // Optimistic removal
+    const snapshot = queryClient.getQueriesData({ queryKey: tradeKeys.lists() });
+    queryClient.setQueriesData({ queryKey: tradeKeys.lists() }, (old) => {
+      if (!Array.isArray(old)) return old;
+      return old.filter((t) => t.id !== trade.id);
     });
-    if (!ok) return;
+
     try {
-      await deleteTrade(id);
-      toast.success('Trade deleted');
+      await deleteTrade(trade.id);
     } catch (error) {
+      snapshot.forEach(([key, data]) => queryClient.setQueryData(key, data));
       toast.error(`Delete failed: ${error.message}`);
+      return;
     }
-  }, [confirm, deleteTrade]);
+
+    toast.success(`${trade.symbol || 'Trade'} deleted`, {
+      duration: 5000,
+      action: {
+        label: 'Undo',
+        onClick: async () => {
+          try {
+            const { id: _, ...restData } = trade;
+            await createTrade(restData);
+            toast.success('Trade restored');
+          } catch {
+            toast.error('Could not restore trade');
+          }
+        },
+      },
+    });
+  }, [createTrade, deleteTrade, queryClient]);
 
   const handleInlineUpdateTrade = useCallback(async (trade, changes) => {
     if (!trade?.id) throw new Error('Missing trade id');

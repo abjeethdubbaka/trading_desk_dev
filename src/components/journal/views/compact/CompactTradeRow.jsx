@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { cn } from '@/lib/utils/general';
 import { formatDate, formatTime, formatCurrency } from '../../utils/formatters';
 import { getTradeNotesText } from '../../utils/notes';
@@ -12,6 +12,9 @@ import { TagChip } from '../../components/TagChip';
 import { EditableCell } from '../cells/EditableCell';
 import { useInlineTradeEdit } from '../../hooks/useInlineTradeEdit';
 import { getTradePnL } from '@/lib/utils/tradeFields';
+import { TradeCompleteness } from '../../components/TradeCompleteness';
+import { useQueryClient } from '@tanstack/react-query';
+import { tradeKeys } from '@/lib/hooks/useTrades/queryKeys';
 
 const DIRECTION_OPTIONS = [
   { value: 'long', label: 'Long' },
@@ -31,6 +34,8 @@ export function CompactTradeRow({
   onCopyNotes,
   onInlineUpdateTrade,
   onViewDetails,
+  onTagClick,
+  columns,
   review,
   reviewLoading,
   onReviewTrade,
@@ -55,6 +60,18 @@ export function CompactTradeRow({
   });
 
   const { savingField, editField } = useInlineTradeEdit({ trade, onInlineUpdateTrade });
+
+  // Pre-warm React Query detail cache on hover so drawer opens with data ready
+  const queryClient = useQueryClient();
+  const hoverTimer = useRef(null);
+  const handleMouseEnter = useCallback(() => {
+    hoverTimer.current = setTimeout(() => {
+      queryClient.setQueryData(tradeKeys.detail(trade.id), trade);
+    }, 300);
+  }, [queryClient, trade]);
+  const handleMouseLeave = useCallback(() => {
+    clearTimeout(hoverTimer.current);
+  }, []);
 
   const pnl = getTradePnL(trade);
   const entryPrice = trade.entry_price || 0;
@@ -130,6 +147,8 @@ export function CompactTradeRow({
         'animate-fade-in',
       )}
       style={{ animationDelay: `${Math.min(index * 20, 200)}ms` }}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
     >
       <div
         className="flex items-center gap-0 px-3 py-2.5 cursor-pointer"
@@ -225,7 +244,7 @@ export function CompactTradeRow({
         </div>
 
         {/* Setup (editable) */}
-        <div className="w-[110px] flex-shrink-0 hidden xl:block" onClick={(e) => e.stopPropagation()}>
+        <div className={cn('w-[110px] flex-shrink-0', columns?.setup ? 'hidden xl:block' : 'hidden')} onClick={(e) => e.stopPropagation()}>
           <EditableCell
             value={trade.setup_type ?? ''}
             displayNode={<SetupBadge setup={trade.setup_type} />}
@@ -236,7 +255,7 @@ export function CompactTradeRow({
         </div>
 
         {/* Emotions */}
-        <div className="w-[120px] flex-shrink-0 hidden xl:block">
+        <div className={cn('w-[120px] flex-shrink-0', columns?.emotions ? 'hidden xl:block' : 'hidden')}>
           <div className="flex items-center gap-1">
             {primaryEmotion ? (
               <EmotionBadge emotion={primaryEmotion} />
@@ -250,7 +269,7 @@ export function CompactTradeRow({
         </div>
 
         {/* Quality */}
-        <div className="w-[90px] flex-shrink-0 hidden xl:block">
+        <div className={cn('w-[90px] flex-shrink-0', columns?.quality ? 'hidden xl:block' : 'hidden')}>
           {hasSetupQualityScore || normalizedSetupGrade ? (
             <span className="text-[10px] px-1.5 py-0.5 rounded border border-blue-500/20 bg-blue-500/10 text-blue-300/70 whitespace-nowrap">
               {hasSetupQualityScore
@@ -263,7 +282,7 @@ export function CompactTradeRow({
         </div>
 
         {/* Followed plan (editable) */}
-        <div className="w-[120px] flex-shrink-0 hidden xl:block" onClick={(e) => e.stopPropagation()}>
+        <div className={cn('w-[120px] flex-shrink-0', columns?.plan ? 'hidden xl:block' : 'hidden')} onClick={(e) => e.stopPropagation()}>
           <EditableCell
             value={trade.followed_plan}
             displayNode={followedPlanLabel ? (
@@ -302,6 +321,11 @@ export function CompactTradeRow({
           )}
         </div>
 
+        {/* Completeness */}
+        <div className="hidden lg:flex items-center w-[60px] flex-shrink-0">
+          <TradeCompleteness trade={trade} />
+        </div>
+
         {/* Actions */}
         <div
           className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity duration-150 flex-shrink-0"
@@ -319,7 +343,7 @@ export function CompactTradeRow({
           <button onClick={() => onEdit(trade)} className="p-1.5 rounded text-white/30 hover:text-white/70 hover:bg-white/8 transition-colors" title="Edit">
             <Edit2 className="w-3 h-3" />
           </button>
-          <button onClick={() => onDelete(trade.id)} className="p-1.5 rounded text-white/30 hover:text-rose-400 hover:bg-rose-500/10 transition-colors" title="Delete">
+          <button onClick={() => onDelete(trade)} className="p-1.5 rounded text-white/30 hover:text-rose-400 hover:bg-rose-500/10 transition-colors" title="Delete">
             <Trash2 className="w-3 h-3" />
           </button>
         </div>
@@ -329,7 +353,7 @@ export function CompactTradeRow({
       {tags.length > 0 && (
         <div className="flex items-center gap-1 flex-wrap px-8 pb-1">
           {tags.map((name) => (
-            <TagChip key={name} name={name} size="xs" />
+            <TagChip key={name} name={name} size="xs" onClick={onTagClick} />
           ))}
         </div>
       )}

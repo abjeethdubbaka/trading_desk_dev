@@ -4,11 +4,12 @@
  * Batch-2 update: sort (#5), presets (#6), tags (#9), bulk select (#7), inline edit (#8).
  */
 
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo } from 'react';
 import { useJournal, useTradesMutation } from '@/lib/hooks/useTrades';
 import { useTradeReview } from '@/lib/hooks/useTradeReview';
 import { useSettings } from '@/lib/context/SettingsContext';
 import { useTradesWithQuality } from '@/lib/hooks/useTradesWithQuality';
+import { Skeleton } from '@/components/ui/skeleton';
 import {
   AddTradeModal,
   CompactView,
@@ -30,15 +31,19 @@ import { BulkActionBar }       from '@/components/journal/toolbar/BulkActionBar'
 import { TradeDetailDrawer }   from '@/components/journal/TradeDetailDrawer';
 import { KeyboardShortcutsOverlay } from '@/components/journal/KeyboardShortcutsOverlay';
 import { useJournalKeyboardShortcuts } from '@/components/journal/shared/hooks/useJournalKeyboardShortcuts';
-import { useConfirm }          from '@/components/ui/ConfirmDialog';
+import { useColumnVisibility } from '@/components/journal/shared/hooks/useColumnVisibility';
+import { useJournalUi }        from '@/components/journal/shared/hooks/useJournalUi';
 
 const PAGE_SIZE = 20;
 
 export default function Journal() {
-  const [viewMode, setViewMode] = useState(VIEW_MODES.COMPACT);
-  const [drawerTrade, setDrawerTrade] = useState(null);
-  const [showShortcutsOverlay, setShowShortcutsOverlay] = useState(false);
-  const [confirm, confirmDialog] = useConfirm();
+  const {
+    viewMode, setViewMode,
+    drawerTradeId, openDrawer, closeDrawer,
+    showShortcutsOverlay, toggleShortcuts, closeShortcuts,
+    handleEscape,
+  } = useJournalUi();
+  const { columns, toggleColumn } = useColumnVisibility();
 
   const { trades, isLoading, refetch } = useJournal();
   const { settings } = useSettings();
@@ -56,6 +61,10 @@ export default function Journal() {
   const riskLimit = Number(settings?.risk_amount);
 
   const tradesWithQuality = useTradesWithQuality(trades, riskLimit);
+  const drawerTrade = useMemo(
+    () => (drawerTradeId ? tradesWithQuality.find((t) => t.id === drawerTradeId) ?? null : null),
+    [drawerTradeId, tradesWithQuality],
+  );
 
   // ── Filters ─────────────────────────────────────────────────────────────
   const {
@@ -122,7 +131,7 @@ export default function Journal() {
 
   // ── Data transfer ─────────────────────────────────────────────────────────
   const { isImporting, importStatus, handleImportCsv, handleExportCsv } =
-    useJournalDataTransfer({ filteredTrades, accountTier, bulkCreateTrades });
+    useJournalDataTransfer({ filteredTrades, accountTier, bulkCreateTrades, existingTrades: trades });
 
   const handleExportSelected = useCallback((selected) => {
     handleExportCsv(selected);
@@ -143,7 +152,7 @@ export default function Journal() {
     handleBulkDelete,
     handleBulkTag,
     handleBulkMarkPlan,
-  } = useJournalTradeManagement({ createTrade, updateTrade, deleteTrade, bulkCreateTrades, confirmFn: confirm });
+  } = useJournalTradeManagement({ createTrade, updateTrade, deleteTrade, bulkCreateTrades });
 
   const {
     reviews, loading: reviewLoading, reviewTrade, clearReview, usefulnessById, rateReviewUsefulness,
@@ -154,15 +163,15 @@ export default function Journal() {
     return () => window.removeEventListener('trades-updated', refetch);
   }, [refetch]);
 
-  const handleEscape = useCallback(() => {
-    if (drawerTrade) { setDrawerTrade(null); return; }
-    setShowShortcutsOverlay(false);
-  }, [drawerTrade]);
+  const handleTagClick = useCallback((tagName) => {
+    setTagFilter((prev) => (prev.includes(tagName) ? prev : [...prev, tagName]));
+    closeDrawer();
+  }, [setTagFilter, closeDrawer]);
 
   useJournalKeyboardShortcuts({
     onNewTrade: openCreateModal,
     onEscape: handleEscape,
-    onToggleShortcutsOverlay: useCallback(() => setShowShortcutsOverlay((v) => !v), []),
+    onToggleShortcutsOverlay: toggleShortcuts,
   });
 
   const handleBulkDeleteWithClear = useCallback(async (ids) => {
@@ -212,9 +221,36 @@ export default function Journal() {
       <JournalStatsBar trades={filteredTrades} />
 
       {isLoading ? (
-        <div className="space-y-1">
+        <div className="overflow-hidden rounded border border-white/10 bg-[#1a1a24]">
           {Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="bg-white/5 border border-white/10 rounded p-2 h-12 animate-pulse" />
+            <div
+              key={i}
+              className="flex items-center gap-0 border-b border-white/[0.04] px-3 py-2.5 last:border-0"
+            >
+              <Skeleton className="mr-1 h-3 w-3 flex-shrink-0 rounded-sm" />
+              <Skeleton className="mr-2 h-3 w-3 flex-shrink-0 rounded" />
+              <div className="w-[82px] flex-shrink-0 space-y-1.5">
+                <Skeleton className="h-2.5 w-14 rounded-full" />
+                <Skeleton className="h-2 w-10 rounded-full" />
+              </div>
+              <div className="flex w-[110px] flex-shrink-0 items-center gap-1.5">
+                <Skeleton className="h-4 w-12 rounded" />
+                <Skeleton className="h-4 w-10 rounded-full" />
+              </div>
+              <div className="hidden w-[100px] flex-shrink-0 sm:block">
+                <Skeleton className="h-2.5 w-20 rounded-full" />
+              </div>
+              <div className="hidden w-[58px] flex-shrink-0 md:block">
+                <Skeleton className="h-2.5 w-10 rounded-full" />
+              </div>
+              <div className="w-[150px] flex-shrink-0">
+                <Skeleton className="h-5 w-20 rounded-full" />
+              </div>
+              <div className="flex flex-1 items-center gap-2">
+                <Skeleton className="h-4 w-16 rounded-full" />
+                <Skeleton className="hidden h-4 w-12 rounded-full sm:block" />
+              </div>
+            </div>
           ))}
         </div>
       ) : filteredTrades.length === 0 ? (
@@ -232,7 +268,10 @@ export default function Journal() {
               onDuplicateTrade={handleDuplicateTrade}
               onCopyNotes={handleCopyNotes}
               onInlineUpdateTrade={handleInlineUpdateTrade}
-              onViewDetails={setDrawerTrade}
+              onViewDetails={(trade) => openDrawer(trade.id)}
+              onTagClick={handleTagClick}
+              columns={columns}
+              onToggleColumn={toggleColumn}
               reviews={reviews}
               reviewLoading={reviewLoading}
               onReviewTrade={reviewTrade}
@@ -280,16 +319,17 @@ export default function Journal() {
       {drawerTrade && (
         <TradeDetailDrawer
           trade={drawerTrade}
-          onClose={() => setDrawerTrade(null)}
-          onEdit={() => { handleEdit(drawerTrade); setDrawerTrade(null); }}
+          onClose={closeDrawer}
+          onEdit={() => { handleEdit(drawerTrade); closeDrawer(); }}
+          onTagClick={handleTagClick}
+          updateTrade={updateTrade}
         />
       )}
 
       {showShortcutsOverlay && (
-        <KeyboardShortcutsOverlay onClose={() => setShowShortcutsOverlay(false)} />
+        <KeyboardShortcutsOverlay onClose={closeShortcuts} />
       )}
 
-      {confirmDialog}
     </div>
   );
 }

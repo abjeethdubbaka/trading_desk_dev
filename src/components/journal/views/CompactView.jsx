@@ -12,6 +12,7 @@ export default function CompactView({
   onCopyNotes,
   onInlineUpdateTrade,
   onViewDetails,
+  onTagClick,
   reviews,
   reviewLoading,
   onReviewTrade,
@@ -28,6 +29,9 @@ export default function CompactView({
   onToggleAll,
   isAllSelected,
   isIndeterminate,
+  // Column visibility
+  columns,
+  onToggleColumn,
 }) {
   const { urlsById: screenshotUrls, statusById: screenshotStatuses } = useTradeScreenshotUrls(trades);
   const [lightboxImage, setLightboxImage] = React.useState(null);
@@ -43,6 +47,8 @@ export default function CompactView({
         isAllSelected={isAllSelected}
         isIndeterminate={isIndeterminate}
         onToggleAll={onToggleAll}
+        columns={columns}
+        onToggleColumn={onToggleColumn}
       />
       <div>
         {trades.map((trade, index) => (
@@ -56,6 +62,8 @@ export default function CompactView({
             onCopyNotes={onCopyNotes}
             onInlineUpdateTrade={onInlineUpdateTrade}
             onViewDetails={onViewDetails}
+            onTagClick={onTagClick}
+            columns={columns}
             review={reviews?.[trade.id]}
             reviewLoading={reviewLoading?.[trade.id]}
             onReviewTrade={onReviewTrade}

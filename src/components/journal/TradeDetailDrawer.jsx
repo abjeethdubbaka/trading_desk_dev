@@ -1,11 +1,15 @@
-import React, { useEffect } from 'react';
-import { X, Edit2 } from 'lucide-react';
+import React, { useCallback, useEffect, useState } from 'react';
+import { X, Edit2, Upload, Loader2, Maximize2, AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils/general';
 import { PnlBadge, DirectionBadge, RMultipleBadge, EmotionBadge, SetupBadge } from '@/components/ui/TradeBadge';
 import { getTradePnL } from '@/lib/utils/tradeFields';
 import { formatDate, formatTime, formatCurrency } from './utils/formatters';
 import { getTradeNotesText } from './utils/notes';
 import { TagChip } from './components/TagChip';
+import { useScreenshotIdsUrls } from './shared/media/useScreenshotUrls';
+import { useMediaMutation } from '@/lib/hooks/useCalcHistory';
+import ImageLightbox from '@/components/ui/ImageLightbox';
+import { toast } from 'sonner';
 
 function DetailRow({ label, children }) {
   return (
@@ -16,13 +20,83 @@ function DetailRow({ label, children }) {
   );
 }
 
-export function TradeDetailDrawer({ trade, onClose, onEdit }) {
-  // Close on Escape
+function ScreenshotThumb({ id, url, status, onView, onRemove }) {
+  if (status === 'error') {
+    return (
+      <div className="w-16 h-16 rounded-lg border border-red-500/30 bg-red-500/10 flex items-center justify-center flex-shrink-0">
+        <AlertCircle className="w-3.5 h-3.5 text-red-300" />
+      </div>
+    );
+  }
+  return (
+    <div className="relative group w-16 h-16 flex-shrink-0">
+      {status !== 'loaded' && (
+        <div className="absolute inset-0 rounded-lg border border-white/10 bg-white/5 animate-pulse" />
+      )}
+      {url && (
+        <img
+          src={url}
+          alt="Screenshot"
+          className="w-16 h-16 object-cover rounded-lg cursor-pointer"
+          onClick={() => onView(url)}
+          loading="lazy"
+        />
+      )}
+      <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-center justify-center gap-1">
+        <button type="button" onClick={() => url && onView(url)} className="p-1 hover:bg-white/20 rounded" disabled={!url}>
+          <Maximize2 className="w-3 h-3 text-white" />
+        </button>
+        {onRemove && (
+          <button type="button" onClick={() => onRemove(id)} className="p-1 hover:bg-red-500/80 rounded">
+            <X className="w-3 h-3 text-white" />
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+export function TradeDetailDrawer({ trade, onClose, onEdit, onTagClick, updateTrade }) {
+  const [lightboxUrl, setLightboxUrl] = useState(null);
+  const fileInputRef = React.useRef(null);
+
+  const screenshotIds = Array.isArray(trade?.screenshots) ? trade.screenshots : [];
+  const { urlsById, statusById } = useScreenshotIdsUrls(screenshotIds);
+  const { uploadFile, deleteMedia, isUploading: uploading } = useMediaMutation();
+
   useEffect(() => {
     const onKey = (e) => { if (e.key === 'Escape') onClose(); };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [onClose]);
+
+  const handleUpload = useCallback(async (event) => {
+    const files = Array.from(event.target.files);
+    if (!files.length || !updateTrade || !trade?.id) return;
+    event.target.value = '';
+
+    try {
+      const results = await Promise.all(
+        files.map((file) => uploadFile({ file, metadata: { media_type: 'screenshot' } }))
+      );
+      const newIds = results.map((r) => r.id);
+      const merged = [...new Set([...screenshotIds, ...newIds])];
+      await updateTrade({ id: trade.id, data: { ...trade, screenshots: merged } });
+    } catch (err) {
+      toast.error(`Upload failed: ${err?.message || 'Unknown error'}`);
+    }
+  }, [uploadFile, updateTrade, trade, screenshotIds]);
+
+  const handleRemove = useCallback(async (id) => {
+    if (!updateTrade || !trade?.id) return;
+    try {
+      await deleteMedia(id);
+      const updated = screenshotIds.filter((s) => s !== id);
+      await updateTrade({ id: trade.id, data: { ...trade, screenshots: updated } });
+    } catch (err) {
+      toast.error(`Remove failed: ${err?.message || 'Unknown error'}`);
+    }
+  }, [deleteMedia, updateTrade, trade, screenshotIds]);
 
   if (!trade) return null;
 
@@ -139,7 +213,9 @@ export function TradeDetailDrawer({ trade, onClose, onEdit }) {
             <div>
               <p className="mb-1.5 text-[10px] uppercase tracking-[0.16em] text-white/35">Tags</p>
               <div className="flex flex-wrap gap-1">
-                {tags.map((name) => <TagChip key={name} name={name} size="xs" />)}
+                {tags.map((name) => (
+                  <TagChip key={name} name={name} size="xs" onClick={onTagClick} />
+                ))}
               </div>
             </div>
           )}
@@ -163,8 +239,56 @@ export function TradeDetailDrawer({ trade, onClose, onEdit }) {
               </div>
             </div>
           )}
+
+          {/* Screenshots */}
+          {updateTrade && (
+            <div>
+              <p className="mb-1.5 text-[10px] uppercase tracking-[0.16em] text-white/35">Screenshots</p>
+              <div className="flex flex-wrap gap-2">
+                {screenshotIds.map((id) => (
+                  <ScreenshotThumb
+                    key={id}
+                    id={id}
+                    url={urlsById[id]}
+                    status={statusById[id] || 'loading'}
+                    onView={setLightboxUrl}
+                    onRemove={handleRemove}
+                  />
+                ))}
+                <label className={cn(
+                  'flex w-16 h-16 cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed transition-all flex-shrink-0',
+                  uploading ? 'border-white/10 bg-white/5' : 'border-white/20 hover:border-white/40 hover:bg-white/5',
+                )}>
+                  {uploading ? (
+                    <Loader2 className="w-4 h-4 animate-spin text-white/40" />
+                  ) : (
+                    <>
+                      <Upload className="w-4 h-4 text-white/40 mb-0.5" />
+                      <span className="text-[9px] text-white/40">Add</span>
+                    </>
+                  )}
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    onChange={handleUpload}
+                    className="hidden"
+                    disabled={uploading}
+                  />
+                </label>
+              </div>
+            </div>
+          )}
         </div>
       </div>
+
+      <ImageLightbox
+        isOpen={Boolean(lightboxUrl)}
+        imageUrl={lightboxUrl}
+        alt="Trade screenshot"
+        onClose={() => setLightboxUrl(null)}
+      />
     </>
   );
 }

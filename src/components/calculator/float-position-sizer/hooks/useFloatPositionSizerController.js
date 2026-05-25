@@ -5,6 +5,7 @@ import { useTradingContext } from '@/lib/context/TradingContext';
 import { useTradesMutation } from '@/lib/hooks/useTrades';
 import { validateTrade } from '@/lib/validation/trades';
 import { calcPosition } from '@/lib/calculations/trades';
+import { useAnalysisTimer } from '@/lib/context/AnalysisTimerContext';
 import { TradeCreator } from '../../float-calculator/TradeCreator';
 import { FloatDataService } from '../../float-calculator/FloatDataService';
 import { clearCalculatorState, loadCalculatorState, saveCalculatorState } from '../statePersistence';
@@ -17,6 +18,7 @@ export function useFloatPositionSizerController({ historyData, onCalculationSave
   const { selectedSymbol, selectedEntryPrice } = useTradingContext();
   const { createTrade } = useTradesMutation();
   const { settings, refetch: refetchSettings } = useSettings();
+  const { resetTimer } = useAnalysisTimer();
   const initialState = useMemo(() => loadCalculatorState() || {}, []);
   const settingsHydratedRef = useRef(false);
   const previousSettingsRef = useRef({ accountSize: null, riskAmount: null });
@@ -134,8 +136,9 @@ export function useFloatPositionSizerController({ historyData, onCalculationSave
       ? { ...result, _viewSource: source }
       : result;
     setCalculation(normalizedResult);
+    resetTimer(); // each new calculation result gets a fresh timer
     return normalizedResult;
-  }, [buildCalculationParams]);
+  }, [buildCalculationParams, resetTimer]);
 
   useEffect(() => {
     if (riskAmount === undefined && accountSize === undefined) return;
@@ -190,11 +193,36 @@ export function useFloatPositionSizerController({ historyData, onCalculationSave
 
   useEffect(() => {
     if (!historyData) return;
+
+    const entry  = historyData.entryPrice  != null ? Number(historyData.entryPrice).toFixed(2)  : '';
+    const stop   = historyData.stopLossPrice != null ? Number(historyData.stopLossPrice).toFixed(2) : '';
+
     updateSymbol(historyData.symbol ?? '');
-    updateEntryPrice(String(historyData.entryPrice ?? ''));
+    updateEntryPrice(entry);
+    updateCustomStop(stop); // clear stale stop if history item has none
     updateDirection(historyData.direction ?? 'long');
+
+    // Reconstruct the full calculation result so the results panel renders immediately
+    setCalculation({
+      _viewSource: 'snapshot',
+      entryPrice:         historyData.entryPrice,
+      stopLossPrice:      historyData.stopLossPrice,
+      targetPrice:        historyData.targetPrice,
+      shares:             historyData.shares,
+      positionValue:      historyData.positionValue,
+      actualRisk:         historyData.actualRisk,
+      requestedRisk:      historyData.requestedRisk,
+      riskUtilizationPct: historyData.riskUtilizationPct,
+      capReason:          historyData.capReason,
+      riskRewardRatio:    historyData.riskRewardRatio ?? 3,
+      targetProfit:       historyData.potentialProfit,
+      riskLevel:          historyData.riskLevel,
+      direction:          historyData.direction,
+      mode:               historyData.mode,
+    });
+
     toast.info(`Loaded ${historyData.symbol} from history`);
-  }, [historyData, updateSymbol, updateEntryPrice, updateDirection]);
+  }, [historyData, updateSymbol, updateEntryPrice, updateCustomStop, updateDirection]);
 
   useEffect(() => {
     saveCalculatorState({
