@@ -5,15 +5,23 @@ import { db } from '@/lib/db';
 
 const settingsService = createSettingsService(db);
 
-export function useSettingsMaintenanceActions({ signOut, refetch }) {
+export function useSettingsMaintenanceActions({ signOut, refetch, confirmFn }) {
   const [isReEnrichingTrades, setIsReEnrichingTrades] = useState(false);
+
+  const confirm = useCallback(async (opts) => {
+    if (confirmFn) return confirmFn(opts);
+    return window.confirm(opts?.title ?? 'Are you sure?');
+  }, [confirmFn]);
 
   const handleReEnrichTrades = useCallback(async () => {
     if (isReEnrichingTrades) return;
 
-    const confirmed = window.confirm(
-      'Re-enrich all existing trades with share float and float range? This may take a moment for larger journals.'
-    );
+    const confirmed = await confirm({
+      title: 'Re-enrich all trades?',
+      description: 'Updates share float and float range for every trade. May take a moment for larger journals.',
+      confirmLabel: 'Re-enrich',
+      destructive: false,
+    });
     if (!confirmed) return;
 
     setIsReEnrichingTrades(true);
@@ -43,31 +51,39 @@ export function useSettingsMaintenanceActions({ signOut, refetch }) {
   }, [isReEnrichingTrades]);
 
   const handleClearAndReinit = useCallback(async () => {
-    if (window.confirm('This will reset all settings to defaults. Are you sure?')) {
-      try {
-        await settingsService.clearAndReinit();
-        toast.success('Settings cleared and reinitialized!');
-        refetch();
-      } catch {
-        toast.error('Failed to clear settings');
-      }
+    const ok = await confirm({
+      title: 'Reset all settings to defaults?',
+      description: 'This cannot be undone.',
+      confirmLabel: 'Reset',
+      destructive: true,
+    });
+    if (!ok) return;
+    try {
+      await settingsService.clearAndReinit();
+      toast.success('Settings cleared and reinitialized!');
+      refetch();
+    } catch {
+      toast.error('Failed to clear settings');
     }
-  }, [refetch]);
+  }, [confirm, refetch]);
 
-  const handleSignOut = useCallback(() => {
-    if (window.confirm('Sign out?')) signOut();
-  }, [signOut]);
+  const handleSignOut = useCallback(async () => {
+    const ok = await confirm({ title: 'Sign out?', confirmLabel: 'Sign out', destructive: false });
+    if (ok) signOut();
+  }, [confirm, signOut]);
 
-  const handleClearLocalCache = useCallback(() => {
-    if (window.confirm('Delete ALL local trades? Firebase data is unaffected.')) {
-      const confirmation = window.confirm('Are you absolutely sure? This cannot be undone.');
-      if (confirmation) {
-        localStorage.removeItem('trades');
-        window.dispatchEvent(new CustomEvent('trades-updated', { detail: { action: 'reset' } }));
-        toast.success('Local cache cleared');
-      }
-    }
-  }, []);
+  const handleClearLocalCache = useCallback(async () => {
+    const ok = await confirm({
+      title: 'Delete all local trades?',
+      description: 'Firebase data is unaffected, but this removes all locally cached trades and cannot be undone.',
+      confirmLabel: 'Delete local cache',
+      destructive: true,
+    });
+    if (!ok) return;
+    localStorage.removeItem('trades');
+    window.dispatchEvent(new CustomEvent('trades-updated', { detail: { action: 'reset' } }));
+    toast.success('Local cache cleared');
+  }, [confirm]);
 
   return {
     isReEnrichingTrades,

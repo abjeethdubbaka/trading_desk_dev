@@ -5,7 +5,8 @@
  * No more localStorage reads inside hooks.
  */
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
+import { startOfWeek, startOfMonth, startOfYear, subMonths } from 'date-fns';
 import { Clock3, Layers3, Radar, Sparkles } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import EmotionMatrix from '@/components/performance/EmotionMatrix';
@@ -25,6 +26,7 @@ import AnalysisPanel from '@/components/journal/analysis/AnalysisPanel';
 import InfoHint from '@/components/ui/InfoHint';
 import { useSettings } from '@/lib/context/SettingsContext';
 import { useTrades } from '@/lib/hooks/useTrades';
+import { useTradesWithQuality } from '@/lib/hooks/useTradesWithQuality';
 import {
   analyzeMistakePatterns,
   buildStrategyEngineSnapshot,
@@ -34,7 +36,6 @@ import {
   calcHoldTimeStats,
   calcMaxDrawdown,
   calcSharpeRatio,
-  computeTradeSetupQuality,
   formatHoldDuration,
   perfByDayOfWeek,
   perfByHoldDurationBuckets,
@@ -44,12 +45,7 @@ import {
   perfBySetupTimeFloatHeatmap,
   perfByShareFloatRange,
 } from '@/lib/calculations/trades';
-import { cn } from '@/lib/utils/general';
-
-const toFiniteNumber = (value, fallback = 0) => {
-  const numericValue = Number(value);
-  return Number.isFinite(numericValue) ? numericValue : fallback;
-};
+import { cn, toFiniteNumber } from '@/lib/utils/general';
 
 function StatPill({ label, value, color }) {
   return (
@@ -108,7 +104,27 @@ const formatCompactCurrency = (value) => {
   return `${sign}$${Math.abs(numeric).toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
 };
 
+const PERIOD_OPTIONS = [
+  { value: 'all',       label: 'All time' },
+  { value: 'ytd',       label: 'YTD' },
+  { value: '3m',        label: '3 months' },
+  { value: 'month',     label: 'This month' },
+  { value: 'week',      label: 'This week' },
+];
+
+function getPeriodStart(period) {
+  const now = new Date();
+  switch (period) {
+    case 'week':  return startOfWeek(now, { weekStartsOn: 1 });
+    case 'month': return startOfMonth(now);
+    case '3m':    return startOfMonth(subMonths(now, 2));
+    case 'ytd':   return startOfYear(now);
+    default:      return null;
+  }
+}
+
 export default function PerformancePage() {
+  const [period, setPeriod] = useState('all');
   const { settings } = useSettings();
   const currentTier = settings?.account_tier || 'custom';
   const accountSize = toFiniteNumber(settings?.account_size, 50000);
@@ -117,61 +133,46 @@ export default function PerformancePage() {
     filters: { account_tier: currentTier },
   });
 
-  const tradesWithQuality = useMemo(() => {
-    if (!Array.isArray(trades)) return [];
+  const tradesWithQuality = useTradesWithQuality(trades, riskLimit);
 
-    return trades.map((trade) => {
-      const quality = computeTradeSetupQuality(trade, { riskLimit });
-      if (!Number.isFinite(quality?.score)) return trade;
-
-      const normalizedScore = Math.round(quality.score);
-      const currentScore = Number.isFinite(Number(trade?.setup_quality_score))
-        ? Math.round(Number(trade.setup_quality_score))
-        : null;
-      const currentGrade = String(trade?.setup_grade || '').trim();
-      const nextGrade = String(quality?.grade || '').trim();
-
-      if (currentScore === normalizedScore && currentGrade === nextGrade) {
-        return trade;
-      }
-
-      return {
-        ...trade,
-        setup_quality_score: normalizedScore,
-        setup_grade: nextGrade || trade?.setup_grade || '',
-      };
+  const periodTrades = useMemo(() => {
+    const start = getPeriodStart(period);
+    if (!start) return tradesWithQuality;
+    return tradesWithQuality.filter((t) => {
+      const d = new Date(t.entry_time ?? t.created_date ?? 0);
+      return d >= start;
     });
-  }, [riskLimit, trades]);
+  }, [tradesWithQuality, period]);
 
-  const stats = useMemo(() => calcCoreStats(tradesWithQuality), [tradesWithQuality]);
-  const curve = useMemo(() => buildEquityCurve(tradesWithQuality, accountSize), [tradesWithQuality, accountSize]);
+  const stats = useMemo(() => calcCoreStats(periodTrades), [periodTrades]);
+  const curve = useMemo(() => buildEquityCurve(periodTrades, accountSize), [periodTrades, accountSize]);
   const maxDD = useMemo(() => calcMaxDrawdown(curve), [curve]);
-  const sharpe = useMemo(() => calcSharpeRatio(tradesWithQuality), [tradesWithQuality]);
-  const holdStats = useMemo(() => calcHoldTimeStats(tradesWithQuality), [tradesWithQuality]);
+  const sharpe = useMemo(() => calcSharpeRatio(periodTrades), [periodTrades]);
+  const holdStats = useMemo(() => calcHoldTimeStats(periodTrades), [periodTrades]);
 
-  const byHour = useMemo(() => perfByHourOfDay(tradesWithQuality), [tradesWithQuality]);
-  const byDay = useMemo(() => perfByDayOfWeek(tradesWithQuality), [tradesWithQuality]);
-  const bySetup = useMemo(() => perfBySetupType(tradesWithQuality), [tradesWithQuality]);
-  const byPrice = useMemo(() => perfByPriceRange(tradesWithQuality), [tradesWithQuality]);
+  const byHour = useMemo(() => perfByHourOfDay(periodTrades), [periodTrades]);
+  const byDay = useMemo(() => perfByDayOfWeek(periodTrades), [periodTrades]);
+  const bySetup = useMemo(() => perfBySetupType(periodTrades), [periodTrades]);
+  const byPrice = useMemo(() => perfByPriceRange(periodTrades), [periodTrades]);
   const byFloat = useMemo(
-    () => perfByShareFloatRange(tradesWithQuality, { floatCategories: settings?.float_categories }),
-    [tradesWithQuality, settings?.float_categories]
+    () => perfByShareFloatRange(periodTrades, { floatCategories: settings?.float_categories }),
+    [periodTrades, settings?.float_categories]
   );
   const setupTimeFloatHeatmap = useMemo(
-    () => perfBySetupTimeFloatHeatmap(tradesWithQuality, {
+    () => perfBySetupTimeFloatHeatmap(periodTrades, {
       setupLimit: 8,
       hourLimit: 8,
       floatCategories: settings?.float_categories,
     }),
-    [tradesWithQuality, settings?.float_categories]
+    [periodTrades, settings?.float_categories]
   );
   const strategySnapshot = useMemo(
-    () => buildStrategyEngineSnapshot(tradesWithQuality, settings),
-    [settings, tradesWithQuality]
+    () => buildStrategyEngineSnapshot(periodTrades, settings),
+    [settings, periodTrades]
   );
-  const byHoldBucket = useMemo(() => perfByHoldDurationBuckets(tradesWithQuality, 5), [tradesWithQuality]);
-  const weeklyReview = useMemo(() => buildWeeklyReview(tradesWithQuality, [7, 14]), [tradesWithQuality]);
-  const mistakeInsights = useMemo(() => analyzeMistakePatterns(tradesWithQuality, 4), [tradesWithQuality]);
+  const byHoldBucket = useMemo(() => perfByHoldDurationBuckets(periodTrades, 5), [periodTrades]);
+  const weeklyReview = useMemo(() => buildWeeklyReview(periodTrades, [7, 14]), [periodTrades]);
+  const mistakeInsights = useMemo(() => analyzeMistakePatterns(periodTrades, 4), [periodTrades]);
 
   const timingTopHour = useMemo(
     () => [...byHour].filter((row) => row.trades > 0).sort((a, b) => b.totalPnL - a.totalPnL)[0] ?? null,
@@ -251,7 +252,7 @@ export default function PerformancePage() {
         />
       </div>
 
-      <WeeklyReviewCard reviews={weeklyReview} trades={tradesWithQuality} initialBalance={accountSize} />
+      <WeeklyReviewCard reviews={weeklyReview} trades={periodTrades} initialBalance={accountSize} />
 
       <Tabs defaultValue="behavior">
         <TabsList className="grid w-full grid-cols-2 gap-1.5 rounded-2xl border border-white/10 bg-[#13131e]/90 p-1.5 sm:grid-cols-4">
@@ -283,8 +284,8 @@ export default function PerformancePage() {
 
         <TabsContent value="behavior" className="mt-4 space-y-4">
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-            <EmotionMatrix trades={tradesWithQuality} />
-            <PlanAdherenceCard trades={tradesWithQuality} />
+            <EmotionMatrix trades={periodTrades} />
+            <PlanAdherenceCard trades={periodTrades} />
           </div>
         </TabsContent>
 
@@ -390,12 +391,12 @@ export default function PerformancePage() {
           </TabHero>
 
           <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
-            <SetupQualityPerTradeCard trades={tradesWithQuality} riskLimit={riskLimit} />
+            <SetupQualityPerTradeCard trades={periodTrades} riskLimit={riskLimit} />
             <MistakePatternInsights insights={mistakeInsights} />
           </div>
 
           <div className="rounded-2xl border border-white/10 bg-gradient-to-br from-[#141423] to-[#101016] p-1">
-            <AnalysisPanel trades={tradesWithQuality} isCollapsed={false} />
+            <AnalysisPanel trades={periodTrades} isCollapsed={false} />
           </div>
         </TabsContent>
       </Tabs>

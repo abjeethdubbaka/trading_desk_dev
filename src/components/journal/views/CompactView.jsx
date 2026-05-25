@@ -11,19 +11,39 @@ export default function CompactView({
   onDuplicateTrade,
   onCopyNotes,
   onInlineUpdateTrade,
+  onViewDetails,
   reviews,
   reviewLoading,
   onReviewTrade,
   onClearReview,
   reviewUsefulness,
   onRateReviewUsefulness,
+  // Sort
+  sortKey,
+  sortDir,
+  onSortChange,
+  // Bulk selection
+  selectedIds,
+  onToggleSelect,
+  onToggleAll,
+  isAllSelected,
+  isIndeterminate,
 }) {
   const { urlsById: screenshotUrls, statusById: screenshotStatuses } = useTradeScreenshotUrls(trades);
   const [lightboxImage, setLightboxImage] = React.useState(null);
+  const showCheckbox = Boolean(onToggleSelect);
 
   return (
     <div className="overflow-x-auto">
-      <CompactHeader />
+      <CompactHeader
+        sortKey={sortKey}
+        sortDir={sortDir}
+        onSortChange={onSortChange}
+        showCheckbox={showCheckbox}
+        isAllSelected={isAllSelected}
+        isIndeterminate={isIndeterminate}
+        onToggleAll={onToggleAll}
+      />
       <div>
         {trades.map((trade, index) => (
           <CompactTradeRow
@@ -35,6 +55,7 @@ export default function CompactView({
             onDuplicateTrade={onDuplicateTrade}
             onCopyNotes={onCopyNotes}
             onInlineUpdateTrade={onInlineUpdateTrade}
+            onViewDetails={onViewDetails}
             review={reviews?.[trade.id]}
             reviewLoading={reviewLoading?.[trade.id]}
             onReviewTrade={onReviewTrade}
@@ -44,6 +65,8 @@ export default function CompactView({
             screenshotUrls={screenshotUrls}
             screenshotStatuses={screenshotStatuses}
             onOpenImage={(url) => setLightboxImage(url)}
+            isSelected={selectedIds?.has(trade.id)}
+            onToggleSelect={onToggleSelect}
           />
         ))}
       </div>

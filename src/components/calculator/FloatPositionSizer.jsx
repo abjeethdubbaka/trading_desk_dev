@@ -8,7 +8,7 @@
 import React from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Plus, RotateCcw, RefreshCw } from 'lucide-react';
+import { Plus, RotateCcw, RefreshCw, AlertTriangle } from 'lucide-react';
 import {
   MemoizedFloatInputForm,
   MemoizedResultsDisplay,
@@ -21,6 +21,9 @@ export default function FloatPositionSizer({ historyData, onCalculationSaved = (
     historyData,
     onCalculationSaved,
   });
+
+  const isStale = Boolean(controller.calculation?._stale);
+  const showResults = controller.calculation?._viewSource === 'snapshot';
 
   return (
     <div className="space-y-4 w-full">
@@ -52,11 +55,19 @@ export default function FloatPositionSizer({ historyData, onCalculationSaved = (
         onApplyFloatSmartPlan={controller.handleApplyFloatSmartPlan}
       />
 
-      {controller.calculation?._viewSource === 'snapshot' && (
-        <MemoizedResultsDisplay
-          {...controller.calculation}
-          exitStrategy={controller.exitStrategy}
-        />
+      {showResults && (
+        <div className={isStale ? 'opacity-50 pointer-events-none select-none' : ''}>
+          {isStale && (
+            <div className="flex items-center gap-2 px-3 py-2 mb-2 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-400 text-xs">
+              <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0" />
+              Inputs changed — press Calculate to refresh
+            </div>
+          )}
+          <MemoizedResultsDisplay
+            {...controller.calculation}
+            exitStrategy={controller.exitStrategy}
+          />
+        </div>
       )}
 
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pt-2 border-t border-white/5">
@@ -91,7 +102,9 @@ export default function FloatPositionSizer({ historyData, onCalculationSaved = (
           </Button>
           {!controller.canAddToJournal && (
             <p className="text-[11px] text-white/35">
-              Enter symbol + entry and run calculation to enable journal save.
+              {isStale
+                ? 'Recalculate before saving to journal.'
+                : 'Enter symbol + entry and run calculation to enable journal save.'}
             </p>
           )}
         </div>

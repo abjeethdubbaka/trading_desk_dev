@@ -5,14 +5,16 @@
  * Works the same regardless of whether trades came from Firebase or localStorage.
  */
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { startOfMonth, endOfMonth, subMonths } from 'date-fns';
 import { getTradeNotesText } from '../../utils/notes';
+import { getTradePnL, getTradeDate } from '@/lib/utils/tradeFields';
 
 export function useJournalFilters(trades = []) {
   const [searchTerm, setSearchTerm] = useState('');
   const [filter,     setFilter]     = useState('all');
   const [dateRange,  setDateRange]  = useState('all');
+  const [tagFilter,  setTagFilter]  = useState([]);
 
   const filteredTrades = useMemo(() => {
     return trades.filter(trade => {
@@ -27,8 +29,15 @@ export function useJournalFilters(trades = []) {
         if (!match) return false;
       }
 
+      // ── Tag filter ───────────────────────────────────────────────────────
+      if (tagFilter.length > 0) {
+        const tradeTags = Array.isArray(trade.tags) ? trade.tags : [];
+        const hasMatch = tagFilter.some((t) => tradeTags.includes(t));
+        if (!hasMatch) return false;
+      }
+
       // ── Direction / outcome filter ───────────────────────────────────────
-      const tradePnL = trade.pnl ?? trade.total_pnl ?? 0;  // Support both field names
+      const tradePnL = getTradePnL(trade);
       if (filter === 'winners' && tradePnL <= 0)  return false;
       if (filter === 'losers'  && tradePnL >= 0)  return false;
       if (filter === 'long'    && trade.direction !== 'long')  return false;
@@ -36,7 +45,7 @@ export function useJournalFilters(trades = []) {
 
       // ── Date range ───────────────────────────────────────────────────────
       if (dateRange !== 'all') {
-        const tradeDate = new Date(trade.entry_time ?? trade.created_date ?? 0);
+        const tradeDate = getTradeDate(trade) ?? new Date(0);
         const now = new Date();
 
         if (dateRange === 'today') {
@@ -56,13 +65,23 @@ export function useJournalFilters(trades = []) {
 
       return true;
     });
-  }, [trades, searchTerm, filter, dateRange]);
+  }, [trades, searchTerm, filter, dateRange, tagFilter]);
+
+  // Expose a batch-apply for preset loading
+  const applyFilterState = useCallback(({ searchTerm: s, filter: f, dateRange: d, tagFilter: t }) => {
+    if (s !== undefined) setSearchTerm(s ?? '');
+    if (f !== undefined) setFilter(f ?? 'all');
+    if (d !== undefined) setDateRange(d ?? 'all');
+    if (t !== undefined) setTagFilter(Array.isArray(t) ? t : []);
+  }, []);
 
   return {
     searchTerm, setSearchTerm,
     filter,     setFilter,
     dateRange,  setDateRange,
+    tagFilter,  setTagFilter,
     filteredTrades,
+    applyFilterState,
   };
 }
 

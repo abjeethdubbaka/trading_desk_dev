@@ -12,30 +12,23 @@ import { useTradePerformance } from './useTradePerformance.js';
 export function useJournal(options = {}) {
   const { settings } = useSettings();
   const currentTier = settings?.account_tier || 'custom';
-  const { filters = {}, ...queryOptions } = options;
+  const { filters = {}, includeStats = false, includePerformance = false, ...queryOptions } = options;
 
-  // Add account tier filter for trades list (show only current tier trades)
-  const filtersWithTier = {
-    ...filters,
-    account_tier: currentTier
-  };
-
-  // But for stats and performance, use all trades (no account_tier filter)
+  const filtersWithTier = { ...filters, account_tier: currentTier };
   const filtersForStats = { ...filters };
-  delete filtersForStats.account_tier; // Remove tier filter for stats
 
   const tradesQuery = useTrades({ filters: filtersWithTier, ...queryOptions });
-  const statsQuery = useTradeStats({ filters: filtersForStats });
-  const performanceQuery = useTradePerformance();
+  const statsQuery = useTradeStats({ filters: filtersForStats, enabled: includeStats });
+  const performanceQuery = useTradePerformance({ enabled: includePerformance });
 
   return {
     trades: tradesQuery.data || [],
-    isLoading: tradesQuery.isLoading || statsQuery.isLoading || performanceQuery.isLoading,
-    error: tradesQuery.error || statsQuery.error || performanceQuery.error,
+    isLoading: tradesQuery.isLoading,
+    error: tradesQuery.error,
     refetch: () => {
       tradesQuery.refetch();
-      statsQuery.refetch();
-      performanceQuery.refetch();
+      if (includeStats) statsQuery.refetch();
+      if (includePerformance) performanceQuery.refetch();
     },
     stats: statsQuery.data,
     performance: performanceQuery.data,

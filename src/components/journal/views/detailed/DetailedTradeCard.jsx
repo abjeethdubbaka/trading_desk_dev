@@ -5,6 +5,7 @@ import { getTradeNotesText } from '../../utils/notes';
 import { AlertCircle, Copy, CopyPlus, Pencil, Check, X } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { TagChip } from '../../components/TagChip';
 
 const isVWAPPullback = (setupType) => (setupType || '').toLowerCase().trim() === 'vwap pullback';
 const getStepStatus = (step, keys) => keys.every((key) => !!step?.[key]);
@@ -298,6 +299,14 @@ export function DetailedTradeCard({
               </>
             );
           })()}
+        </div>
+      )}
+
+      {Array.isArray(trade.tags) && trade.tags.length > 0 && (
+        <div className="flex flex-wrap gap-1 mt-1">
+          {trade.tags.map((name) => (
+            <TagChip key={name} name={name} size="xs" />
+          ))}
         </div>
       )}
 

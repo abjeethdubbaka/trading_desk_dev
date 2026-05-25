@@ -6,6 +6,7 @@
 
 import React, { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useConfirm } from '@/components/ui/ConfirmDialog';
 import { Trash2, TrendingUp, TrendingDown, Calculator } from 'lucide-react';
 import { createPageUrl } from '@/utils';
 import { useCalcHistory } from '@/lib/hooks/useCalcHistory';
@@ -56,6 +57,7 @@ function FloatBadge({ category }) {
 export default function CalcHistory() {
   const navigate = useNavigate();
   const { data: history = [], isLoading, deleteItem, clearHistory } = useCalcHistory();
+  const [confirm, confirmDialog] = useConfirm();
 
   const summary = useMemo(
     () => ({
@@ -82,7 +84,10 @@ export default function CalcHistory() {
       {history.length > 0 && (
         <Button
           variant="ghost"
-          onClick={() => window.confirm('Clear all history?') && clearHistory()}
+          onClick={async () => {
+            const ok = await confirm({ title: 'Clear all history?', confirmLabel: 'Clear', destructive: true });
+            if (ok) clearHistory();
+          }}
           className="text-red-300 hover:bg-red-500/10 hover:text-red-200"
         >
           <Trash2 className="mr-2 h-4 w-4" />
@@ -205,6 +210,7 @@ export default function CalcHistory() {
           ))}
         </div>
       )}
+      {confirmDialog}
     </div>
   );
 }

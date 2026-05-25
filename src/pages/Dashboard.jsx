@@ -16,6 +16,7 @@ import {
   buildEquityCurve,
 } from '@/lib/calculations/trades';
 import { buildDisciplineSnapshot } from '@/lib/calculations/discipline';
+import { toFiniteNumber } from '@/lib/utils/general';
 
 import DashboardHeader    from '@/components/dashboard/DashboardHeader';
 import DailyImprovements   from '@/components/dashboard/DailyImprovements';
@@ -27,10 +28,6 @@ const MorningBrief = lazy(() => import('@/components/dashboard/MorningBrief'));
 const AIModelScorecard = lazy(() => import('@/components/dashboard/AIModelScorecard'));
 const PerformanceBreakdown = lazy(() => import('@/components/dashboard/PerformanceBreakdown'));
 
-const toFiniteNumber = (value, fallback = 0) => {
-  const numericValue = Number(value);
-  return Number.isFinite(numericValue) ? numericValue : fallback;
-};
 
 export default function Dashboard() {
   useTradeEvents();

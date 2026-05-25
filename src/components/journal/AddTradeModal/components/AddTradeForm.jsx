@@ -23,6 +23,7 @@ import DosAndDontsSelector from './DosAndDontsSelector';
 import StrategySignal from './StrategySignal';
 import PlaybookReferenceCard from './PlaybookReferenceCard';
 import { SETUP_TYPE_OPTIONS as DEFAULT_SETUP_TYPE_OPTIONS } from '../constants/tradeConstants';
+import { TagSelector } from '../../components/TagSelector';
 
 const CAP_OPTIONS = [
   { value: 'micro', label: 'Micro (<10M)' },
@@ -219,6 +220,15 @@ export default function AddTradeForm({
             </Label>
           </div>
         </div>
+      </div>
+
+      <div className="space-y-2">
+        <Label>Tags</Label>
+        <TagSelector
+          value={Array.isArray(formData.tags) ? formData.tags : []}
+          onChange={(tags) => updateField('tags', tags)}
+          placeholder="Add tags…"
+        />
       </div>
 
       <NotesFields

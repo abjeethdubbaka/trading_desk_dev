@@ -3,6 +3,7 @@ import {
   BookOpenCheck,
   CheckCircle2,
   ExternalLink,
+  Search,
   ShieldAlert,
   Target,
 } from 'lucide-react';
@@ -75,7 +76,13 @@ export default function PlaybookReferenceCard({ entry }) {
         <p className="mt-2.5 text-xs text-white/80">{entry.description}</p>
       ) : null}
 
-      <div className="mt-3 grid grid-cols-1 gap-2 md:grid-cols-3">
+      <div className="mt-3 grid grid-cols-1 gap-2 md:grid-cols-2 xl:grid-cols-4">
+        <CriteriaBlock
+          icon={Search}
+          title="Stock Filters"
+          items={entry.stock_filter_criteria}
+          toneClassName="text-amber-200/90"
+        />
         <CriteriaBlock
           icon={Target}
           title="Entry"

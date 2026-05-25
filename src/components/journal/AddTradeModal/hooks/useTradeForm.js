@@ -109,7 +109,8 @@ export const useTradeForm = (initialData, userId = 'user-123') => {
     risk_reward_ratio: null,
     share_float: null,
     float_category: null,
-    share_float_range: null
+    share_float_range: null,
+    tags: [],
   });
 
   // Initialize form with initial data - only run when initialData actually changes
@@ -190,7 +191,8 @@ export const useTradeForm = (initialData, userId = 'user-123') => {
         ? Math.round(Number(initialData.share_float))
         : null,
       float_category: initialData.float_category || null,
-      share_float_range: initialData.share_float_range || null
+      share_float_range: initialData.share_float_range || null,
+      tags: Array.isArray(initialData.tags) ? [...initialData.tags] : [],
     };
   }, [initialData?.id]); // Only depend on the ID, not the whole object
 
@@ -232,7 +234,8 @@ export const useTradeForm = (initialData, userId = 'user-123') => {
       risk_reward_ratio: null,
       share_float: null,
       float_category: null,
-      share_float_range: null
+      share_float_range: null,
+      tags: [],
     });
   }, [initialFormData]);
 
@@ -272,7 +275,8 @@ export const useTradeForm = (initialData, userId = 'user-123') => {
       risk_reward_ratio: null,
       share_float: null,
       float_category: null,
-      share_float_range: null
+      share_float_range: null,
+      tags: [],
     });
   }, []);
 

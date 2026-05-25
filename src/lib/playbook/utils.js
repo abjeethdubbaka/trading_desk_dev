@@ -103,6 +103,7 @@ export function createBlankPlaybookEntry() {
     description: '',
     timeframe: '',
     market_context: '',
+    stock_filter_criteria: [],
     entry_criteria: [],
     exit_criteria: [],
     invalidations: [],
@@ -132,6 +133,12 @@ export function normalizePlaybookEntry(entry) {
     description: toTrimmedString(source.description),
     timeframe: toTrimmedString(source.timeframe),
     market_context: toTrimmedString(source.market_context || source.marketCondition),
+    stock_filter_criteria: normalizeLineItems(
+      source.stock_filter_criteria ||
+      source.stockFilterCriteria ||
+      source.filter_criteria ||
+      source.filterCriteria
+    ),
     entry_criteria: normalizeLineItems(source.entry_criteria || source.entryCriteria),
     exit_criteria: normalizeLineItems(source.exit_criteria || source.exitCriteria),
     invalidations: normalizeLineItems(source.invalidations),
@@ -219,6 +226,11 @@ export function createPlaybookEntryFromSetupName(setupName) {
     ...nextEntry,
     name: normalizedSetupName,
     description: `Execution playbook for ${normalizedSetupName}`,
+    stock_filter_criteria: [
+      'Relative volume >= 2x',
+      'Dollar volume >= $10M',
+      'Clean premarket catalyst or fresh news',
+    ],
     entry_criteria: [`Define ${normalizedSetupName} entry trigger`],
     exit_criteria: ['Define primary exit signal'],
     invalidations: ['Define invalidation level before entry'],

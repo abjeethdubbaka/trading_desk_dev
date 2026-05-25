@@ -1,15 +1,14 @@
 /**
  * @file src/pages/Journal.jsx
  *
- * Phase 2 - rewired to useJournal() (Firebase-backed).
- * All trade CRUD flows through the new db layer.
+ * Batch-2 update: sort (#5), presets (#6), tags (#9), bulk select (#7), inline edit (#8).
  */
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useJournal, useTradesMutation } from '@/lib/hooks/useTrades';
 import { useTradeReview } from '@/lib/hooks/useTradeReview';
 import { useSettings } from '@/lib/context/SettingsContext';
-import { computeTradeSetupQuality } from '@/lib/calculations/trades';
+import { useTradesWithQuality } from '@/lib/hooks/useTradesWithQuality';
 import {
   AddTradeModal,
   CompactView,
@@ -24,11 +23,22 @@ import {
   useJournalPagination,
   useJournalTradeManagement,
 } from '@/components/journal';
+import { useJournalSort }      from '@/components/journal/shared/hooks/useJournalSort';
+import { useJournalPresets }   from '@/components/journal/shared/hooks/useJournalPresets';
+import { useJournalSelection } from '@/components/journal/shared/hooks/useJournalSelection';
+import { BulkActionBar }       from '@/components/journal/toolbar/BulkActionBar';
+import { TradeDetailDrawer }   from '@/components/journal/TradeDetailDrawer';
+import { KeyboardShortcutsOverlay } from '@/components/journal/KeyboardShortcutsOverlay';
+import { useJournalKeyboardShortcuts } from '@/components/journal/shared/hooks/useJournalKeyboardShortcuts';
+import { useConfirm }          from '@/components/ui/ConfirmDialog';
 
 const PAGE_SIZE = 20;
 
 export default function Journal() {
   const [viewMode, setViewMode] = useState(VIEW_MODES.COMPACT);
+  const [drawerTrade, setDrawerTrade] = useState(null);
+  const [showShortcutsOverlay, setShowShortcutsOverlay] = useState(false);
+  const [confirm, confirmDialog] = useConfirm();
 
   const { trades, isLoading, refetch } = useJournal();
   const { settings } = useSettings();
@@ -45,44 +55,50 @@ export default function Journal() {
   const isSaving = isCreating || isUpdating || isBulkCreating;
   const riskLimit = Number(settings?.risk_amount);
 
-  const tradesWithQuality = useMemo(() => {
-    if (!Array.isArray(trades)) return [];
+  const tradesWithQuality = useTradesWithQuality(trades, riskLimit);
 
-    return trades.map((trade) => {
-      const quality = computeTradeSetupQuality(trade, { riskLimit });
-      if (!Number.isFinite(quality?.score)) return trade;
-
-      const normalizedScore = Math.round(quality.score);
-      const currentScore = Number.isFinite(Number(trade?.setup_quality_score))
-        ? Math.round(Number(trade.setup_quality_score))
-        : null;
-      const currentGrade = String(trade?.setup_grade || '').trim();
-      const nextGrade = String(quality.grade || '').trim();
-
-      if (currentScore === normalizedScore && currentGrade === nextGrade) {
-        return trade;
-      }
-
-      return {
-        ...trade,
-        setup_quality_score: normalizedScore,
-        setup_grade: nextGrade || trade?.setup_grade || '',
-      };
-    });
-  }, [riskLimit, trades]);
-
+  // ── Filters ─────────────────────────────────────────────────────────────
   const {
-    searchTerm,
-    setSearchTerm,
-    filter,
-    setFilter,
-    dateRange,
-    setDateRange,
+    searchTerm, setSearchTerm,
+    filter,     setFilter,
+    dateRange,  setDateRange,
+    tagFilter,  setTagFilter,
     filteredTrades,
+    applyFilterState,
   } = useJournalFilters(tradesWithQuality);
 
-  const resetSignal = useMemo(() => `${searchTerm}|${filter}|${dateRange}`, [searchTerm, filter, dateRange]);
+  // ── Sort (after filter, before pagination) ───────────────────────────────
+  const { sortKey, sortDir, sortedTrades, onSortChange, setSort } = useJournalSort(filteredTrades);
 
+  // ── Presets ──────────────────────────────────────────────────────────────
+  const { presets, applyPreset, savePreset, deletePreset, setDefaultPreset, getDefaultPreset } =
+    useJournalPresets();
+
+  // Apply the default preset on first mount
+  useEffect(() => {
+    const def = getDefaultPreset();
+    if (def?.filters) applyFilterState(def.filters);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleApplyPreset = useCallback((id) => {
+    applyPreset(id, (filters) => {
+      applyFilterState(filters);
+      if (filters.sortKey !== undefined) setSort(filters.sortKey, filters.sortDir);
+    });
+    setCurrentPage(1);
+  }, [applyPreset, applyFilterState, setSort]);
+
+  const handleSavePreset = useCallback((name) => {
+    savePreset(name, { searchTerm, filter, dateRange, tagFilter, sortKey, sortDir });
+  }, [savePreset, searchTerm, filter, dateRange, tagFilter, sortKey, sortDir]);
+
+  // ── resetSignal drives pagination + selection resets ──────────────────────
+  const resetSignal = useMemo(
+    () => `${searchTerm}|${filter}|${dateRange}|${tagFilter.join(',')}|${sortKey}|${sortDir}`,
+    [searchTerm, filter, dateRange, tagFilter, sortKey, sortDir],
+  );
+
+  // ── Pagination ───────────────────────────────────────────────────────────
   const {
     currentPage,
     setCurrentPage,
@@ -90,22 +106,29 @@ export default function Journal() {
     paginatedItems,
     pageStartNumber,
     pageEndNumber,
-  } = useJournalPagination(filteredTrades, {
-    pageSize: PAGE_SIZE,
-    resetSignal,
-  });
+  } = useJournalPagination(sortedTrades, { pageSize: PAGE_SIZE, resetSignal });
 
+  // ── Bulk selection ───────────────────────────────────────────────────────
   const {
-    isImporting,
-    importStatus,
-    handleImportCsv,
-    handleExportCsv,
-  } = useJournalDataTransfer({
-    filteredTrades,
-    accountTier,
-    bulkCreateTrades,
-  });
+    selectedIds,
+    selectedTrades,
+    toggle: toggleSelect,
+    togglePage: toggleAllOnPage,
+    clear: clearSelection,
+    isAllSelected,
+    isIndeterminate,
+    count: selectionCount,
+  } = useJournalSelection({ trades: paginatedItems, resetSignal });
 
+  // ── Data transfer ─────────────────────────────────────────────────────────
+  const { isImporting, importStatus, handleImportCsv, handleExportCsv } =
+    useJournalDataTransfer({ filteredTrades, accountTier, bulkCreateTrades });
+
+  const handleExportSelected = useCallback((selected) => {
+    handleExportCsv(selected);
+  }, [handleExportCsv]);
+
+  // ── Trade management ──────────────────────────────────────────────────────
   const {
     showModal,
     editingTrade,
@@ -117,29 +140,35 @@ export default function Journal() {
     handleDuplicateTrade,
     handleCopyNotes,
     handleInlineUpdateTrade,
-  } = useJournalTradeManagement({
-    createTrade,
-    updateTrade,
-    deleteTrade,
-  });
+    handleBulkDelete,
+    handleBulkTag,
+    handleBulkMarkPlan,
+  } = useJournalTradeManagement({ createTrade, updateTrade, deleteTrade, bulkCreateTrades, confirmFn: confirm });
 
   const {
-    reviews,
-    loading: reviewLoading,
-    reviewTrade,
-    clearReview,
-    usefulnessById,
-    rateReviewUsefulness,
+    reviews, loading: reviewLoading, reviewTrade, clearReview, usefulnessById, rateReviewUsefulness,
   } = useTradeReview();
 
   useEffect(() => {
-    const handleTradesUpdated = () => {
-      refetch();
-    };
-
-    window.addEventListener('trades-updated', handleTradesUpdated);
-    return () => window.removeEventListener('trades-updated', handleTradesUpdated);
+    window.addEventListener('trades-updated', refetch);
+    return () => window.removeEventListener('trades-updated', refetch);
   }, [refetch]);
+
+  const handleEscape = useCallback(() => {
+    if (drawerTrade) { setDrawerTrade(null); return; }
+    setShowShortcutsOverlay(false);
+  }, [drawerTrade]);
+
+  useJournalKeyboardShortcuts({
+    onNewTrade: openCreateModal,
+    onEscape: handleEscape,
+    onToggleShortcutsOverlay: useCallback(() => setShowShortcutsOverlay((v) => !v), []),
+  });
+
+  const handleBulkDeleteWithClear = useCallback(async (ids) => {
+    await handleBulkDelete(ids);
+    clearSelection();
+  }, [handleBulkDelete, clearSelection]);
 
   return (
     <div className="space-y-4">
@@ -150,6 +179,8 @@ export default function Journal() {
         onFilterChange={setFilter}
         dateRange={dateRange}
         onDateRangeChange={setDateRange}
+        tagFilter={tagFilter}
+        onTagFilterChange={setTagFilter}
         viewMode={viewMode}
         onViewModeChange={setViewMode}
         onAddTrade={openCreateModal}
@@ -159,7 +190,24 @@ export default function Journal() {
         isImporting={isImporting}
         importStatus={importStatus}
         trades={filteredTrades}
+        presets={presets}
+        onApplyPreset={handleApplyPreset}
+        onSavePreset={handleSavePreset}
+        onDeletePreset={deletePreset}
+        onSetDefaultPreset={setDefaultPreset}
       />
+
+      {selectionCount > 0 && (
+        <BulkActionBar
+          count={selectionCount}
+          selectedTrades={selectedTrades}
+          onDelete={handleBulkDeleteWithClear}
+          onExportSelected={handleExportSelected}
+          onBulkTag={handleBulkTag}
+          onBulkMarkPlan={handleBulkMarkPlan}
+          onClear={clearSelection}
+        />
+      )}
 
       <JournalStatsBar trades={filteredTrades} />
 
@@ -171,7 +219,7 @@ export default function Journal() {
         </div>
       ) : filteredTrades.length === 0 ? (
         <EmptyState
-          hasFilters={!!(searchTerm || filter !== 'all' || dateRange !== 'all')}
+          hasFilters={!!(searchTerm || filter !== 'all' || dateRange !== 'all' || tagFilter.length > 0)}
           onAddTrade={openCreateModal}
         />
       ) : (
@@ -184,12 +232,21 @@ export default function Journal() {
               onDuplicateTrade={handleDuplicateTrade}
               onCopyNotes={handleCopyNotes}
               onInlineUpdateTrade={handleInlineUpdateTrade}
+              onViewDetails={setDrawerTrade}
               reviews={reviews}
               reviewLoading={reviewLoading}
               onReviewTrade={reviewTrade}
               onClearReview={clearReview}
               reviewUsefulness={usefulnessById}
               onRateReviewUsefulness={rateReviewUsefulness}
+              sortKey={sortKey}
+              sortDir={sortDir}
+              onSortChange={onSortChange}
+              selectedIds={selectedIds}
+              onToggleSelect={toggleSelect}
+              onToggleAll={toggleAllOnPage}
+              isAllSelected={isAllSelected}
+              isIndeterminate={isIndeterminate}
             />
           ) : (
             <DetailedView
@@ -219,6 +276,20 @@ export default function Journal() {
         initialData={editingTrade}
         isSaving={isSaving}
       />
+
+      {drawerTrade && (
+        <TradeDetailDrawer
+          trade={drawerTrade}
+          onClose={() => setDrawerTrade(null)}
+          onEdit={() => { handleEdit(drawerTrade); setDrawerTrade(null); }}
+        />
+      )}
+
+      {showShortcutsOverlay && (
+        <KeyboardShortcutsOverlay onClose={() => setShowShortcutsOverlay(false)} />
+      )}
+
+      {confirmDialog}
     </div>
   );
 }

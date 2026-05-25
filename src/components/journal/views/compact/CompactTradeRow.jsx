@@ -8,6 +8,20 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import TradeReviewPanel from '../../analysis/TradeReviewPanel';
 import { TradeThumbnail } from './TradeThumbnail';
+import { TagChip } from '../../components/TagChip';
+import { EditableCell } from '../cells/EditableCell';
+import { useInlineTradeEdit } from '../../hooks/useInlineTradeEdit';
+import { getTradePnL } from '@/lib/utils/tradeFields';
+
+const DIRECTION_OPTIONS = [
+  { value: 'long', label: 'Long' },
+  { value: 'short', label: 'Short' },
+];
+
+const PLAN_OPTIONS = [
+  { value: 'true', label: 'Followed' },
+  { value: 'false', label: 'Violated' },
+];
 
 export function CompactTradeRow({
   trade,
@@ -16,6 +30,7 @@ export function CompactTradeRow({
   onDuplicateTrade,
   onCopyNotes,
   onInlineUpdateTrade,
+  onViewDetails,
   review,
   reviewLoading,
   onReviewTrade,
@@ -26,6 +41,8 @@ export function CompactTradeRow({
   screenshotStatuses,
   onOpenImage,
   index,
+  isSelected,
+  onToggleSelect,
 }) {
   const [expanded, setExpanded] = useState(false);
   const [reviewOpen, setReviewOpen] = useState(false);
@@ -37,11 +54,14 @@ export function CompactTradeRow({
     notes: cleanedTradeNotes,
   });
 
-  const pnl = trade.pnl || 0;
+  const { savingField, editField } = useInlineTradeEdit({ trade, onInlineUpdateTrade });
+
+  const pnl = getTradePnL(trade);
   const entryPrice = trade.entry_price || 0;
   const exitPrice = trade.exit_price || 0;
   const positionSize = trade.position_size || 0;
   const screenshots = trade.screenshots || [];
+  const tags = Array.isArray(trade.tags) ? trade.tags.filter(Boolean) : [];
   const emotionList = Array.isArray(trade.emotions)
     ? trade.emotions.filter(Boolean)
     : (trade.emotions ? [trade.emotions] : []);
@@ -89,7 +109,6 @@ export function CompactTradeRow({
 
   const saveInlineEdit = async () => {
     if (!onInlineUpdateTrade) return;
-
     setIsInlineSaving(true);
     try {
       await onInlineUpdateTrade(trade, {
@@ -107,16 +126,37 @@ export function CompactTradeRow({
       className={cn(
         'group border-b border-white/[0.04] last:border-0',
         'transition-colors duration-150',
-        'hover:bg-white/[0.02]',
+        isSelected ? 'bg-cyan-500/[0.06]' : 'hover:bg-white/[0.02]',
         'animate-fade-in',
       )}
       style={{ animationDelay: `${Math.min(index * 20, 200)}ms` }}
     >
-      <div className="flex items-center gap-0 px-3 py-2.5 cursor-pointer" onClick={() => setExpanded((value) => !value)}>
-        <ChevronDown
-          className={cn('w-3 h-3 text-white/20 flex-shrink-0 mr-2 transition-transform duration-200', expanded && 'rotate-180')}
-        />
+      <div
+        className="flex items-center gap-0 px-3 py-2.5 cursor-pointer"
+        onClick={() => onViewDetails?.(trade)}
+      >
+        {/* Checkbox — stop propagation so clicking it doesn't open drawer */}
+        {onToggleSelect && (
+          <div className="w-6 flex-shrink-0 mr-1" onClick={(e) => e.stopPropagation()}>
+            <input
+              type="checkbox"
+              checked={Boolean(isSelected)}
+              onChange={() => onToggleSelect(trade.id)}
+              className="w-3 h-3 rounded accent-cyan-500 cursor-pointer"
+            />
+          </div>
+        )}
 
+        {/* Chevron toggles inline notes expand without opening the drawer */}
+        <button
+          type="button"
+          onClick={(e) => { e.stopPropagation(); setExpanded((v) => !v); }}
+          className="mr-2 flex-shrink-0 rounded p-0.5 text-white/20 hover:text-white/50 transition-colors"
+        >
+          <ChevronDown className={cn('w-3 h-3 transition-transform duration-200', expanded && 'rotate-180')} />
+        </button>
+
+        {/* Date */}
         <div className="w-[82px] flex-shrink-0">
           <div className="leading-tight">
             <span className="block text-[11px] text-white/40 font-mono">
@@ -128,24 +168,46 @@ export function CompactTradeRow({
           </div>
         </div>
 
-        <div className="w-[110px] flex-shrink-0 flex items-center gap-1.5">
+        {/* Symbol + Direction (direction is editable) */}
+        <div className="w-[110px] flex-shrink-0 flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
           <span className="font-semibold text-[13px] text-white tracking-wide">
             {trade.symbol || '-'}
           </span>
-          <DirectionBadge direction={trade.direction} size="xs" />
+          <EditableCell
+            value={trade.direction}
+            displayNode={<DirectionBadge direction={trade.direction} size="xs" />}
+            type="select"
+            options={DIRECTION_OPTIONS}
+            onSave={(v) => editField('direction', v)}
+            loading={savingField === 'direction'}
+          />
         </div>
 
-        <div className="w-[100px] flex-shrink-0 hidden sm:block">
+        {/* Entry → Exit (exit_price is editable) */}
+        <div className="w-[100px] flex-shrink-0 hidden sm:block" onClick={(e) => e.stopPropagation()}>
           <span className="text-[11px] font-mono text-white/50">
             {formatCurrency(entryPrice)}
-            {exitPrice ? <span className="text-white/25"> -&gt; {formatCurrency(exitPrice)}</span> : null}
+            {exitPrice ? (
+              <span className="text-white/25"> →{' '}
+                <EditableCell
+                  value={exitPrice}
+                  displayNode={<span className="text-white/50">{formatCurrency(exitPrice)}</span>}
+                  type="number"
+                  onSave={(v) => editField('exit_price', v)}
+                  loading={savingField === 'exit_price'}
+                  validate={(v) => v > 0 ? null : 'Must be positive'}
+                />
+              </span>
+            ) : null}
           </span>
         </div>
 
+        {/* Size */}
         <div className="w-[58px] flex-shrink-0 hidden md:block">
           <span className="text-[11px] font-mono text-white/40">{positionSize || '-'}</span>
         </div>
 
+        {/* P&L */}
         <div className="w-[150px] flex-shrink-0">
           <div className="flex items-center gap-1.5 flex-wrap">
             <PnlBadge value={pnl} size="sm" />
@@ -157,14 +219,23 @@ export function CompactTradeRow({
           </div>
         </div>
 
+        {/* R */}
         <div className="w-[52px] flex-shrink-0 hidden lg:block">
           <RMultipleBadge value={trade.r_multiple} />
         </div>
 
-        <div className="w-[110px] flex-shrink-0 hidden xl:block">
-          <SetupBadge setup={trade.setup_type} />
+        {/* Setup (editable) */}
+        <div className="w-[110px] flex-shrink-0 hidden xl:block" onClick={(e) => e.stopPropagation()}>
+          <EditableCell
+            value={trade.setup_type ?? ''}
+            displayNode={<SetupBadge setup={trade.setup_type} />}
+            type="text"
+            onSave={(v) => editField('setup_type', v)}
+            loading={savingField === 'setup_type'}
+          />
         </div>
 
+        {/* Emotions */}
         <div className="w-[120px] flex-shrink-0 hidden xl:block">
           <div className="flex items-center gap-1">
             {primaryEmotion ? (
@@ -178,6 +249,7 @@ export function CompactTradeRow({
           </div>
         </div>
 
+        {/* Quality */}
         <div className="w-[90px] flex-shrink-0 hidden xl:block">
           {hasSetupQualityScore || normalizedSetupGrade ? (
             <span className="text-[10px] px-1.5 py-0.5 rounded border border-blue-500/20 bg-blue-500/10 text-blue-300/70 whitespace-nowrap">
@@ -190,23 +262,28 @@ export function CompactTradeRow({
           )}
         </div>
 
-        <div className="w-[120px] flex-shrink-0 hidden xl:block">
-          {followedPlanLabel ? (
-            <span
-              className={cn(
+        {/* Followed plan (editable) */}
+        <div className="w-[120px] flex-shrink-0 hidden xl:block" onClick={(e) => e.stopPropagation()}>
+          <EditableCell
+            value={trade.followed_plan}
+            displayNode={followedPlanLabel ? (
+              <span className={cn(
                 'text-[10px] px-1.5 py-0.5 rounded border whitespace-nowrap',
                 trade.followed_plan
                   ? 'border-emerald-500/15 bg-emerald-500/8 text-emerald-300/60'
                   : 'border-rose-500/20 bg-rose-500/10 text-rose-300/70'
-              )}
-            >
-              {followedPlanLabel}
-            </span>
-          ) : (
-            <span className="text-[10px] text-white/25">-</span>
-          )}
+              )}>
+                {followedPlanLabel}
+              </span>
+            ) : <span className="text-[10px] text-white/25">-</span>}
+            type="boolean"
+            options={PLAN_OPTIONS}
+            onSave={(v) => editField('followed_plan', v)}
+            loading={savingField === 'followed_plan'}
+          />
         </div>
 
+        {/* Screenshots */}
         <div className="flex items-center gap-1 mx-2 flex-shrink-0">
           {screenshots.slice(0, 2).map((id, i) => (
             <TradeThumbnail
@@ -225,47 +302,37 @@ export function CompactTradeRow({
           )}
         </div>
 
+        {/* Actions */}
         <div
           className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity duration-150 flex-shrink-0"
           onClick={(event) => event.stopPropagation()}
         >
-          <button
-            onClick={startInlineEdit}
-            className="p-1.5 rounded text-white/30 hover:text-cyan-300 hover:bg-cyan-500/10 transition-colors"
-            title="Inline edit"
-          >
+          <button onClick={startInlineEdit} className="p-1.5 rounded text-white/30 hover:text-cyan-300 hover:bg-cyan-500/10 transition-colors" title="Inline edit">
             <Pencil className="w-3 h-3" />
           </button>
-          <button
-            onClick={() => onDuplicateTrade?.(trade)}
-            className="p-1.5 rounded text-white/30 hover:text-sky-300 hover:bg-sky-500/10 transition-colors"
-            title="Duplicate trade"
-          >
+          <button onClick={() => onDuplicateTrade?.(trade)} className="p-1.5 rounded text-white/30 hover:text-sky-300 hover:bg-sky-500/10 transition-colors" title="Duplicate">
             <CopyPlus className="w-3 h-3" />
           </button>
-          <button
-            onClick={() => onCopyNotes?.(trade)}
-            className="p-1.5 rounded text-white/30 hover:text-emerald-300 hover:bg-emerald-500/10 transition-colors"
-            title="Copy notes"
-          >
+          <button onClick={() => onCopyNotes?.(trade)} className="p-1.5 rounded text-white/30 hover:text-emerald-300 hover:bg-emerald-500/10 transition-colors" title="Copy notes">
             <Copy className="w-3 h-3" />
           </button>
-          <button
-            onClick={() => onEdit(trade)}
-            className="p-1.5 rounded text-white/30 hover:text-white/70 hover:bg-white/8 transition-colors"
-            title="Edit"
-          >
+          <button onClick={() => onEdit(trade)} className="p-1.5 rounded text-white/30 hover:text-white/70 hover:bg-white/8 transition-colors" title="Edit">
             <Edit2 className="w-3 h-3" />
           </button>
-          <button
-            onClick={() => onDelete(trade.id)}
-            className="p-1.5 rounded text-white/30 hover:text-rose-400 hover:bg-rose-500/10 transition-colors"
-            title="Delete"
-          >
+          <button onClick={() => onDelete(trade.id)} className="p-1.5 rounded text-white/30 hover:text-rose-400 hover:bg-rose-500/10 transition-colors" title="Delete">
             <Trash2 className="w-3 h-3" />
           </button>
         </div>
       </div>
+
+      {/* Tags row (shown when present) */}
+      {tags.length > 0 && (
+        <div className="flex items-center gap-1 flex-wrap px-8 pb-1">
+          {tags.map((name) => (
+            <TagChip key={name} name={name} size="xs" />
+          ))}
+        </div>
+      )}
 
       {expanded && (
         <div

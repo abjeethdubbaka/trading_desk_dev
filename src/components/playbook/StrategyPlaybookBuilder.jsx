@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import { useConfirm } from '@/components/ui/ConfirmDialog';
 import { toast } from 'sonner';
 import {
   BookPlus,
@@ -18,6 +19,7 @@ import { Label } from '@/components/ui/label';
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -30,12 +32,6 @@ import {
   toTagsInputValue,
 } from '@/lib/playbook/utils';
 import { cn } from '@/lib/utils/general';
-
-const STATUS_FILTERS = [
-  { key: 'all', label: 'All' },
-  { key: 'active', label: 'Active' },
-  { key: 'archived', label: 'Archived' },
-];
 
 function formatDate(value) {
   const timestamp = Date.parse(String(value || ''));
@@ -66,6 +62,7 @@ function toFormState(entry) {
     description: normalized.description,
     timeframe: normalized.timeframe,
     market_context: normalized.market_context,
+    stock_filter_criteria_text: toCriteriaTextareaValue(normalized.stock_filter_criteria),
     entry_criteria_text: toCriteriaTextareaValue(normalized.entry_criteria),
     exit_criteria_text: toCriteriaTextareaValue(normalized.exit_criteria),
     invalidations_text: toCriteriaTextareaValue(normalized.invalidations),
@@ -114,6 +111,7 @@ function toEntryPayload(formState, sourceEntry = null) {
     description: String(formState.description || '').trim(),
     timeframe: String(formState.timeframe || '').trim(),
     market_context: String(formState.market_context || '').trim(),
+    stock_filter_criteria: normalizeTextareaLines(formState.stock_filter_criteria_text),
     entry_criteria: normalizeTextareaLines(formState.entry_criteria_text),
     exit_criteria: normalizeTextareaLines(formState.exit_criteria_text),
     invalidations: normalizeTextareaLines(formState.invalidations_text),
@@ -162,9 +160,9 @@ function validateFormState(formState) {
 
 function MetricsPill({ label, value }) {
   return (
-    <div className="rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2">
+    <div className="rounded-xl border border-white/12 bg-white/[0.03] px-3 py-2.5">
       <p className="text-[10px] uppercase tracking-[0.14em] text-white/45">{label}</p>
-      <p className="mt-1 text-sm font-semibold text-white">{value}</p>
+      <p className="mt-1 text-sm font-semibold text-white/95">{value}</p>
     </div>
   );
 }
@@ -178,23 +176,43 @@ function PlaybookCardActions({
   onDelete,
 }) {
   return (
-    <div className="mt-3 flex flex-wrap items-center gap-1.5 border-t border-white/10 pt-3">
-      <Button size="sm" variant="ghost" className="h-8 px-2.5 text-xs" onClick={() => onEdit(entry)}>
+    <div className="mt-4 flex flex-wrap items-center gap-1.5 border-t border-white/10 pt-3.5">
+      <Button
+        size="sm"
+        variant="ghost"
+        className="h-8 border border-white/12 bg-white/[0.03] px-2.5 text-xs hover:bg-white/[0.08]"
+        onClick={() => onEdit(entry)}
+      >
         <Pencil className="mr-1.5 h-3.5 w-3.5" />
         Edit
       </Button>
-      <Button size="sm" variant="ghost" className="h-8 px-2.5 text-xs" onClick={() => onDuplicate(entry.id)}>
+      <Button
+        size="sm"
+        variant="ghost"
+        className="h-8 border border-white/12 bg-white/[0.03] px-2.5 text-xs hover:bg-white/[0.08]"
+        onClick={() => onDuplicate(entry.id)}
+      >
         <Copy className="mr-1.5 h-3.5 w-3.5" />
         Duplicate
       </Button>
-      <Button size="sm" variant="ghost" className="h-8 px-2.5 text-xs" onClick={() => onMarkReviewed(entry.id)}>
+      <Button
+        size="sm"
+        variant="ghost"
+        className="h-8 border border-white/12 bg-white/[0.03] px-2.5 text-xs hover:bg-white/[0.08]"
+        onClick={() => onMarkReviewed(entry.id)}
+      >
         <Eye className="mr-1.5 h-3.5 w-3.5" />
         Reviewed
       </Button>
       <Button
         size="sm"
         variant="ghost"
-        className="h-8 px-2.5 text-xs"
+        className={cn(
+          'h-8 px-2.5 text-xs',
+          entry.is_active
+            ? 'border border-amber-300/25 bg-amber-500/10 text-amber-100 hover:bg-amber-500/20'
+            : 'border border-emerald-300/25 bg-emerald-500/10 text-emerald-100 hover:bg-emerald-500/20'
+        )}
         onClick={() => onToggleActive(entry.id)}
       >
         {entry.is_active ? 'Archive' : 'Activate'}
@@ -202,7 +220,7 @@ function PlaybookCardActions({
       <Button
         size="sm"
         variant="ghost"
-        className="h-8 px-2.5 text-xs text-rose-200 hover:bg-rose-500/10 hover:text-rose-100"
+        className="h-8 border border-rose-300/20 bg-rose-500/10 px-2.5 text-xs text-rose-200 hover:bg-rose-500/20 hover:text-rose-100"
         onClick={() => onDelete(entry.id)}
       >
         <Trash2 className="mr-1.5 h-3.5 w-3.5" />
@@ -216,15 +234,16 @@ function CriteriaSection({ label, items = [], icon: Icon, toneClassName }) {
   if (!Array.isArray(items) || items.length === 0) return null;
 
   return (
-    <div className="space-y-1">
+    <div className="rounded-xl border border-white/10 bg-black/25 px-3 py-2.5">
       <p className={cn('flex items-center gap-1.5 text-[10px] uppercase tracking-[0.13em]', toneClassName)}>
         <Icon className="h-3.5 w-3.5" />
         {label}
       </p>
-      <div className="space-y-1">
+      <div className="mt-1.5 space-y-1">
         {items.map((item) => (
-          <p key={`${label}-${item}`} className="text-xs text-white/85">
-            - {item}
+          <p key={`${label}-${item}`} className="flex items-start gap-2 text-xs text-white/85">
+            <span className="mt-1.5 h-1 w-1 rounded-full bg-white/45" />
+            <span>{item}</span>
           </p>
         ))}
       </div>
@@ -243,22 +262,35 @@ function PlaybookCard({
   return (
     <div
       className={cn(
-        'rounded-2xl border p-4',
+        'group relative overflow-hidden rounded-2xl border p-4 transition-all duration-200 hover:-translate-y-0.5',
         entry.is_active
-          ? 'border-emerald-300/25 bg-emerald-500/[0.06]'
-          : 'border-white/12 bg-white/[0.03]'
+          ? 'border-emerald-300/25 bg-emerald-500/[0.06] hover:border-emerald-300/35'
+          : 'border-white/12 bg-white/[0.03] hover:border-white/25'
       )}
     >
+      <div
+        className={cn(
+          'pointer-events-none absolute inset-x-0 top-0 h-20 opacity-70',
+          entry.is_active
+            ? 'bg-gradient-to-b from-emerald-400/12 to-transparent'
+            : 'bg-gradient-to-b from-cyan-300/8 to-transparent'
+        )}
+      />
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h3 className="text-base font-semibold text-white">{entry.name}</h3>
-          <p className="mt-1 text-xs text-white/60">
-            {entry.timeframe || 'Timeframe n/a'} | {entry.market_context || 'Context n/a'}
-          </p>
+          <h3 className="text-base font-semibold text-white/95">{entry.name}</h3>
+          <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+            <span className="rounded-full border border-white/15 bg-white/[0.04] px-2 py-0.5 text-[10px] uppercase tracking-[0.1em] text-white/70">
+              {entry.timeframe || 'Timeframe n/a'}
+            </span>
+            <span className="rounded-full border border-white/15 bg-white/[0.04] px-2 py-0.5 text-[10px] uppercase tracking-[0.1em] text-white/70">
+              {entry.market_context || 'Context n/a'}
+            </span>
+          </div>
         </div>
         <span
           className={cn(
-            'rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em]',
+            'rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em]',
             entry.is_active
               ? 'border-emerald-300/35 bg-emerald-500/15 text-emerald-100'
               : 'border-white/20 bg-white/10 text-white/70'
@@ -269,7 +301,7 @@ function PlaybookCard({
       </div>
 
       {entry.description ? (
-        <p className="mt-2 text-sm text-white/80">{entry.description}</p>
+        <p className="mt-2.5 text-sm text-white/80">{entry.description}</p>
       ) : null}
 
       <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-3">
@@ -281,7 +313,13 @@ function PlaybookCard({
         />
       </div>
 
-      <div className="mt-3 space-y-2">
+      <div className="mt-3 grid grid-cols-1 gap-2 lg:grid-cols-2">
+        <CriteriaSection
+          label="Stock Filter Criteria"
+          items={entry.stock_filter_criteria}
+          icon={Search}
+          toneClassName="text-amber-200/90"
+        />
         <CriteriaSection
           label="Entry Criteria"
           items={entry.entry_criteria}
@@ -303,7 +341,7 @@ function PlaybookCard({
       </div>
 
       {Array.isArray(entry.examples) && entry.examples.length > 0 ? (
-        <div className="mt-3 rounded-lg border border-white/10 bg-black/25 p-2.5">
+        <div className="mt-3 rounded-xl border border-white/10 bg-black/25 p-2.5">
           <p className="text-[10px] uppercase tracking-[0.14em] text-white/45">Examples</p>
           <div className="mt-1.5 space-y-1.5">
             {entry.examples.map((example, index) => (
@@ -397,6 +435,10 @@ function EntryEditorDialog({
       <DialogContent className="max-h-[90vh] max-w-4xl overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{dialogMode === 'edit' ? 'Edit Playbook Setup' : 'New Playbook Setup'}</DialogTitle>
+          <DialogDescription className="text-white/55">
+            Define stock filters, entry and exit criteria, invalidations, and expected R so this setup stays
+            consistent in execution.
+          </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
@@ -438,6 +480,16 @@ function EntryEditorDialog({
               onChange={(event) => setFormState((prev) => ({ ...prev, description: event.target.value }))}
               placeholder="What this setup is, where it performs best, and when to skip it."
               className="min-h-[80px] w-full rounded-xl border border-white/12 bg-white/[0.03] px-3 py-2 text-sm text-white outline-none placeholder:text-white/35 focus:border-emerald-300/40"
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <Label>Stock Filter Criteria</Label>
+            <textarea
+              value={formState.stock_filter_criteria_text}
+              onChange={(event) => setFormState((prev) => ({ ...prev, stock_filter_criteria_text: event.target.value }))}
+              placeholder="One line per stock filter (price, volume, float, catalyst, spread, etc.)"
+              className="min-h-[90px] w-full rounded-xl border border-white/12 bg-white/[0.03] px-3 py-2 text-sm text-white outline-none placeholder:text-white/35 focus:border-amber-300/40"
             />
           </div>
 
@@ -596,54 +648,14 @@ export default function StrategyPlaybookBuilder() {
     seedFromSetupTypes,
   } = usePlaybook();
 
-  const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all');
+  const [confirm, confirmDialog] = useConfirm();
   const [dialogMode, setDialogMode] = useState('create');
   const [dialogOpen, setDialogOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [editingEntryId, setEditingEntryId] = useState('');
   const [formState, setFormState] = useState(toFormState(createBlankPlaybookEntry()));
 
-  const filteredEntries = useMemo(() => {
-    const normalizedSearch = String(searchTerm || '').trim().toLowerCase();
-
-    return playbookEntries.filter((entry) => {
-      if (statusFilter === 'active' && !entry.is_active) return false;
-      if (statusFilter === 'archived' && entry.is_active) return false;
-
-      if (!normalizedSearch) return true;
-
-      const haystack = [
-        entry.name,
-        entry.description,
-        entry.timeframe,
-        entry.market_context,
-        ...(Array.isArray(entry.tags) ? entry.tags : []),
-      ].join(' ').toLowerCase();
-
-      return haystack.includes(normalizedSearch);
-    });
-  }, [playbookEntries, searchTerm, statusFilter]);
-
-  const summary = useMemo(() => {
-    const total = playbookEntries.length;
-    const active = playbookEntries.filter((entry) => entry.is_active).length;
-    const withExamples = playbookEntries.filter((entry) => (entry.examples?.length || 0) > 0).length;
-
-    const targets = playbookEntries
-      .map((entry) => Number(entry.expected_r_profile?.target))
-      .filter((value) => Number.isFinite(value) && value > 0);
-    const averageTarget = targets.length > 0
-      ? (targets.reduce((sum, value) => sum + value, 0) / targets.length).toFixed(2)
-      : 'n/a';
-
-    return {
-      total,
-      active,
-      withExamples,
-      averageTarget,
-    };
-  }, [playbookEntries]);
+  const filteredEntries = useMemo(() => playbookEntries, [playbookEntries]);
 
   const openCreateDialog = () => {
     setDialogMode('create');
@@ -715,7 +727,12 @@ export default function StrategyPlaybookBuilder() {
   };
 
   const handleDelete = async (entryId) => {
-    const shouldDelete = window.confirm('Delete this playbook setup? This action cannot be undone.');
+    const shouldDelete = await confirm({
+      title: 'Delete this playbook setup?',
+      description: 'This cannot be undone.',
+      confirmLabel: 'Delete',
+      destructive: true,
+    });
     if (!shouldDelete) return;
 
     try {
@@ -741,70 +758,35 @@ export default function StrategyPlaybookBuilder() {
 
   return (
     <div className="space-y-5">
-      <div className="rounded-2xl border border-white/10 bg-[#13131e]/90 p-5">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <p className="text-xs uppercase tracking-[0.15em] text-white/45">Strategy Playbook Builder</p>
-            <h1 className="mt-1 text-2xl font-semibold text-white">Build and maintain your setup playbooks</h1>
-            <p className="mt-2 max-w-3xl text-sm text-white/70">
-              Save setup-level entry/exit criteria, invalidations, examples, and expected R profile.
-              Active playbook setups are automatically available in Journal trade entry.
-            </p>
-          </div>
+      <div className="rounded-2xl border border-white/10 bg-gradient-to-r from-[#161a29]/95 via-[#13131e]/95 to-[#101624]/95 p-4 shadow-[0_20px_60px_-40px_rgba(6,182,212,0.45)]">
+        <div className="flex flex-wrap items-center justify-end gap-2">
           <div className="flex items-center gap-2">
-            <Button variant="ghost" onClick={handleSeed} disabled={isSaving}>
+            <Button
+              variant="ghost"
+              className="h-9 border border-white/15 bg-white/[0.03] px-3 text-xs hover:bg-white/[0.08]"
+              onClick={handleSeed}
+              disabled={isSaving}
+            >
               <RefreshCw className="mr-1.5 h-4 w-4" />
               Seed From Existing Setups
             </Button>
-            <Button onClick={openCreateDialog} disabled={isSaving}>
+            <Button
+              className="h-9 border border-emerald-200/40 bg-emerald-400/90 px-3 text-xs font-semibold text-black hover:bg-emerald-300"
+              onClick={openCreateDialog}
+              disabled={isSaving}
+            >
               <BookPlus className="mr-1.5 h-4 w-4" />
               New Setup
             </Button>
           </div>
         </div>
-
-        <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-4">
-          <MetricsPill label="Total Setups" value={String(summary.total)} />
-          <MetricsPill label="Active Setups" value={String(summary.active)} />
-          <MetricsPill label="With Examples" value={String(summary.withExamples)} />
-          <MetricsPill label="Avg Target R" value={`${summary.averageTarget}${summary.averageTarget === 'n/a' ? '' : 'R'}`} />
-        </div>
-      </div>
-
-      <div className="rounded-2xl border border-white/10 bg-[#111827]/60 p-4">
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="relative min-w-[280px] flex-1">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/40" />
-            <Input
-              value={searchTerm}
-              onChange={(event) => setSearchTerm(event.target.value)}
-              placeholder="Search setups by name, context, or tags..."
-              className="border-white/12 bg-white/[0.03] pl-9"
-            />
-          </div>
-
-          <div className="flex flex-wrap items-center gap-1.5">
-            {STATUS_FILTERS.map((filter) => (
-              <button
-                key={filter.key}
-                type="button"
-                onClick={() => setStatusFilter(filter.key)}
-                className={cn(
-                  'rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-[0.12em] transition-colors',
-                  statusFilter === filter.key
-                    ? 'border-emerald-300/40 bg-emerald-500/15 text-emerald-100'
-                    : 'border-white/15 bg-white/[0.03] text-white/65 hover:text-white/90'
-                )}
-              >
-                {filter.label}
-              </button>
-            ))}
-          </div>
-        </div>
       </div>
 
       {filteredEntries.length === 0 ? (
-        <div className="rounded-2xl border border-white/10 bg-black/20 p-10 text-center">
+        <div className="rounded-2xl border border-dashed border-white/20 bg-gradient-to-b from-white/[0.04] to-white/[0.01] p-12 text-center">
+          <div className="mx-auto mb-3 flex h-11 w-11 items-center justify-center rounded-xl border border-white/15 bg-white/[0.04]">
+            <BookPlus className="h-5 w-5 text-white/70" />
+          </div>
           <p className="text-lg font-semibold text-white">No playbook setups found</p>
           <p className="mt-1 text-sm text-white/65">
             Create your first setup or seed from existing setup types.
@@ -814,7 +796,7 @@ export default function StrategyPlaybookBuilder() {
           </div>
         </div>
       ) : (
-        <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 2xl:grid-cols-2">
           {filteredEntries.map((entry) => (
             <PlaybookCard
               key={entry.id}
@@ -841,6 +823,7 @@ export default function StrategyPlaybookBuilder() {
         isSubmitting={isSubmitting}
         dialogMode={dialogMode}
       />
+      {confirmDialog}
     </div>
   );
 }

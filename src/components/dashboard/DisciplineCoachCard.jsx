@@ -1,5 +1,5 @@
 import React from 'react';
-import { ShieldCheck, ShieldAlert, AlertTriangle, CheckCircle2, Sparkles, RefreshCw, Loader2 } from 'lucide-react';
+import { ShieldCheck, ShieldAlert, AlertTriangle, CheckCircle2, RefreshCw, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils/general';
 import { useDisciplineCoachAI } from '@/lib/ai/hooks/useDisciplineCoachAI';
 import DailyGoalBar from '@/components/dashboard/DailyGoalBar';
@@ -50,10 +50,8 @@ export default function DisciplineCoachCard({
   const {
     aiEnabled,
     aiLoading,
-    aiError,
     aiInsights,
     aiActions,
-    aiSummary,
     refreshAI,
   } = useDisciplineCoachAI(snapshot);
 
@@ -111,24 +109,6 @@ export default function DisciplineCoachCard({
         </div>
       </div>
 
-      {aiEnabled && (
-        <div className="rounded-lg border border-purple-500/20 bg-purple-500/8 px-3 py-2">
-          <div className="flex items-center gap-1.5 mb-1">
-            <Sparkles className="w-3.5 h-3.5 text-purple-300" />
-            <p className="text-[10px] uppercase tracking-wide text-purple-200/90">AI Coaching Overlay</p>
-          </div>
-          {aiLoading ? (
-            <p className="text-xs text-purple-200/80">Generating personalized coaching insights…</p>
-          ) : aiError ? (
-            <p className="text-xs text-amber-300/90">AI unavailable right now. Showing local discipline guidance.</p>
-          ) : (
-            <p className="text-xs text-purple-100/85">
-              {aiSummary || 'AI coaching active for tailored discipline insights.'}
-            </p>
-          )}
-        </div>
-      )}
-
       {dailyGoal ? (
         <DailyGoalBar
           todayPnL={dailyGoal.todayPnL}
@@ -174,3 +154,5 @@ export default function DisciplineCoachCard({
     </div>
   );
 }
+
+

@@ -22,6 +22,7 @@ import {
 import { useExitStrategyDraft } from '@/components/settings/hooks/useExitStrategyDraft';
 import { useStrategySettingsDraft } from '@/components/settings/hooks/useStrategySettingsDraft';
 import { useSettingsMaintenanceActions } from '@/components/settings/hooks/useSettingsMaintenanceActions';
+import { useConfirm } from '@/components/ui/ConfirmDialog';
 import { toast } from 'sonner';
 
 export default function SettingsPage() {
@@ -29,11 +30,12 @@ export default function SettingsPage() {
   const currentTier = settings?.account_tier || 'custom';
   const { user, signOut } = useAuth();
   const { bulkCreateTrades, isBulkCreating } = useTradesMutation();
+  const [confirm, confirmDialog] = useConfirm();
   const fieldDrafts = useSettingsFieldDrafts({ settings, updateFields });
   const exitStrategyDraft = useExitStrategyDraft({ settings, updateFields });
   const strategyDraft = useStrategySettingsDraft({ settings, updateFields });
   const flushStrategyStepDraft = strategyDraft.flushStrategyStepDraft;
-  const maintenanceActions = useSettingsMaintenanceActions({ signOut, refetch });
+  const maintenanceActions = useSettingsMaintenanceActions({ signOut, refetch, confirmFn: confirm });
 
   const handleSave = useCallback(async () => {
     if (fieldDrafts.hasLocalDraftChanges) {
@@ -129,6 +131,7 @@ export default function SettingsPage() {
           />
         </TabsContent>
       </Tabs>
+      {confirmDialog}
     </div>
   );
 }

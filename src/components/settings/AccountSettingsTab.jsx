@@ -1,5 +1,6 @@
 import React from 'react';
 import { Plus, Trash2 } from 'lucide-react';
+import { useConfirm } from '@/components/ui/ConfirmDialog';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import {
@@ -39,6 +40,7 @@ export default function AccountSettingsTab({
   handleRemoveStrategyRelativeGrade,
   strategyStepCount,
 }) {
+  const [confirm, confirmDialog] = useConfirm();
   const compactInputClass = 'h-9 rounded-lg px-2.5 bg-white/5 border-white/10';
   const availableSetups = Array.isArray(strategySetupsDraft) && strategySetupsDraft.length > 0
     ? strategySetupsDraft
@@ -137,10 +139,15 @@ export default function AccountSettingsTab({
               type="button"
               variant="ghost"
               size="sm"
-              onClick={() => {
+              onClick={async () => {
                 const setupName = availableSetups[selectedSetupIndex] || `Strategy ${selectedSetupIndex + 1}`;
-                const confirmed = window.confirm(`Delete setup "${setupName}" and all of its steps?`);
-                if (!confirmed) return;
+                const ok = await confirm({
+                  title: `Delete "${setupName}"?`,
+                  description: 'This will remove the setup and all of its steps.',
+                  confirmLabel: 'Delete',
+                  destructive: true,
+                });
+                if (!ok) return;
                 handleRemoveStrategySetup(selectedSetupIndex);
               }}
               disabled={isLoading || availableSetups.length <= 1}
@@ -290,6 +297,7 @@ export default function AccountSettingsTab({
           </Button>
         </div>
       </div>
+      {confirmDialog}
     </div>
   );
 }

@@ -12,6 +12,7 @@ import { AuthProvider } from './lib/context/AuthContext';
 import { Suspense } from 'react';
 import LimitNotificationsWatcher from '@/components/notifications/LimitNotificationsWatcher';
 import AppErrorBoundary from '@/lib/components/AppErrorBoundary';
+import PageErrorBoundary from '@/lib/components/PageErrorBoundary';
 import GlobalErrorWatcher from '@/lib/components/GlobalErrorWatcher';
 
 const { Pages, Layout, mainPage } = pagesConfig;
@@ -43,9 +44,11 @@ const App = () => {
     <Routes>
       <Route path="/" element={
         <LayoutWrapper currentPageName={mainPageKey}>
-          <Suspense fallback={<LoadingFallback />}>
-            <MainPage />
-          </Suspense>
+          <PageErrorBoundary>
+            <Suspense fallback={<LoadingFallback />}>
+              <MainPage />
+            </Suspense>
+          </PageErrorBoundary>
         </LayoutWrapper>
       } />
       {Object.entries(Pages).map(([path, Page]) => (
@@ -54,9 +57,11 @@ const App = () => {
           path={`/${path}`}
           element={
             <LayoutWrapper currentPageName={path}>
-              <Suspense fallback={<LoadingFallback />}>
-                <Page />
-              </Suspense>
+              <PageErrorBoundary>
+                <Suspense fallback={<LoadingFallback />}>
+                  <Page />
+                </Suspense>
+              </PageErrorBoundary>
             </LayoutWrapper>
           }
         />

@@ -2,6 +2,7 @@ import { useCallback, useState } from 'react';
 import { toast } from 'sonner';
 import { parseTradesCsv } from '@/components/journal/utils/csvImport';
 import { getTradeNotesText } from '@/components/journal/utils/notes';
+import { TagsService } from '@/lib/services/TagsService';
 
 const csvEscape = (value) => {
   if (value === null || value === undefined) return '';
@@ -53,6 +54,10 @@ export function useJournalDataTransfer({ filteredTrades, accountTier, bulkCreate
         return;
       }
 
+      // Register any new tag names so they get a color assigned
+      const allTagNames = [...new Set(importedTrades.flatMap((t) => Array.isArray(t.tags) ? t.tags : []))];
+      allTagNames.forEach((name) => TagsService.findOrCreate(name));
+
       const createdTrades = await bulkCreateTrades(importedTrades);
       const importedCount = Array.isArray(createdTrades) ? createdTrades.length : 0;
       const writeFailures = Math.max(0, importedTrades.length - importedCount);
@@ -81,8 +86,9 @@ export function useJournalDataTransfer({ filteredTrades, accountTier, bulkCreate
     }
   }, [accountTier, bulkCreateTrades]);
 
-  const handleExportCsv = useCallback(() => {
-    if (!filteredTrades.length) {
+  const handleExportCsv = useCallback((overrideTrades) => {
+    const tradesToExport = Array.isArray(overrideTrades) ? overrideTrades : filteredTrades;
+    if (!tradesToExport.length) {
       toast.error('No trades to export.');
       return;
     }
@@ -99,11 +105,13 @@ export function useJournalDataTransfer({ filteredTrades, accountTier, bulkCreate
       'setup_type',
       'emotions',
       'followed_plan',
+      'tags',
       'notes',
     ];
 
-    const rows = filteredTrades.map((trade) => {
+    const rows = tradesToExport.map((trade) => {
       const emotions = Array.isArray(trade.emotions) ? trade.emotions.join('|') : (trade.emotions || '');
+      const tags = Array.isArray(trade.tags) ? trade.tags.join('|') : '';
       const tradeDate = trade.entry_time || trade.created_date || '';
 
       return [
@@ -118,6 +126,7 @@ export function useJournalDataTransfer({ filteredTrades, accountTier, bulkCreate
         trade.setup_type || '',
         emotions,
         trade.followed_plan ?? '',
+        tags,
         getTradeNotesText(trade),
       ];
     });
@@ -135,7 +144,7 @@ export function useJournalDataTransfer({ filteredTrades, accountTier, bulkCreate
     link.click();
     URL.revokeObjectURL(url);
 
-    toast.success(`Exported ${filteredTrades.length} trade${filteredTrades.length === 1 ? '' : 's'}.`);
+    toast.success(`Exported ${tradesToExport.length} trade${tradesToExport.length === 1 ? '' : 's'}.`);
   }, [filteredTrades]);
 
   return {

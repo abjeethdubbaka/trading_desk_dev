@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
@@ -20,6 +20,8 @@ import { Search, Calendar, Plus, LayoutGrid, List, Upload, Loader2, Download, Ch
 import { cn } from '@/lib/utils/general';
 import { useSettings } from '@/lib/context/SettingsContext';
 import { FILTER_OPTIONS, DATE_RANGE_OPTIONS } from '../utils/constants';
+import { PresetMenu } from './PresetMenu';
+import { TagSelector } from '../components/TagSelector';
 
 export default function JournalToolbar({
   searchTerm,
@@ -28,6 +30,8 @@ export default function JournalToolbar({
   onFilterChange,
   dateRange,
   onDateRangeChange,
+  tagFilter,
+  onTagFilterChange,
   viewMode,
   onViewModeChange,
   onAddTrade,
@@ -35,7 +39,13 @@ export default function JournalToolbar({
   canExport,
   onImportCsv,
   isImporting,
-  importStatus
+  importStatus,
+  // Presets
+  presets,
+  onApplyPreset,
+  onSavePreset,
+  onDeletePreset,
+  onSetDefaultPreset,
 }) {
   const fileInputRef = React.useRef(null);
   const { settings } = useSettings();
@@ -52,6 +62,14 @@ export default function JournalToolbar({
         ? 'text-red-300'
         : 'text-sky-300';
 
+  const searchRef = useRef(null);
+
+  useEffect(() => {
+    const focusSearch = () => searchRef.current?.focus();
+    window.addEventListener('journal-focus-search', focusSearch);
+    return () => window.removeEventListener('journal-focus-search', focusSearch);
+  }, []);
+
   const handleFileSelect = (event) => {
     const file = event.target.files?.[0];
     if (file && typeof onImportCsv === 'function') {
@@ -66,6 +84,7 @@ export default function JournalToolbar({
         <div className="relative min-w-[260px] w-full md:w-auto md:flex-1 lg:max-w-[420px]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
           <Input
+            ref={searchRef}
             value={searchTerm}
             onChange={(e) => onSearchChange(e.target.value)}
             placeholder="Search trades by symbol, setup, notes..."
@@ -100,6 +119,16 @@ export default function JournalToolbar({
           </SelectContent>
         </Select>
 
+        {presets && (
+          <PresetMenu
+            presets={presets}
+            onApply={onApplyPreset}
+            onSave={onSavePreset}
+            onDelete={onDeletePreset}
+            onSetDefault={onSetDefaultPreset}
+          />
+        )}
+
         <div className="flex border border-white/10 rounded-xl overflow-hidden">
           <Button
             size="sm"
@@ -107,9 +136,7 @@ export default function JournalToolbar({
             onClick={() => onViewModeChange('compact')}
             className={cn(
               "rounded-none px-2",
-              viewMode === 'compact'
-                ? "bg-white/10 text-white"
-                : "text-gray-400 hover:text-white"
+              viewMode === 'compact' ? "bg-white/10 text-white" : "text-gray-400 hover:text-white"
             )}
           >
             <List className="w-4 h-4" />
@@ -120,9 +147,7 @@ export default function JournalToolbar({
             onClick={() => onViewModeChange('detailed')}
             className={cn(
               "rounded-none px-2 border-l border-white/10",
-              viewMode === 'detailed'
-                ? "bg-white/10 text-white"
-                : "text-gray-400 hover:text-white"
+              viewMode === 'detailed' ? "bg-white/10 text-white" : "text-gray-400 hover:text-white"
             )}
           >
             <LayoutGrid className="w-4 h-4" />
@@ -139,10 +164,7 @@ export default function JournalToolbar({
 
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button
-              variant="outline"
-              className="border-white/10 bg-white/[0.02] hover:bg-white/10"
-            >
+            <Button variant="outline" className="border-white/10 bg-white/[0.02] hover:bg-white/10">
               {isImporting ? (
                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />
               ) : (
@@ -155,31 +177,18 @@ export default function JournalToolbar({
           <DropdownMenuContent align="end" className="w-48 border-white/10 bg-[#121824] text-white">
             <DropdownMenuLabel>CSV Actions</DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuItem
-              onSelect={() => fileInputRef.current?.click()}
-              disabled={isImporting}
-            >
-              {isImporting ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                <Upload className="w-4 h-4" />
-              )}
+            <DropdownMenuItem onSelect={() => fileInputRef.current?.click()} disabled={isImporting}>
+              {isImporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
               {isImporting ? 'Importing...' : 'Import CSV'}
             </DropdownMenuItem>
-            <DropdownMenuItem
-              onSelect={() => onExportCsv?.()}
-              disabled={!canExport}
-            >
+            <DropdownMenuItem onSelect={() => onExportCsv?.()} disabled={!canExport}>
               <Download className="w-4 h-4" />
               Export CSV
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
 
-        <Button
-          onClick={onAddTrade}
-          className="bg-emerald-600 hover:bg-emerald-700 flex items-center"
-        >
+        <Button onClick={onAddTrade} className="bg-emerald-600 hover:bg-emerald-700 flex items-center">
           <Plus className="w-4 h-4 mr-2 flex-shrink-0" />
           Add Trade
         </Button>
@@ -194,6 +203,28 @@ export default function JournalToolbar({
         </div>
       </div>
 
+      {/* Tag filter */}
+      {onTagFilterChange && (
+        <div className="flex items-center gap-2">
+          <span className="text-[10px] text-white/30 uppercase tracking-wider flex-shrink-0">Tags</span>
+          <TagSelector
+            value={tagFilter ?? []}
+            onChange={onTagFilterChange}
+            placeholder="Filter by tag…"
+            className="flex-1 max-w-xs"
+          />
+          {tagFilter?.length > 0 && (
+            <button
+              type="button"
+              onClick={() => onTagFilterChange([])}
+              className="text-[10px] text-white/30 hover:text-white/60 transition-colors"
+            >
+              Clear
+            </button>
+          )}
+        </div>
+      )}
+
       {importStatus?.message ? (
         <p className={cn('text-xs px-1', statusClass)}>
           {importStatus.message}
@@ -202,5 +233,3 @@ export default function JournalToolbar({
     </div>
   );
 }
-
-

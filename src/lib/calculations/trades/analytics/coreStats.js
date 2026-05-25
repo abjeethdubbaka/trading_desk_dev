@@ -1,4 +1,5 @@
-import { avg, pct, round, sum } from '../shared/helpers.js';
+import { pct, round } from '../shared/helpers.js';
+import { getTradePnL, getTradeDate } from '../../../utils/tradeFields.js';
 
 function emptyCoreStats() {
   return {
@@ -21,28 +22,50 @@ function emptyCoreStats() {
 export function calcCoreStats(trades = []) {
   if (!trades.length) return emptyCoreStats();
 
-  const wins = trades.filter((trade) => (trade?.pnl ?? 0) > 0);
-  const losses = trades.filter((trade) => (trade?.pnl ?? 0) < 0);
+  let totalPnL = 0;
+  let wins = 0, losses = 0;
+  let totalWinPnL = 0, totalLossPnL = 0;
+  let largestWin = 0, largestLoss = 0;
+  let rSum = 0, rCount = 0;
 
-  const totalPnL = sum(trades, 'pnl');
-  const totalWins = sum(wins, 'pnl');
-  const totalLosses = Math.abs(sum(losses, 'pnl'));
-  const rValues = trades.map((trade) => trade?.r_multiple).filter((r) => r != null && isFinite(r));
+  for (const trade of trades) {
+    const p = getTradePnL(trade);
+    totalPnL += p;
+
+    if (p > 0) {
+      wins++;
+      totalWinPnL += p;
+      if (p > largestWin) largestWin = p;
+    } else if (p < 0) {
+      losses++;
+      totalLossPnL += p;
+      if (p < largestLoss) largestLoss = p;
+    }
+
+    const r = trade?.r_multiple;
+    if (r != null && isFinite(r)) {
+      rSum += r;
+      rCount++;
+    }
+  }
+
+  const totalTrades = trades.length;
+  const totalLossAbs = Math.abs(totalLossPnL);
 
   return {
-    totalTrades: trades.length,
-    wins: wins.length,
-    losses: losses.length,
-    winRate: pct(wins.length, trades.length),
+    totalTrades,
+    wins,
+    losses,
+    winRate: pct(wins, totalTrades),
     totalPnL,
-    avgPnL: avg(trades, 'pnl'),
-    avgWin: wins.length > 0 ? totalWins / wins.length : 0,
-    avgLoss: losses.length > 0 ? totalLosses / losses.length : 0,
-    avgR: rValues.length > 0 ? rValues.reduce((acc, r) => acc + r, 0) / rValues.length : 0,
-    profitFactor: totalLosses > 0 ? round(totalWins / totalLosses, 2) : totalWins > 0 ? Infinity : 0,
-    largestWin: wins.length > 0 ? Math.max(...wins.map((trade) => trade.pnl)) : 0,
-    largestLoss: losses.length > 0 ? Math.min(...losses.map((trade) => trade.pnl)) : 0,
-    expectancy: trades.length > 0 ? totalPnL / trades.length : 0,
+    avgPnL: totalPnL / totalTrades,
+    avgWin: wins > 0 ? totalWinPnL / wins : 0,
+    avgLoss: losses > 0 ? totalLossAbs / losses : 0,
+    avgR: rCount > 0 ? rSum / rCount : 0,
+    profitFactor: totalLossAbs > 0 ? round(totalWinPnL / totalLossAbs, 2) : totalWinPnL > 0 ? Infinity : 0,
+    largestWin,
+    largestLoss,
+    expectancy: totalPnL / totalTrades,
   };
 }
 
@@ -50,13 +73,12 @@ export function calcTodayStats(trades = []) {
   const now = new Date();
   const start = new Date(now);
   start.setHours(0, 0, 0, 0);
-
   const end = new Date(now);
   end.setHours(23, 59, 59, 999);
 
   const todayTrades = trades.filter((trade) => {
-    const entryDate = new Date(trade?.entry_time ?? trade?.created_at ?? 0);
-    return entryDate >= start && entryDate <= end;
+    const d = getTradeDate(trade);
+    return d && d >= start && d <= end;
   });
 
   return calcCoreStats(todayTrades);

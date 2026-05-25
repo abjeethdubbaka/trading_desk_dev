@@ -6,6 +6,7 @@
 import React, { useMemo } from 'react';
 import { calcCoreStats, calcTodayStats } from '@/lib/calculations/trades';
 import { cn } from '@/lib/utils/general';
+import { getTradePnL, getTradeDate } from '@/lib/utils/tradeFields';
 import AnimatedStat from '@/components/ui/AnimatedStat';
 
 /* ─── Vertical divider ─────────────────────────────────────────────────── */
@@ -31,7 +32,7 @@ function Pill({ label, children, className }) {
 function StreakDots({ trades, count = 6 }) {
   const last = useMemo(() =>
     [...trades]
-      .sort((a, b) => new Date(b.entry_time || b.created_date) - new Date(a.entry_time || a.created_date))
+      .sort((a, b) => (getTradeDate(b) ?? 0) - (getTradeDate(a) ?? 0))
       .slice(0, count),
   [trades, count]);
 
@@ -40,11 +41,12 @@ function StreakDots({ trades, count = 6 }) {
   return (
     <div className="flex items-center gap-[3px]">
       {last.reverse().map((t, i) => {
-        const win = (t.pnl || 0) > 0;
+        const pnl = getTradePnL(t);
+        const win = pnl > 0;
         return (
           <div
             key={t.id ?? i}
-            title={`${win ? '+' : ''}$${(t.pnl || 0).toFixed(0)}`}
+            title={`${win ? '+' : ''}$${pnl.toFixed(0)}`}
             className={cn(
               'w-[5px] h-[5px] rounded-full flex-shrink-0 transition-opacity',
               win ? 'bg-emerald-400' : 'bg-rose-400',

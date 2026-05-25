@@ -55,6 +55,10 @@ export function useFloatPositionSizerController({ historyData, onCalculationSave
     setCalculation((prev) => (prev == null ? prev : null));
   }, []);
 
+  const markCalculationStale = useCallback(() => {
+    setCalculation((prev) => (prev == null ? prev : { ...prev, _stale: true }));
+  }, []);
+
   const updateSymbol = useCallback((value) => {
     setSymbol((prev) => (prev === value ? prev : value));
     setShareFloat(null);
@@ -65,18 +69,18 @@ export function useFloatPositionSizerController({ historyData, onCalculationSave
 
   const updateEntryPrice = useCallback((value) => {
     setEntryPrice((prev) => (prev === value ? prev : value));
-    clearCalculation();
-  }, [clearCalculation]);
+    markCalculationStale();
+  }, [markCalculationStale]);
 
   const updateCustomStop = useCallback((value) => {
     setCustomStop((prev) => (prev === value ? prev : value));
-    clearCalculation();
-  }, [clearCalculation]);
+    markCalculationStale();
+  }, [markCalculationStale]);
 
   const updateDirection = useCallback((value) => {
     setDirection((prev) => (prev === value ? prev : value));
-    clearCalculation();
-  }, [clearCalculation]);
+    markCalculationStale();
+  }, [markCalculationStale]);
 
   const updateComment = useCallback((value) => {
     setComment((prev) => (prev === value ? prev : value));
@@ -472,7 +476,7 @@ export function useFloatPositionSizerController({ historyData, onCalculationSave
   const hasEntryPrice = Boolean(entryPrice);
   const hasFloatData = Boolean(shareFloat && floatData);
   const hasCalculation = Boolean(calculation);
-  const canAddToJournal = Boolean(entryPrice && calculation && symbol?.trim());
+  const canAddToJournal = Boolean(entryPrice && calculation && !calculation._stale && symbol?.trim());
 
   const statusPills = [
     { label: 'Symbol', ready: hasSymbol },

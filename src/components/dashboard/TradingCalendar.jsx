@@ -1,63 +1,65 @@
 import React, { useState, useMemo } from 'react';
-import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay, addMonths, subMonths, parseISO } from 'date-fns';
+import {
+  format,
+  startOfMonth,
+  endOfMonth,
+  eachDayOfInterval,
+  isSameMonth,
+  isToday,
+  addMonths,
+  subMonths,
+} from 'date-fns';
 import { ChevronLeft, ChevronRight, TrendingUp, TrendingDown } from 'lucide-react';
+import { getTradePnL, getTradeDate } from '@/lib/utils/tradeFields';
 
-export default function TradingCalendar({ trades }) {
+export default function TradingCalendar({ trades, onDaySelect }) {
   const [currentMonth, setCurrentMonth] = useState(new Date());
 
-  // Memoize trades processing for performance
-  const processedTrades = useMemo(() => {
-    return trades.map(trade => ({
-      ...trade,
-      tradeDate: trade.entry_time ? parseISO(trade.entry_time) : 
-                trade.created_date ? parseISO(trade.created_date) : 
-                new Date(),
-      pnl: trade.pnl || 0
-    }));
+  // Group all trades by YYYY-MM-DD once — O(n) instead of O(days × n)
+  const tradesByDay = useMemo(() => {
+    const map = new Map();
+    for (const trade of trades ?? []) {
+      const d = getTradeDate(trade);
+      if (!d) continue;
+      const key = format(d, 'yyyy-MM-dd');
+      if (!map.has(key)) map.set(key, []);
+      map.get(key).push(trade);
+    }
+    return map;
   }, [trades]);
 
-  const monthStart = startOfMonth(currentMonth);
-  const monthEnd = endOfMonth(currentMonth);
-  const monthDays = eachDayOfInterval({ start: monthStart, end: monthEnd });
+  const monthDays = useMemo(() => {
+    const start = startOfMonth(currentMonth);
+    const end = endOfMonth(currentMonth);
+    return eachDayOfInterval({ start, end });
+  }, [currentMonth]);
 
-  // Get trades for each day
-  const getTradesForDay = (day) => {
-    return processedTrades.filter(trade => 
-      isSameDay(trade.tradeDate, day)
-    );
-  };
-
-  // Calculate day metrics
   const getDayMetrics = (day) => {
-    const dayTrades = getTradesForDay(day);
-    if (dayTrades.length === 0) return null;
-    
-    const totalPnL = dayTrades.reduce((sum, trade) => sum + (trade.pnl || 0), 0);
-    const wins = dayTrades.filter(trade => (trade.pnl || 0) > 0).length;
-    const losses = dayTrades.filter(trade => (trade.pnl || 0) < 0).length;
-    
-    return {
-      totalPnL,
-      wins,
-      losses,
-      trades: dayTrades.length
-    };
+    const dayTrades = tradesByDay.get(format(day, 'yyyy-MM-dd'));
+    if (!dayTrades?.length) return null;
+
+    let totalPnL = 0, wins = 0, losses = 0;
+    for (const t of dayTrades) {
+      const p = getTradePnL(t);
+      totalPnL += p;
+      if (p > 0) wins++;
+      else if (p < 0) losses++;
+    }
+    return { totalPnL, wins, losses, trades: dayTrades.length };
   };
 
-  // Get color for day based on performance
   const getDayColor = (metrics) => {
     if (!metrics) return 'bg-white/5 hover:bg-white/10';
-    
     if (metrics.totalPnL > 0) {
       if (metrics.totalPnL > 1000) return 'bg-emerald-500/30 hover:bg-emerald-500/40';
-      if (metrics.totalPnL > 500) return 'bg-emerald-500/20 hover:bg-emerald-500/30';
+      if (metrics.totalPnL > 500)  return 'bg-emerald-500/20 hover:bg-emerald-500/30';
       return 'bg-emerald-500/10 hover:bg-emerald-500/20';
-    } else if (metrics.totalPnL < 0) {
+    }
+    if (metrics.totalPnL < 0) {
       if (metrics.totalPnL < -1000) return 'bg-red-500/30 hover:bg-red-500/40';
-      if (metrics.totalPnL < -500) return 'bg-red-500/20 hover:bg-red-500/30';
+      if (metrics.totalPnL < -500)  return 'bg-red-500/20 hover:bg-red-500/30';
       return 'bg-red-500/10 hover:bg-red-500/20';
     }
-    
     return 'bg-white/5 hover:bg-white/10';
   };
 
@@ -95,26 +97,34 @@ export default function TradingCalendar({ trades }) {
             {day}
           </div>
         ))}
-        
+
         {/* Calendar days */}
         {monthDays.map((day, index) => {
           const metrics = getDayMetrics(day);
           const isCurrentMonth = isSameMonth(day, currentMonth);
-          
+          const todayRing = isToday(day);
+          const label = metrics
+            ? `${format(day, 'MMM d, yyyy')} / ${metrics.trades} trade${metrics.trades !== 1 ? 's' : ''} / Net $${metrics.totalPnL.toFixed(0)}`
+            : format(day, 'MMM d, yyyy');
+
           return (
-            <div
+            <button
               key={index}
-              className={`
-                aspect-[2/1] rounded p-0.5 cursor-pointer transition-all
-                ${getDayColor(metrics)}
-                ${!isCurrentMonth ? 'opacity-30' : ''}
-                relative flex flex-col justify-between
-              `}
+              type="button"
+              title={label}
+              onClick={() => onDaySelect?.(day, metrics)}
+              className={[
+                'aspect-[2/1] rounded p-0.5 transition-all text-left',
+                getDayColor(metrics),
+                !isCurrentMonth ? 'opacity-30' : '',
+                todayRing ? 'ring-1 ring-cyan-400' : '',
+                'relative flex flex-col justify-between',
+              ].join(' ')}
             >
               <div className="text-[9px] text-white/80 text-center leading-tight">
                 {format(day, 'd')}
               </div>
-              
+
               {metrics && (
                 <div className="flex flex-col items-center">
                   <div className="text-[9px] font-bold text-white leading-tight">
@@ -139,7 +149,7 @@ export default function TradingCalendar({ trades }) {
                   </div>
                 </div>
               )}
-            </div>
+            </button>
           );
         })}
       </div>
@@ -164,5 +174,3 @@ export default function TradingCalendar({ trades }) {
     </div>
   );
 }
-
-

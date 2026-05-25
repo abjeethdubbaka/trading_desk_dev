@@ -18,8 +18,8 @@ export function useTrades(options = {}) {
   return useQuery({
     queryKey: tradeKeys.list(filters),
     queryFn: () => tradeService.list(filters),
-    staleTime: 1000 * 60 * 10, // 10 minutes instead of 5
-    cacheTime: 1000 * 60 * 30, // 30 minutes cache
+    staleTime: 1000 * 60 * 10,
+    gcTime: 1000 * 60 * 30,
     refetchOnWindowFocus: false, // Don't refetch on window focus
     retry: 2, // Retry failed requests 2 times
     ...queryOptions
