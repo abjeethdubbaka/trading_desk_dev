@@ -2,7 +2,14 @@ import { useMemo } from 'react';
 import { useMediaUrls } from './useMediaUrls';
 import { journalMediaService } from './mediaService';
 
-const getMediaById = (id) => journalMediaService.get(id);
+// If the stored value is already a data URL or blob URL, return it directly
+// without touching MediaService or IndexedDB.
+const getMediaById = async (id) => {
+  if (typeof id === 'string' && (id.startsWith('data:') || id.startsWith('blob:'))) {
+    return { file_url: id };
+  }
+  return journalMediaService.get(id);
+};
 
 export function useTradeScreenshotUrls(trades) {
   const screenshotIds = useMemo(

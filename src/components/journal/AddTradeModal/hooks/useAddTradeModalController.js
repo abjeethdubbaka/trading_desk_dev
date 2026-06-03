@@ -5,7 +5,7 @@ import { db } from '@/lib/db';
 import { useTrades } from '@/lib/hooks/useTrades';
 import { useSettings } from '@/lib/context/SettingsContext';
 import { buildDisciplineSnapshot } from '@/lib/calculations/discipline';
-import { useMediaMutation } from '@/lib/hooks/useCalcHistory';
+import { imageFileToDataUrl } from '@/components/journal/shared/media/imageUtils';
 import { syncRuleUsageCounts } from '@/components/dosanddonts/storage';
 import { buildTradeNotes } from '@/components/journal/utils/notes';
 import {
@@ -167,28 +167,26 @@ export function useAddTradeModalController({ open, onSave, initialData }) {
   });
 
   const { formData, updateField, prepareForSubmission } = useTradeForm(initialData, USER_ID);
-  const { uploadFile, deleteMedia, isUploading: uploading } = useMediaMutation();
   const screenshotIds = formData.screenshots || [];
+  const [uploading, setUploading] = useState(false);
 
   const handleUploadFiles = useCallback(async (files) => {
-    const uploadPromises = files.map((file) => uploadFile({ file, metadata: { media_type: 'screenshot' } }));
-    const results = await Promise.all(uploadPromises);
-    const newIds = results.map((result) => result.id);
+    setUploading(true);
+    try {
+      const dataUrls = await Promise.all(files.map((f) => imageFileToDataUrl(f)));
+      const currentScreenshots = formData.screenshots || [];
+      const merged = [...currentScreenshots, ...dataUrls];
+      updateField('screenshots', merged);
+      return dataUrls;
+    } finally {
+      setUploading(false);
+    }
+  }, [formData.screenshots, updateField]);
 
+  const handleRemoveById = useCallback((id) => {
     const currentScreenshots = formData.screenshots || [];
-    const merged = [...new Set([...currentScreenshots, ...newIds])];
-    updateField('screenshots', merged);
-
-    return newIds;
-  }, [formData.screenshots, updateField, uploadFile]);
-
-  const handleRemoveById = useCallback(async (id) => {
-    await deleteMedia(id);
-
-    const currentScreenshots = formData.screenshots || [];
-    const updatedScreenshots = currentScreenshots.filter((screenshotId) => screenshotId !== id);
-    updateField('screenshots', updatedScreenshots);
-  }, [deleteMedia, formData.screenshots, updateField]);
+    updateField('screenshots', currentScreenshots.filter((s) => s !== id));
+  }, [formData.screenshots, updateField]);
 
   const handleBreakoutChecklistChange = useCallback((stepKey, itemKey, value) => {
     const current = formData.breakout_checklist || {};

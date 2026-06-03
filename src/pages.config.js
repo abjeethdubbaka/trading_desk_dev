@@ -60,6 +60,7 @@ const DosAndDonts = lazy(() => import('./pages/DosAndDonts'));
 const Performance = lazy(() => import('./pages/Performance'));
 const ScreenshotAnalysis = lazy(() => import('./pages/ScreenshotAnalysis'));
 const Playbook = lazy(() => import('./pages/Playbook'));
+const Notes = lazy(() => import('./pages/Notes'));
 import __Layout from './Layout.jsx';
 
 
@@ -74,6 +75,7 @@ export const PAGES = {
     "Performance": Performance,
     "ScreenshotAnalysis": ScreenshotAnalysis,
     "Playbook": Playbook,
+    "Notes": Notes,
 }
 
 export const pagesConfig = {

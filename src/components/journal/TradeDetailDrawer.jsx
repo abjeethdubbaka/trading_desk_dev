@@ -7,8 +7,8 @@ import { formatDate, formatTime, formatCurrency } from './utils/formatters';
 import { getTradeNotesText } from './utils/notes';
 import { TagChip } from './components/TagChip';
 import { useScreenshotIdsUrls } from './shared/media/useScreenshotUrls';
-import { useMediaMutation } from '@/lib/hooks/useCalcHistory';
-import ImageLightbox from '@/components/ui/ImageLightbox';
+import { imageFileToDataUrl } from './shared/media/imageUtils';
+import MultiImageLightbox from '@/components/ui/MultiImageLightbox';
 import { toast } from 'sonner';
 
 function DetailRow({ label, children }) {
@@ -57,12 +57,18 @@ function ScreenshotThumb({ id, url, status, onView, onRemove }) {
 }
 
 export function TradeDetailDrawer({ trade, onClose, onEdit, onTagClick, updateTrade }) {
-  const [lightboxUrl, setLightboxUrl] = useState(null);
+  const [lightbox, setLightbox] = useState(null);
   const fileInputRef = React.useRef(null);
 
   const screenshotIds = Array.isArray(trade?.screenshots) ? trade.screenshots : [];
   const { urlsById, statusById } = useScreenshotIdsUrls(screenshotIds);
-  const { uploadFile, deleteMedia, isUploading: uploading } = useMediaMutation();
+  const [uploading, setUploading] = useState(false);
+
+  const openLightbox = useCallback((url) => {
+    const urls = screenshotIds.map((id) => urlsById[id]).filter(Boolean);
+    const startIndex = Math.max(0, urls.indexOf(url));
+    setLightbox({ urls: urls.length > 0 ? urls : [url], startIndex });
+  }, [screenshotIds, urlsById]);
 
   useEffect(() => {
     const onKey = (e) => { if (e.key === 'Escape') onClose(); };
@@ -74,29 +80,27 @@ export function TradeDetailDrawer({ trade, onClose, onEdit, onTagClick, updateTr
     const files = Array.from(event.target.files);
     if (!files.length || !updateTrade || !trade?.id) return;
     event.target.value = '';
-
+    setUploading(true);
     try {
-      const results = await Promise.all(
-        files.map((file) => uploadFile({ file, metadata: { media_type: 'screenshot' } }))
-      );
-      const newIds = results.map((r) => r.id);
-      const merged = [...new Set([...screenshotIds, ...newIds])];
+      const dataUrls = await Promise.all(files.map((f) => imageFileToDataUrl(f)));
+      const merged = [...screenshotIds, ...dataUrls];
       await updateTrade({ id: trade.id, data: { ...trade, screenshots: merged } });
     } catch (err) {
       toast.error(`Upload failed: ${err?.message || 'Unknown error'}`);
+    } finally {
+      setUploading(false);
     }
-  }, [uploadFile, updateTrade, trade, screenshotIds]);
+  }, [updateTrade, trade, screenshotIds]);
 
   const handleRemove = useCallback(async (id) => {
     if (!updateTrade || !trade?.id) return;
     try {
-      await deleteMedia(id);
       const updated = screenshotIds.filter((s) => s !== id);
       await updateTrade({ id: trade.id, data: { ...trade, screenshots: updated } });
     } catch (err) {
       toast.error(`Remove failed: ${err?.message || 'Unknown error'}`);
     }
-  }, [deleteMedia, updateTrade, trade, screenshotIds]);
+  }, [updateTrade, trade, screenshotIds]);
 
   if (!trade) return null;
 
@@ -251,7 +255,7 @@ export function TradeDetailDrawer({ trade, onClose, onEdit, onTagClick, updateTr
                     id={id}
                     url={urlsById[id]}
                     status={statusById[id] || 'loading'}
-                    onView={setLightboxUrl}
+                    onView={openLightbox}
                     onRemove={handleRemove}
                   />
                 ))}
@@ -283,11 +287,11 @@ export function TradeDetailDrawer({ trade, onClose, onEdit, onTagClick, updateTr
         </div>
       </div>
 
-      <ImageLightbox
-        isOpen={Boolean(lightboxUrl)}
-        imageUrl={lightboxUrl}
-        alt="Trade screenshot"
-        onClose={() => setLightboxUrl(null)}
+      <MultiImageLightbox
+        isOpen={Boolean(lightbox)}
+        images={lightbox?.urls ?? []}
+        startIndex={lightbox?.startIndex ?? 0}
+        onClose={() => setLightbox(null)}
       />
     </>
   );

@@ -1,7 +1,7 @@
 import React from 'react';
 import { CompactHeader } from './compact/CompactHeader';
 import { CompactTradeRow } from './compact/CompactTradeRow';
-import ImageLightbox from '@/components/ui/ImageLightbox';
+import MultiImageLightbox from '@/components/ui/MultiImageLightbox';
 import { useTradeScreenshotUrls } from '../shared/media/useScreenshotUrls';
 
 export default function CompactView({
@@ -34,8 +34,17 @@ export default function CompactView({
   onToggleColumn,
 }) {
   const { urlsById: screenshotUrls, statusById: screenshotStatuses } = useTradeScreenshotUrls(trades);
-  const [lightboxImage, setLightboxImage] = React.useState(null);
+
+  // { urls: string[], startIndex: number } | null
+  const [lightbox, setLightbox] = React.useState(null);
   const showCheckbox = Boolean(onToggleSelect);
+
+  const handleOpenImage = React.useCallback((url, trade) => {
+    const ids = Array.isArray(trade?.screenshots) ? trade.screenshots : [];
+    const urls = ids.map((id) => screenshotUrls[id]).filter(Boolean);
+    const startIndex = Math.max(0, urls.indexOf(url));
+    setLightbox({ urls: urls.length > 0 ? urls : [url], startIndex });
+  }, [screenshotUrls]);
 
   return (
     <div className="overflow-x-auto">
@@ -72,17 +81,18 @@ export default function CompactView({
             onRateReviewUsefulness={onRateReviewUsefulness}
             screenshotUrls={screenshotUrls}
             screenshotStatuses={screenshotStatuses}
-            onOpenImage={(url) => setLightboxImage(url)}
+            onOpenImage={(url) => handleOpenImage(url, trade)}
             isSelected={selectedIds?.has(trade.id)}
             onToggleSelect={onToggleSelect}
           />
         ))}
       </div>
-      <ImageLightbox
-        isOpen={Boolean(lightboxImage)}
-        imageUrl={lightboxImage}
-        alt="Trade screenshot"
-        onClose={() => setLightboxImage(null)}
+
+      <MultiImageLightbox
+        isOpen={Boolean(lightbox)}
+        images={lightbox?.urls ?? []}
+        startIndex={lightbox?.startIndex ?? 0}
+        onClose={() => setLightbox(null)}
       />
     </div>
   );

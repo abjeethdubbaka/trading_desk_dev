@@ -8,7 +8,7 @@
 import React from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Plus, RotateCcw, RefreshCw, AlertTriangle } from 'lucide-react';
+import { RotateCcw, RefreshCw, AlertTriangle } from 'lucide-react';
 import {
   MemoizedFloatInputForm,
   MemoizedResultsDisplay,
@@ -42,6 +42,8 @@ export default function FloatPositionSizer({ historyData, onCalculationSaved = (
             loading={controller.loadingFloat}
             fetchShareFloat={controller.fetchShareFloat}
             onCalculate={controller.handleCalculate}
+            onAddToJournal={controller.handleAddToJournal}
+            canAddToJournal={controller.canAddToJournal}
             disabled={false}
           />
         </CardContent>
@@ -76,44 +78,24 @@ export default function FloatPositionSizer({ historyData, onCalculationSaved = (
         </div>
       )}
 
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pt-2 border-t border-white/5">
-        <div className="flex flex-wrap gap-2">
-          <Button
-            variant="ghost"
-            onClick={controller.handleRefreshSettings}
-            className="text-white/35 hover:text-white/70 gap-2 text-xs"
-          >
-            <RefreshCw className="w-3.5 h-3.5" />
-            Refresh Settings
-          </Button>
+      <div className="flex flex-wrap gap-2 pt-2 border-t border-white/5">
+        <Button
+          variant="ghost"
+          onClick={controller.handleRefreshSettings}
+          className="text-white/35 hover:text-white/70 gap-2 text-xs"
+        >
+          <RefreshCw className="w-3.5 h-3.5" />
+          Refresh Settings
+        </Button>
 
-          <Button
-            variant="ghost"
-            onClick={controller.handleReset}
-            className="text-white/35 hover:text-white/70 gap-2"
-          >
-            <RotateCcw className="w-4 h-4" />
-            Reset
-          </Button>
-        </div>
-
-        <div className="flex flex-col sm:items-end gap-1.5">
-          <Button
-            onClick={controller.handleAddToJournal}
-            disabled={!controller.canAddToJournal}
-            className="bg-emerald-600 hover:bg-emerald-700 gap-2 disabled:opacity-50 disabled:cursor-not-allowed w-full sm:w-auto"
-          >
-            <Plus className="w-4 h-4" />
-            Add to Journal
-          </Button>
-          {!controller.canAddToJournal && (
-            <p className="text-[11px] text-white/35">
-              {isStale
-                ? 'Recalculate before saving to journal.'
-                : 'Enter symbol + entry and run calculation to enable journal save.'}
-            </p>
-          )}
-        </div>
+        <Button
+          variant="ghost"
+          onClick={controller.handleReset}
+          className="text-white/35 hover:text-white/70 gap-2"
+        >
+          <RotateCcw className="w-4 h-4" />
+          Reset
+        </Button>
       </div>
     </div>
   );

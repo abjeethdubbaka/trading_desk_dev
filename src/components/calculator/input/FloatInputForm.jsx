@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Target, Loader2, Sigma } from 'lucide-react';
+import { Target, Loader2, Sigma, Plus } from 'lucide-react';
 
 export default function FloatInputForm({
   symbol,
@@ -17,7 +17,9 @@ export default function FloatInputForm({
   loading,
   fetchShareFloat,
   onCalculate,
-  disabled = false
+  onAddToJournal,
+  canAddToJournal = false,
+  disabled = false,
 }) {
   return (
     <div className="space-y-5">
@@ -69,7 +71,7 @@ export default function FloatInputForm({
         />
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <Button
           onClick={fetchShareFloat}
           disabled={!symbol || loading || disabled}
@@ -78,12 +80,12 @@ export default function FloatInputForm({
           {loading ? (
             <>
               <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-              Fetching Float Data...
+              Fetching Float…
             </>
           ) : (
             <>
               <Target className="w-4 h-4 mr-2" />
-              Get Share Float Data
+              Get Share Float
             </>
           )}
         </Button>
@@ -96,7 +98,18 @@ export default function FloatInputForm({
             className="h-11 border-white/15 bg-white/5 hover:bg-white/10"
           >
             <Sigma className="w-4 h-4 mr-2" />
-            Calculate Position
+            Calculate
+          </Button>
+        )}
+
+        {typeof onAddToJournal === 'function' && (
+          <Button
+            onClick={onAddToJournal}
+            disabled={!canAddToJournal}
+            className="h-11 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            <Plus className="w-4 h-4 mr-2" />
+            Add to Journal
           </Button>
         )}
       </div>

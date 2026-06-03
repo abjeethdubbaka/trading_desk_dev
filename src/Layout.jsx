@@ -18,6 +18,7 @@ import {
   CheckCircle,
   BarChart3,
   ScanSearch,
+  NotebookPen,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -37,6 +38,12 @@ const navItems = [
     description: 'Review, tag, and refine execution trade by trade.',
     icon: BookOpen,
     page: 'Journal',
+  },
+  {
+    name: 'Notes',
+    description: 'All trade notes in one searchable feed.',
+    icon: NotebookPen,
+    page: 'Notes',
   },
   {
     name: 'Calculator',
