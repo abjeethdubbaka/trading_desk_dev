@@ -18,7 +18,8 @@ export function useTradeStats(options = {}) {
   return useQuery({
     queryKey: tradeKeys.stats(),
     queryFn: () => tradeService.getStats(filters),
-    staleTime: 1000 * 60 * 2, // 2 minutes
+    staleTime: 1000 * 60 * 2,
+    gcTime: 1000 * 60 * 30,
     ...queryOptions
   });
 }

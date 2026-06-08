@@ -63,6 +63,20 @@ const Playbook = lazy(() => import('./pages/Playbook'));
 const Notes = lazy(() => import('./pages/Notes'));
 import __Layout from './Layout.jsx';
 
+// Module preloaders — call these on nav hover to warm the chunk before the user clicks
+export const PAGE_PRELOADERS = {
+  Dashboard:          () => import('./pages/Dashboard'),
+  Journal:            () => import('./pages/Journal'),
+  Notes:              () => import('./pages/Notes'),
+  Performance:        () => import('./pages/Performance'),
+  Calculator:         () => import('./pages/Calculator'),
+  CalcHistory:        () => import('./pages/CalcHistory'),
+  Settings:           () => import('./pages/Settings'),
+  Knowledge:          () => import('./pages/KnowledgeBase'),
+  DosAndDonts:        () => import('./pages/DosAndDonts'),
+  ScreenshotAnalysis: () => import('./pages/ScreenshotAnalysis'),
+  Playbook:           () => import('./pages/Playbook'),
+};
 
 export const PAGES = {
     "Dashboard": Dashboard,

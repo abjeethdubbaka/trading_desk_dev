@@ -5,15 +5,13 @@
  * Wired to useSettings() and accepts onCalculationSaved callback.
  */
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { RotateCcw, RefreshCw, AlertTriangle } from 'lucide-react';
+import { AlertTriangle, ShieldX, X } from 'lucide-react';
 import {
   MemoizedFloatInputForm,
   MemoizedResultsDisplay,
 } from './memoized';
-import { FloatSmartPlanCard } from './float-position-sizer/FloatSmartPlanCard';
 import { StopStructureAnalysis } from './position-sizing/StopStructureAnalysis';
 import { useFloatPositionSizerController } from './float-position-sizer/hooks/useFloatPositionSizerController';
 
@@ -23,11 +21,60 @@ export default function FloatPositionSizer({ historyData, onCalculationSaved = (
     onCalculationSaved,
   });
 
+  const [limitDismissed, setLimitDismissed] = useState(false);
+
   const isStale = Boolean(controller.calculation?._stale);
   const showResults = Boolean(controller.calculation?._viewSource);
 
+  const hasLimit = controller.maxDailyTrades != null && Number(controller.maxDailyTrades) > 0;
+  const limitReached = hasLimit && controller.todayTradeCount >= Number(controller.maxDailyTrades);
+  const showLimitOverlay = limitReached && !limitDismissed;
+
+  // Reset dismiss when count drops below limit (e.g. trade deleted)
+  React.useEffect(() => {
+    if (!limitReached) setLimitDismissed(false);
+  }, [limitReached]);
+
   return (
     <div className="space-y-4 w-full">
+
+      {/* Daily trade limit overlay */}
+      {showLimitOverlay && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
+          <div className="relative mx-4 max-w-sm w-full rounded-2xl border border-rose-500/40 bg-[#1a0d0d] shadow-[0_24px_80px_-20px_rgba(239,68,68,0.6)] p-8 text-center">
+            <button
+              type="button"
+              onClick={() => setLimitDismissed(true)}
+              className="absolute top-3 right-3 p-1.5 rounded-lg text-white/30 hover:text-white/70 hover:bg-white/5 transition-colors"
+            >
+              <X className="w-4 h-4" />
+            </button>
+
+            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full border border-rose-500/40 bg-rose-500/15">
+              <ShieldX className="h-7 w-7 text-rose-400" />
+            </div>
+
+            <h2 className="text-lg font-bold text-white">Daily Limit Reached</h2>
+            <p className="mt-1.5 text-sm text-white/55">
+              You've taken{' '}
+              <span className="font-semibold text-rose-300">{controller.todayTradeCount} of {Number(controller.maxDailyTrades)}</span>{' '}
+              allowed trades today.
+            </p>
+            <p className="mt-3 text-xs text-white/35 leading-relaxed">
+              Protect your capital. Step away, review your trades, and come back tomorrow with a clear head.
+            </p>
+
+            <button
+              type="button"
+              onClick={() => setLimitDismissed(true)}
+              className="mt-6 w-full rounded-lg border border-rose-500/30 bg-rose-500/15 py-2.5 text-sm font-semibold text-rose-300 hover:bg-rose-500/25 transition-colors"
+            >
+              I understand — dismiss
+            </button>
+          </div>
+        </div>
+      )}
+
       <Card className="border-white/10 bg-gradient-to-br from-[#1a1a24] to-[#131c2a] shadow-[0_10px_30px_-18px_rgba(59,130,246,0.5)]">
         <CardContent className="p-6 space-y-6">
           <MemoizedFloatInputForm
@@ -37,26 +84,24 @@ export default function FloatPositionSizer({ historyData, onCalculationSaved = (
             setEntryPrice={controller.updateEntryPrice}
             customStopLossPrice={controller.customStop}
             setCustomStopLossPrice={controller.updateCustomStop}
-            comment={controller.comment}
-            setComment={controller.updateComment}
             loading={controller.loadingFloat}
             fetchShareFloat={controller.fetchShareFloat}
             onCalculate={controller.handleCalculate}
             onAddToJournal={controller.handleAddToJournal}
             canAddToJournal={controller.canAddToJournal}
+            onReset={controller.handleReset}
+            playbookEntries={controller.playbookEntries}
+            selectedSetupId={controller.selectedSetupId}
+            onSetupChange={controller.setSelectedSetupId}
+            selectedSetup={controller.selectedSetup}
+            riskMultiplier={controller.riskMultiplier}
+            baseRiskAmount={controller.riskAmount}
+            todayTradeCount={controller.todayTradeCount}
+            maxDailyTrades={controller.maxDailyTrades}
             disabled={false}
           />
         </CardContent>
       </Card>
-
-      <FloatSmartPlanCard
-        symbol={controller.symbol}
-        floatData={controller.floatData}
-        loadingFloat={controller.loadingFloat}
-        smartFloatPlan={controller.smartFloatPlan}
-        onRefreshShareFloat={controller.fetchShareFloat}
-        onApplyFloatSmartPlan={controller.handleApplyFloatSmartPlan}
-      />
 
       <StopStructureAnalysis
         entryPrice={controller.entryPrice}
@@ -73,30 +118,13 @@ export default function FloatPositionSizer({ historyData, onCalculationSaved = (
           )}
           <MemoizedResultsDisplay
             {...controller.calculation}
-            exitStrategy={controller.exitStrategy}
+            exitStrategy={controller.playbookExitStrategy ?? controller.exitStrategy}
+            playbookSetupName={controller.playbookExitStrategy ? (controller.selectedSetup?.name ?? null) : null}
+            onApplyStop={controller.updateCustomStop}
           />
         </div>
       )}
 
-      <div className="flex flex-wrap gap-2 pt-2 border-t border-white/5">
-        <Button
-          variant="ghost"
-          onClick={controller.handleRefreshSettings}
-          className="text-white/35 hover:text-white/70 gap-2 text-xs"
-        >
-          <RefreshCw className="w-3.5 h-3.5" />
-          Refresh Settings
-        </Button>
-
-        <Button
-          variant="ghost"
-          onClick={controller.handleReset}
-          className="text-white/35 hover:text-white/70 gap-2"
-        >
-          <RotateCcw className="w-4 h-4" />
-          Reset
-        </Button>
-      </div>
     </div>
   );
 }

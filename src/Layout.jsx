@@ -1,6 +1,7 @@
-import React, { lazy, Suspense, useEffect, useMemo, useState } from 'react';
+import React, { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { createPageUrl } from './utils';
+import { PAGE_PRELOADERS } from './pages.config';
 import { useElectron } from '@/lib/hooks/useElectron';
 import {
   LayoutDashboard,
@@ -122,6 +123,18 @@ export default function Layout({ children, currentPageName }) {
     [currentPageName]
   );
 
+  // Preload page chunks on nav hover — fires 200 ms after hover starts so quick passes don't trigger
+  const preloadTimer = useRef(null);
+  const handleNavMouseEnter = useCallback((page) => {
+    clearTimeout(preloadTimer.current);
+    preloadTimer.current = setTimeout(() => {
+      PAGE_PRELOADERS[page]?.();
+    }, 200);
+  }, []);
+  const handleNavMouseLeave = useCallback(() => {
+    clearTimeout(preloadTimer.current);
+  }, []);
+
   useEffect(() => {
     try {
       localStorage.setItem('aiChat.dockOpen.v1', JSON.stringify(isChatOpen));
@@ -223,6 +236,8 @@ export default function Layout({ children, currentPageName }) {
                   collapsed && 'justify-center px-2'
                 )}
                 title={collapsed ? item.name : undefined}
+                onMouseEnter={() => handleNavMouseEnter(item.page)}
+                onMouseLeave={handleNavMouseLeave}
               >
                 <item.icon className="h-5 w-5 flex-shrink-0" />
                 {!collapsed && <span className="truncate text-sm font-medium">{item.name}</span>}

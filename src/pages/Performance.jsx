@@ -5,7 +5,7 @@
  * No more localStorage reads inside hooks.
  */
 
-import React, { useMemo, useState } from 'react';
+import React, { useDeferredValue, useMemo, useState } from 'react';
 import { startOfWeek, startOfMonth, startOfYear, subMonths } from 'date-fns';
 import { Clock3, Layers3, Radar, Sparkles } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -149,35 +149,41 @@ export default function PerformancePage() {
     });
   }, [tradesWithQuality, period]);
 
+  // Core metrics — computed immediately so the stat pills appear without waiting
   const stats = useMemo(() => calcCoreStats(periodTrades), [periodTrades]);
   const curve = useMemo(() => buildEquityCurve(periodTrades, accountSize), [periodTrades, accountSize]);
   const maxDD = useMemo(() => calcMaxDrawdown(curve), [curve]);
   const sharpe = useMemo(() => calcSharpeRatio(periodTrades), [periodTrades]);
   const holdStats = useMemo(() => calcHoldTimeStats(periodTrades), [periodTrades]);
 
-  const byHour = useMemo(() => perfByHourOfDay(periodTrades), [periodTrades]);
-  const byDay = useMemo(() => perfByDayOfWeek(periodTrades), [periodTrades]);
-  const bySetup = useMemo(() => perfBySetupType(periodTrades), [periodTrades]);
-  const byPrice = useMemo(() => perfByPriceRange(periodTrades), [periodTrades]);
+  // Secondary analytics — deferred so React can yield to the core render first
+  const deferredTrades = useDeferredValue(periodTrades);
+  const deferredSettings = useDeferredValue(settings);
+
+  const byHour = useMemo(() => perfByHourOfDay(deferredTrades), [deferredTrades]);
+  const byDay = useMemo(() => perfByDayOfWeek(deferredTrades), [deferredTrades]);
+  const bySetup = useMemo(() => perfBySetupType(deferredTrades), [deferredTrades]);
+  const byPrice = useMemo(() => perfByPriceRange(deferredTrades), [deferredTrades]);
   const byFloat = useMemo(
-    () => perfByShareFloatRange(periodTrades, { floatCategories: settings?.float_categories }),
-    [periodTrades, settings?.float_categories]
+    () => perfByShareFloatRange(deferredTrades, { floatCategories: deferredSettings?.float_categories }),
+    [deferredTrades, deferredSettings?.float_categories]
   );
   const setupTimeFloatHeatmap = useMemo(
-    () => perfBySetupTimeFloatHeatmap(periodTrades, {
+    () => perfBySetupTimeFloatHeatmap(deferredTrades, {
       setupLimit: 8,
       hourLimit: 8,
-      floatCategories: settings?.float_categories,
+      floatCategories: deferredSettings?.float_categories,
     }),
-    [periodTrades, settings?.float_categories]
+    [deferredTrades, deferredSettings?.float_categories]
   );
   const strategySnapshot = useMemo(
-    () => buildStrategyEngineSnapshot(periodTrades, settings),
-    [settings, periodTrades]
+    () => buildStrategyEngineSnapshot(deferredTrades, deferredSettings),
+    [deferredSettings, deferredTrades]
   );
-  const byHoldBucket = useMemo(() => perfByHoldDurationBuckets(periodTrades, 5), [periodTrades]);
-  const weeklyReview = useMemo(() => buildWeeklyReview(periodTrades, [7, 14]), [periodTrades]);
-  const mistakeInsights = useMemo(() => analyzeMistakePatterns(periodTrades, 4), [periodTrades]);
+  const byHoldBucket = useMemo(() => perfByHoldDurationBuckets(deferredTrades, 5), [deferredTrades]);
+  const weeklyReview = useMemo(() => buildWeeklyReview(deferredTrades, [7, 14]), [deferredTrades]);
+  const mistakeInsights = useMemo(() => analyzeMistakePatterns(deferredTrades, 4), [deferredTrades]);
+  const isStale = deferredTrades !== periodTrades;
 
   const timingTopHour = useMemo(
     () => [...byHour].filter((row) => row.trades > 0).sort((a, b) => b.totalPnL - a.totalPnL)[0] ?? null,
@@ -320,7 +326,7 @@ export default function PerformancePage() {
         ))}
       </div>
 
-      <Tabs defaultValue="behavior">
+      <Tabs defaultValue="behavior" className={isStale ? 'opacity-60 transition-opacity' : 'opacity-100 transition-opacity'}>
         <TabsList className="grid w-full grid-cols-3 gap-1.5 rounded-2xl border border-white/10 bg-[#13131e]/90 p-1.5 sm:grid-cols-5">
           <TabsTrigger
             value="behavior"

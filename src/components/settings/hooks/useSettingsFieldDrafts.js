@@ -10,6 +10,7 @@ export const SETTINGS_INPUT_FIELDS = [
   'default_stop_loss_percent',
   'risk_amount',
   'analysis_timer_seconds',
+  'max_daily_trades',
 ];
 
 export function useSettingsFieldDrafts({ settings, updateFields }) {

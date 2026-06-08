@@ -10,6 +10,7 @@ import {
   Pencil,
   RefreshCw,
   Search,
+  Shield,
   ShieldAlert,
   Trash2,
 } from 'lucide-react';
@@ -65,6 +66,7 @@ function toFormState(entry) {
     stock_filter_criteria_text: toCriteriaTextareaValue(normalized.stock_filter_criteria),
     entry_criteria_text: toCriteriaTextareaValue(normalized.entry_criteria),
     exit_criteria_text: toCriteriaTextareaValue(normalized.exit_criteria),
+    stop_loss_management_text: toCriteriaTextareaValue(normalized.stop_loss_management),
     invalidations_text: toCriteriaTextareaValue(normalized.invalidations),
     tags_text: toTagsInputValue(normalized.tags),
     expected_r_min: normalized.expected_r_profile?.min ?? '',
@@ -77,6 +79,7 @@ function toFormState(entry) {
           note: String(example.note || ''),
         }))
       : [{ title: '', url: '', note: '' }],
+    risk_level: normalized.risk_level || 'normal',
     is_active: normalized.is_active !== false,
   };
 }
@@ -114,6 +117,7 @@ function toEntryPayload(formState, sourceEntry = null) {
     stock_filter_criteria: normalizeTextareaLines(formState.stock_filter_criteria_text),
     entry_criteria: normalizeTextareaLines(formState.entry_criteria_text),
     exit_criteria: normalizeTextareaLines(formState.exit_criteria_text),
+    stop_loss_management: normalizeTextareaLines(formState.stop_loss_management_text),
     invalidations: normalizeTextareaLines(formState.invalidations_text),
     tags: normalizeTagsText(formState.tags_text),
     expected_r_profile: {
@@ -127,6 +131,7 @@ function toEntryPayload(formState, sourceEntry = null) {
         url: String(example?.url || '').trim(),
         note: String(example?.note || '').trim(),
       })),
+    risk_level: formState.risk_level || 'normal',
     is_active: formState.is_active !== false,
     updated_at: now,
     created_at: baseEntry.created_at || now,
@@ -304,8 +309,24 @@ function PlaybookCard({
         <p className="mt-2.5 text-sm text-white/80">{entry.description}</p>
       ) : null}
 
-      <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-3">
+      <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
         <MetricsPill label="Expected R" value={toExpectedRLabel(entry.expected_r_profile)} />
+        <div className={cn(
+          'rounded-xl border px-3 py-2.5',
+          entry.risk_level === 'half'   ? 'border-amber-500/25 bg-amber-500/8' :
+          entry.risk_level === 'double' ? 'border-rose-500/25 bg-rose-500/8' :
+                                          'border-emerald-500/20 bg-emerald-500/6',
+        )}>
+          <p className="text-[9px] uppercase tracking-widest text-white/40">Risk Level</p>
+          <p className={cn(
+            'mt-1 text-sm font-semibold',
+            entry.risk_level === 'half'   ? 'text-amber-300' :
+            entry.risk_level === 'double' ? 'text-rose-300' :
+                                            'text-emerald-300',
+          )}>
+            {entry.risk_level === 'half' ? '½ Size' : entry.risk_level === 'double' ? '2× Size' : 'Normal'}
+          </p>
+        </div>
         <MetricsPill label="Examples" value={String(entry.examples?.length || 0)} />
         <MetricsPill
           label="Last Reviewed"
@@ -331,6 +352,12 @@ function PlaybookCard({
           items={entry.exit_criteria}
           icon={CheckCircle2}
           toneClassName="text-cyan-200/90"
+        />
+        <CriteriaSection
+          label="Stop Loss Management"
+          items={entry.stop_loss_management}
+          icon={Shield}
+          toneClassName="text-violet-200/90"
         />
         <CriteriaSection
           label="Invalidations"
@@ -442,7 +469,7 @@ function EntryEditorDialog({
         </DialogHeader>
 
         <div className="space-y-4">
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
             <div className="space-y-1.5">
               <Label>Setup Name *</Label>
               <Input
@@ -460,6 +487,31 @@ function EntryEditorDialog({
                 placeholder="1m / 5m / 15m"
                 className="bg-white/[0.03] border-white/12"
               />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Risk Level</Label>
+              <div className="grid grid-cols-3 gap-1 rounded-lg border border-white/12 bg-white/[0.03] p-1">
+                {[
+                  { value: 'half',   label: '½ Size',  color: 'border-amber-400/40 bg-amber-500/15 text-amber-200' },
+                  { value: 'normal', label: 'Normal',  color: 'border-emerald-400/40 bg-emerald-500/15 text-emerald-200' },
+                  { value: 'double', label: '2× Size', color: 'border-rose-400/40 bg-rose-500/15 text-rose-200' },
+                ].map(({ value, label, color }) => {
+                  const isActive = (formState.risk_level || 'normal') === value;
+                  return (
+                    <button
+                      key={value}
+                      type="button"
+                      onClick={() => setFormState((prev) => ({ ...prev, risk_level: value }))}
+                      className={cn(
+                        'rounded px-2 py-1.5 text-[11px] font-semibold transition-colors',
+                        isActive ? `border ${color}` : 'text-white/40 hover:text-white/70',
+                      )}
+                    >
+                      {label}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           </div>
 
@@ -526,7 +578,7 @@ function EntryEditorDialog({
             </div>
           </div>
 
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
             <div className="space-y-1.5">
               <Label>Entry Criteria *</Label>
               <textarea
@@ -545,13 +597,25 @@ function EntryEditorDialog({
                 className="min-h-[120px] w-full rounded-xl border border-white/12 bg-white/[0.03] px-3 py-2 text-sm text-white outline-none placeholder:text-white/35 focus:border-emerald-300/40"
               />
             </div>
+          </div>
+
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+            <div className="space-y-1.5">
+              <Label>Stop Loss Management</Label>
+              <textarea
+                value={formState.stop_loss_management_text}
+                onChange={(event) => setFormState((prev) => ({ ...prev, stop_loss_management_text: event.target.value }))}
+                placeholder={`One line per rule, e.g.\nInitial stop: below key level / candle low\nMove to breakeven after +1R\nTrail stop with 5-min highs after +2R\nMax time in trade: 30 min`}
+                className="min-h-[120px] w-full rounded-xl border border-white/12 bg-white/[0.03] px-3 py-2 text-sm text-white outline-none placeholder:text-white/35 focus:border-violet-300/40"
+              />
+            </div>
             <div className="space-y-1.5">
               <Label>Invalidations *</Label>
               <textarea
                 value={formState.invalidations_text}
                 onChange={(event) => setFormState((prev) => ({ ...prev, invalidations_text: event.target.value }))}
                 placeholder="One line per invalidation"
-                className="min-h-[120px] w-full rounded-xl border border-white/12 bg-white/[0.03] px-3 py-2 text-sm text-white outline-none placeholder:text-white/35 focus:border-emerald-300/40"
+                className="min-h-[120px] w-full rounded-xl border border-white/12 bg-white/[0.03] px-3 py-2 text-sm text-white outline-none placeholder:text-white/35 focus:border-rose-300/40"
               />
             </div>
           </div>

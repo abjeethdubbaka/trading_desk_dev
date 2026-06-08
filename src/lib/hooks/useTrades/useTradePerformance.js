@@ -16,7 +16,8 @@ export function useTradePerformance(options = {}) {
   return useQuery({
     queryKey: tradeKeys.performance(),
     queryFn: () => tradeService.getPerformanceMetrics(),
-    staleTime: 1000 * 60 * 5, // 5 minutes
+    staleTime: 1000 * 60 * 5,
+    gcTime: 1000 * 60 * 30,
     ...options
   });
 }

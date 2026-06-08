@@ -37,11 +37,7 @@ export default function Dashboard() {
   const { settings } = useSettings();
   const currentTier = settings?.account_tier || 'custom';
   const { data: trades = [], isLoading } = useTrades({
-    filters: {
-      account_tier: currentTier,
-      sortBy: 'entry_time',
-      sortDir: 'desc',
-    },
+    filters: { account_tier: currentTier },
   });
 
   const accountSize = toFiniteNumber(settings?.account_size, 50000);

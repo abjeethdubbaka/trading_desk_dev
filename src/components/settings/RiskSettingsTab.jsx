@@ -81,6 +81,20 @@ export default function RiskSettingsTab({
           />
         </Field>
 
+        <Field label="Max trades per day" hint="Calculator badge turns amber at limit−1 and red when reached">
+          <Input
+            type="number"
+            step="1"
+            min="1"
+            value={getDisplayValue('max_daily_trades', '5')}
+            onChange={handleFieldChange('max_daily_trades')}
+            onBlur={() => commitDraftField('max_daily_trades')}
+            placeholder="5"
+            className={compactInputClass}
+            disabled={isLoading}
+          />
+        </Field>
+
         <Field label="Timer sound alerts" hint="Play timer sounds for start/pause, 10-second countdown, and finish">
           <label className="h-9 px-2.5 rounded-lg border border-white/10 bg-white/5 flex items-center gap-2 text-xs text-white/75">
             <input
