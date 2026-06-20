@@ -20,19 +20,27 @@ function clampZoom(z) {
 
 // ── Single panel ──────────────────────────────────────────────────────────────
 function ImagePanel({ url, index, scale, onZoom, label, onClick, isFocused }) {
-  const handleWheel = useCallback((e) => {
-    e.preventDefault();
-    onZoom(index, e.deltaY > 0 ? -ZOOM_STEP : ZOOM_STEP);
+  const panelRef = useRef(null);
+
+  useEffect(() => {
+    const el = panelRef.current;
+    if (!el) return;
+    const handler = (e) => {
+      e.preventDefault();
+      onZoom(index, e.deltaY > 0 ? -ZOOM_STEP : ZOOM_STEP);
+    };
+    el.addEventListener('wheel', handler, { passive: false });
+    return () => el.removeEventListener('wheel', handler);
   }, [index, onZoom]);
 
   return (
     <div
+      ref={panelRef}
       className={cn(
         'relative flex-1 min-w-0 overflow-auto flex items-center justify-center',
         'border-r border-white/10 last:border-r-0',
         isFocused && 'ring-1 ring-inset ring-cyan-500/30',
       )}
-      onWheel={handleWheel}
       onClick={onClick}
     >
       {/* Panel label */}

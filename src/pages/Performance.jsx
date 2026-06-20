@@ -51,6 +51,7 @@ import {
   perfByShareFloatRange,
 } from '@/lib/calculations/trades';
 import { cn, toFiniteNumber } from '@/lib/utils/general';
+import { ACCOUNT_TIERS, ACCOUNT_TIER_IDS } from '@/lib/config/accountTypes';
 
 function StatPill({ label, value, color }) {
   return (
@@ -128,14 +129,19 @@ function getPeriodStart(period) {
   }
 }
 
+const TIER_VIEW_OPTIONS = [
+  { value: 'overall', label: 'Overall', icon: '⬛' },
+  ...ACCOUNT_TIER_IDS.map((id) => ({ value: id, label: ACCOUNT_TIERS[id]?.label ?? id, icon: ACCOUNT_TIERS[id]?.icon ?? '' })),
+];
+
 export default function PerformancePage() {
   const [period, setPeriod] = useState('all');
+  const [viewTier, setViewTier] = useState('overall');
   const { settings } = useSettings();
-  const currentTier = settings?.account_tier || 'custom';
   const accountSize = toFiniteNumber(settings?.account_size, 50000);
   const riskLimit = toFiniteNumber(settings?.risk_amount, 0);
   const { data: trades = [], isLoading } = useTrades({
-    filters: { account_tier: currentTier },
+    filters: viewTier === 'overall' ? {} : { account_tier: viewTier },
   });
 
   const tradesWithQuality = useTradesWithQuality(trades, riskLimit);
@@ -307,23 +313,49 @@ export default function PerformancePage() {
 
       <WeeklyReviewCard reviews={weeklyReview} trades={periodTrades} initialBalance={accountSize} />
 
-      {/* Period filter */}
-      <div className="flex flex-wrap gap-1.5">
-        {PERIOD_OPTIONS.map((opt) => (
-          <button
-            key={opt.value}
-            type="button"
-            onClick={() => setPeriod(opt.value)}
-            className={cn(
-              'rounded-lg border px-3 py-1 text-xs font-medium transition-colors',
-              period === opt.value
-                ? 'border-emerald-400/40 bg-emerald-500/20 text-emerald-200'
-                : 'border-white/10 bg-white/[0.03] text-white/50 hover:border-white/20 hover:text-white/70'
-            )}
-          >
-            {opt.label}
-          </button>
-        ))}
+      {/* Tier + Period filters */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap gap-1.5">
+          {TIER_VIEW_OPTIONS.map((opt) => {
+            const isActive = viewTier === opt.value;
+            return (
+              <button
+                key={opt.value}
+                type="button"
+                onClick={() => setViewTier(opt.value)}
+                className={cn(
+                  'flex items-center gap-1.5 rounded-lg border px-3 py-1 text-xs font-medium transition-colors',
+                  isActive
+                    ? opt.value === 'overall'
+                      ? 'border-white/30 bg-white/10 text-white'
+                      : 'border-blue-400/40 bg-blue-500/20 text-blue-200'
+                    : 'border-white/10 bg-white/[0.03] text-white/45 hover:border-white/20 hover:text-white/65'
+                )}
+              >
+                <span>{opt.icon}</span>
+                {opt.label}
+              </button>
+            );
+          })}
+        </div>
+
+        <div className="flex flex-wrap gap-1.5">
+          {PERIOD_OPTIONS.map((opt) => (
+            <button
+              key={opt.value}
+              type="button"
+              onClick={() => setPeriod(opt.value)}
+              className={cn(
+                'rounded-lg border px-3 py-1 text-xs font-medium transition-colors',
+                period === opt.value
+                  ? 'border-emerald-400/40 bg-emerald-500/20 text-emerald-200'
+                  : 'border-white/10 bg-white/[0.03] text-white/50 hover:border-white/20 hover:text-white/70'
+              )}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
       </div>
 
       <Tabs defaultValue="behavior" className={isStale ? 'opacity-60 transition-opacity' : 'opacity-100 transition-opacity'}>

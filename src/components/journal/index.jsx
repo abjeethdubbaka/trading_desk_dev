@@ -5,7 +5,6 @@ export { default as AddTradeModal } from './AddTradeModal';
 export { default as CompactView } from './views/CompactView';
 export { default as DetailedView } from './views/DetailedView';
 export { default as EmptyState } from './views/EmptyState';
-export { default as JournalStatsBar } from './views/JournalStatsBar';
 
 // Analysis Components
 export { default as AnalysisPanel } from './analysis/AnalysisPanel';

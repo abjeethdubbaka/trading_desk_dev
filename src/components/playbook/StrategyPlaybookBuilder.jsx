@@ -7,12 +7,17 @@ import {
   Copy,
   ExternalLink,
   Eye,
+  Image,
+  ListOrdered,
   Pencil,
+  Plus,
   RefreshCw,
   Search,
   Shield,
   ShieldAlert,
   Trash2,
+  Upload,
+  X,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -33,6 +38,8 @@ import {
   toTagsInputValue,
 } from '@/lib/playbook/utils';
 import { cn } from '@/lib/utils/general';
+import { imageFileToDataUrl } from '@/components/journal/shared/media/imageUtils';
+import MultiImageLightbox from '@/components/ui/MultiImageLightbox';
 
 function formatDate(value) {
   const timestamp = Date.parse(String(value || ''));
@@ -41,17 +48,17 @@ function formatDate(value) {
 }
 
 function toExpectedRLabel(profile = {}) {
-  const min = Number(profile?.min);
-  const target = Number(profile?.target);
-  const stretch = Number(profile?.stretch);
+  const levels = [
+    { r: profile?.min,     pct: profile?.min_percent     },
+    { r: profile?.target,  pct: profile?.target_percent  },
+    { r: profile?.stretch, pct: profile?.stretch_percent },
+  ].filter(({ r }) => Number.isFinite(Number(r)) && Number(r) > 0);
 
-  const hasMin = Number.isFinite(min);
-  const hasTarget = Number.isFinite(target);
-  const hasStretch = Number.isFinite(stretch);
+  if (levels.length === 0) return 'n/a';
 
-  if (!hasMin && !hasTarget && !hasStretch) return 'n/a';
-
-  return `${hasMin ? min.toFixed(1) : '-'}R -> ${hasTarget ? target.toFixed(1) : '-'}R -> ${hasStretch ? stretch.toFixed(1) : '-'}R`;
+  return levels
+    .map(({ r, pct }) => `${Number(r).toFixed(1)}R${Number.isFinite(Number(pct)) && Number(pct) > 0 ? ` (${Number(pct)}%)` : ''}`)
+    .join(' → ');
 }
 
 function toFormState(entry) {
@@ -70,8 +77,11 @@ function toFormState(entry) {
     invalidations_text: toCriteriaTextareaValue(normalized.invalidations),
     tags_text: toTagsInputValue(normalized.tags),
     expected_r_min: normalized.expected_r_profile?.min ?? '',
+    expected_r_min_percent: normalized.expected_r_profile?.min_percent ?? '',
     expected_r_target: normalized.expected_r_profile?.target ?? '',
+    expected_r_target_percent: normalized.expected_r_profile?.target_percent ?? '',
     expected_r_stretch: normalized.expected_r_profile?.stretch ?? '',
+    expected_r_stretch_percent: normalized.expected_r_profile?.stretch_percent ?? '',
     examples: Array.isArray(normalized.examples) && normalized.examples.length > 0
       ? normalized.examples.map((example) => ({
           title: String(example.title || ''),
@@ -79,6 +89,8 @@ function toFormState(entry) {
           note: String(example.note || ''),
         }))
       : [{ title: '', url: '', note: '' }],
+    images: Array.isArray(normalized.images) ? normalized.images : [],
+    steps: Array.isArray(normalized.steps) ? normalized.steps : [],
     risk_level: normalized.risk_level || 'normal',
     is_active: normalized.is_active !== false,
   };
@@ -122,8 +134,11 @@ function toEntryPayload(formState, sourceEntry = null) {
     tags: normalizeTagsText(formState.tags_text),
     expected_r_profile: {
       min: toNumberOrNull(formState.expected_r_min),
+      min_percent: toNumberOrNull(formState.expected_r_min_percent),
       target: toNumberOrNull(formState.expected_r_target),
+      target_percent: toNumberOrNull(formState.expected_r_target_percent),
       stretch: toNumberOrNull(formState.expected_r_stretch),
+      stretch_percent: toNumberOrNull(formState.expected_r_stretch_percent),
     },
     examples: (Array.isArray(formState.examples) ? formState.examples : [])
       .map((example) => ({
@@ -131,6 +146,10 @@ function toEntryPayload(formState, sourceEntry = null) {
         url: String(example?.url || '').trim(),
         note: String(example?.note || '').trim(),
       })),
+    images: Array.isArray(formState.images) ? formState.images : [],
+    steps: (Array.isArray(formState.steps) ? formState.steps : [])
+      .map((s) => ({ label: String(s?.label ?? '').trim(), grade: String(s?.grade ?? '') }))
+      .filter((s) => s.label),
     risk_level: formState.risk_level || 'normal',
     is_active: formState.is_active !== false,
     updated_at: now,
@@ -264,6 +283,10 @@ function PlaybookCard({
   onMarkReviewed,
   onDelete,
 }) {
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [lightboxIndex, setLightboxIndex] = useState(0);
+  const images = Array.isArray(entry.images) ? entry.images : [];
+
   return (
     <div
       className={cn(
@@ -327,7 +350,6 @@ function PlaybookCard({
             {entry.risk_level === 'half' ? '½ Size' : entry.risk_level === 'double' ? '2× Size' : 'Normal'}
           </p>
         </div>
-        <MetricsPill label="Examples" value={String(entry.examples?.length || 0)} />
         <MetricsPill
           label="Last Reviewed"
           value={entry.last_reviewed_at ? formatDate(entry.last_reviewed_at) : 'Not reviewed'}
@@ -367,6 +389,30 @@ function PlaybookCard({
         />
       </div>
 
+      {Array.isArray(entry.steps) && entry.steps.length > 0 && (
+        <div className="mt-3 rounded-xl border border-white/10 bg-black/25 px-3 py-2.5">
+          <p className="flex items-center gap-1.5 text-[10px] uppercase tracking-[0.13em] text-indigo-200/90 mb-2">
+            <ListOrdered className="h-3.5 w-3.5" />
+            Strategy Steps
+          </p>
+          <div className="space-y-1.5">
+            {entry.steps.map((step, i) => (
+              <div key={i} className="flex items-start gap-2.5">
+                <span className="mt-0.5 flex h-4.5 w-4.5 flex-shrink-0 items-center justify-center rounded-full bg-indigo-500/20 text-[9px] font-bold text-indigo-300 leading-none pt-px" style={{ minWidth: '18px', minHeight: '18px' }}>
+                  {i + 1}
+                </span>
+                <span className="flex-1 text-xs text-white/85">{step.label}</span>
+                {step.grade && (
+                  <span className="flex-shrink-0 rounded px-1.5 py-0.5 text-[9px] font-semibold bg-indigo-500/15 text-indigo-300 border border-indigo-500/20">
+                    {step.grade}
+                  </span>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {Array.isArray(entry.examples) && entry.examples.length > 0 ? (
         <div className="mt-3 rounded-xl border border-white/10 bg-black/25 p-2.5">
           <p className="text-[10px] uppercase tracking-[0.14em] text-white/45">Examples</p>
@@ -391,6 +437,32 @@ function PlaybookCard({
           </div>
         </div>
       ) : null}
+
+      {images.length > 0 && (
+        <div className="mt-3">
+          <p className="text-[10px] uppercase tracking-[0.14em] text-white/45 mb-1.5">
+            <Image className="inline w-3 h-3 mr-1 opacity-60" />
+            Charts
+          </p>
+          <div className="flex flex-wrap gap-1.5">
+            {images.map((url, i) => (
+              <img
+                key={i}
+                src={url}
+                alt={`Chart ${i + 1}`}
+                onClick={() => { setLightboxIndex(i); setLightboxOpen(true); }}
+                className="w-16 h-16 object-cover rounded-lg cursor-pointer border border-white/10 hover:opacity-85 hover:scale-105 transition-all"
+              />
+            ))}
+          </div>
+          <MultiImageLightbox
+            isOpen={lightboxOpen}
+            images={images}
+            startIndex={lightboxIndex}
+            onClose={() => setLightboxOpen(false)}
+          />
+        </div>
+      )}
 
       {Array.isArray(entry.tags) && entry.tags.length > 0 ? (
         <div className="mt-3 flex flex-wrap gap-1.5">
@@ -455,6 +527,29 @@ function EntryEditorDialog({
       ...prev,
       examples: [...(Array.isArray(prev.examples) ? prev.examples : []), { title: '', url: '', note: '' }],
     }));
+  };
+
+  const MAX_IMAGES = 5;
+
+  const handleImageUpload = async (e) => {
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
+    e.target.value = '';
+    const currentCount = Array.isArray(formState.images) ? formState.images.length : 0;
+    const slots = MAX_IMAGES - currentCount;
+    if (slots <= 0) { toast.error(`Max ${MAX_IMAGES} images per setup`); return; }
+    try {
+      const urls = await Promise.all(
+        files.slice(0, slots).map((f) => imageFileToDataUrl(f, { maxWidth: 900, quality: 0.80 }))
+      );
+      setFormState((prev) => ({ ...prev, images: [...(prev.images || []), ...urls] }));
+    } catch {
+      toast.error('Failed to process image');
+    }
+  };
+
+  const removeImage = (index) => {
+    setFormState((prev) => ({ ...prev, images: (prev.images || []).filter((_, i) => i !== index) }));
   };
 
   return (
@@ -545,37 +640,41 @@ function EntryEditorDialog({
             />
           </div>
 
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-            <div className="space-y-1.5">
-              <Label>Expected R Min</Label>
-              <Input
-                type="number"
-                step="0.1"
-                value={formState.expected_r_min}
-                onChange={(event) => setFormState((prev) => ({ ...prev, expected_r_min: event.target.value }))}
-                className="bg-white/[0.03] border-white/12"
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Expected R Target *</Label>
-              <Input
-                type="number"
-                step="0.1"
-                value={formState.expected_r_target}
-                onChange={(event) => setFormState((prev) => ({ ...prev, expected_r_target: event.target.value }))}
-                className="bg-white/[0.03] border-white/12"
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Expected R Stretch</Label>
-              <Input
-                type="number"
-                step="0.1"
-                value={formState.expected_r_stretch}
-                onChange={(event) => setFormState((prev) => ({ ...prev, expected_r_stretch: event.target.value }))}
-                className="bg-white/[0.03] border-white/12"
-              />
-            </div>
+          <div className="rounded-xl border border-white/10 bg-black/20 p-3 space-y-2.5">
+            <p className="text-[10px] uppercase tracking-[0.14em] text-white/45">Expected R &amp; Exit Allocation</p>
+            {[
+              { rKey: 'expected_r_min',    pKey: 'expected_r_min_percent',    label: 'Min R',     required: false, color: 'text-white/60' },
+              { rKey: 'expected_r_target', pKey: 'expected_r_target_percent', label: 'Target R',  required: true,  color: 'text-cyan-300/80' },
+              { rKey: 'expected_r_stretch',pKey: 'expected_r_stretch_percent',label: 'Stretch R', required: false, color: 'text-emerald-300/80' },
+            ].map(({ rKey, pKey, label, required, color }) => (
+              <div key={rKey} className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
+                <div className="space-y-1">
+                  <p className={`text-[9px] uppercase tracking-widest ${color}`}>{label}{required ? ' *' : ''}</p>
+                  <Input
+                    type="number"
+                    step="0.1"
+                    value={formState[rKey]}
+                    onChange={(event) => setFormState((prev) => ({ ...prev, [rKey]: event.target.value }))}
+                    placeholder="2"
+                    className="bg-white/[0.03] border-white/12 h-8 text-sm"
+                  />
+                </div>
+                <span className="text-white/20 text-sm mt-4">→</span>
+                <div className="space-y-1">
+                  <p className="text-[9px] uppercase tracking-widest text-white/35">Exit %</p>
+                  <Input
+                    type="number"
+                    step="5"
+                    min="1"
+                    max="100"
+                    value={formState[pKey]}
+                    onChange={(event) => setFormState((prev) => ({ ...prev, [pKey]: event.target.value }))}
+                    placeholder="50"
+                    className="bg-white/[0.03] border-white/12 h-8 text-sm"
+                  />
+                </div>
+              </div>
+            ))}
           </div>
 
           <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
@@ -620,6 +719,75 @@ function EntryEditorDialog({
             </div>
           </div>
 
+          {/* Strategy Steps */}
+          <div className="space-y-2 rounded-xl border border-white/10 bg-black/20 p-3">
+            <div className="flex items-center justify-between gap-2">
+              <Label className="flex items-center gap-1.5">
+                <ListOrdered className="w-3.5 h-3.5 opacity-60" />
+                Strategy Steps
+              </Label>
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                className="h-7 text-xs"
+                onClick={() => setFormState((prev) => ({
+                  ...prev,
+                  steps: [...(prev.steps || []), { label: '', grade: '' }],
+                }))}
+              >
+                <Plus className="w-3 h-3 mr-1" />
+                Add Step
+              </Button>
+            </div>
+            {(formState.steps || []).length === 0 && (
+              <p className="text-[11px] text-white/30 py-1">No steps yet. Add execution steps that define this setup's process.</p>
+            )}
+            <div className="space-y-2">
+              {(formState.steps || []).map((step, index) => (
+                <div key={index} className="flex items-center gap-2">
+                  <span className="flex-shrink-0 w-5 h-5 flex items-center justify-center rounded-full bg-indigo-500/20 text-[9px] font-bold text-indigo-300">
+                    {index + 1}
+                  </span>
+                  <Input
+                    value={step.label}
+                    onChange={(e) => setFormState((prev) => {
+                      const next = [...(prev.steps || [])];
+                      next[index] = { ...next[index], label: e.target.value };
+                      return { ...prev, steps: next };
+                    })}
+                    placeholder={`Step ${index + 1} description`}
+                    className="flex-1 h-8 bg-white/[0.03] border-white/12 text-sm"
+                  />
+                  <select
+                    value={step.grade || ''}
+                    onChange={(e) => setFormState((prev) => {
+                      const next = [...(prev.steps || [])];
+                      next[index] = { ...next[index], grade: e.target.value };
+                      return { ...prev, steps: next };
+                    })}
+                    className="h-8 rounded-lg border border-white/12 bg-[#0d1520] text-xs text-white/80 px-2 flex-shrink-0 w-24"
+                  >
+                    <option value="">No grade</option>
+                    {['A++', 'A+', 'A', 'B', 'C', 'D', 'F'].map((g) => (
+                      <option key={g} value={g}>{g}</option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    onClick={() => setFormState((prev) => ({
+                      ...prev,
+                      steps: (prev.steps || []).filter((_, i) => i !== index),
+                    }))}
+                    className="flex-shrink-0 h-8 w-8 flex items-center justify-center rounded-lg border border-white/10 text-white/30 hover:border-rose-500/30 hover:text-rose-400 transition-colors"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+
           <div className="space-y-1.5">
             <Label>Tags</Label>
             <Input
@@ -628,6 +796,35 @@ function EntryEditorDialog({
               placeholder="breakout, momentum, a-plus"
               className="bg-white/[0.03] border-white/12"
             />
+          </div>
+
+          <div className="space-y-2 rounded-xl border border-white/10 bg-black/20 p-3">
+            <div className="flex items-center justify-between gap-2">
+              <Label className="flex items-center gap-1.5"><Image className="w-3.5 h-3.5 opacity-60" />Chart Images</Label>
+              <span className="text-[10px] text-white/35">{(formState.images || []).length}/{MAX_IMAGES}</span>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {(formState.images || []).map((url, i) => (
+                <div key={i} className="relative group w-20 h-20 flex-shrink-0">
+                  <img src={url} alt={`Chart ${i + 1}`} className="w-20 h-20 object-cover rounded-lg border border-white/10" />
+                  <button
+                    type="button"
+                    onClick={() => removeImage(i)}
+                    className="absolute top-0.5 right-0.5 p-0.5 rounded-full bg-black/75 text-white opacity-0 group-hover:opacity-100 transition-opacity hover:bg-rose-500/80"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </div>
+              ))}
+              {(formState.images || []).length < MAX_IMAGES && (
+                <label className="w-20 h-20 border-2 border-dashed border-white/20 hover:border-white/40 rounded-lg flex flex-col items-center justify-center cursor-pointer transition-colors flex-shrink-0">
+                  <Upload className="w-5 h-5 text-white/40 mb-0.5" />
+                  <span className="text-[10px] text-white/40">Add</span>
+                  <input type="file" accept="image/*" multiple className="hidden" onChange={handleImageUpload} />
+                </label>
+              )}
+            </div>
+            <p className="text-[10px] text-white/30">Upload chart examples (max {MAX_IMAGES}). Images are compressed and stored with the setup.</p>
           </div>
 
           <div className="space-y-2.5 rounded-xl border border-white/10 bg-black/20 p-3">

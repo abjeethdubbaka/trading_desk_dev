@@ -61,6 +61,7 @@ const Performance = lazy(() => import('./pages/Performance'));
 const ScreenshotAnalysis = lazy(() => import('./pages/ScreenshotAnalysis'));
 const Playbook = lazy(() => import('./pages/Playbook'));
 const Notes = lazy(() => import('./pages/Notes'));
+const Finance = lazy(() => import('./pages/Finance'));
 import __Layout from './Layout.jsx';
 
 // Module preloaders — call these on nav hover to warm the chunk before the user clicks
@@ -76,6 +77,7 @@ export const PAGE_PRELOADERS = {
   DosAndDonts:        () => import('./pages/DosAndDonts'),
   ScreenshotAnalysis: () => import('./pages/ScreenshotAnalysis'),
   Playbook:           () => import('./pages/Playbook'),
+  Finance:            () => import('./pages/Finance'),
 };
 
 export const PAGES = {
@@ -90,6 +92,7 @@ export const PAGES = {
     "ScreenshotAnalysis": ScreenshotAnalysis,
     "Playbook": Playbook,
     "Notes": Notes,
+    "Finance": Finance,
 }
 
 export const pagesConfig = {

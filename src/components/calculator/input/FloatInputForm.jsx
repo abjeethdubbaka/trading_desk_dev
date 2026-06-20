@@ -1,9 +1,10 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Target, Loader2, Sigma, Plus, RotateCcw, CheckCircle2, BookOpen } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import MultiImageLightbox from '@/components/ui/MultiImageLightbox';
 
 const RISK_LEVEL_META = {
   half:   { label: '½ Size', color: 'text-amber-300',   bg: 'bg-amber-500/10 border-amber-500/25' },
@@ -34,12 +35,16 @@ export default function FloatInputForm({
   maxDailyTrades = null,
   disabled = false,
 }) {
+  const [lbOpen, setLbOpen] = useState(false);
+  const [lbIndex, setLbIndex] = useState(0);
+
   const activeSetups = playbookEntries.filter((e) => e.is_active !== false);
   const riskMeta = RISK_LEVEL_META[selectedSetup?.risk_level] ?? null;
+  const setupImages = Array.isArray(selectedSetup?.images) ? selectedSetup.images : [];
 
-  const effectiveRisk = riskMultiplier !== 1 && Number.isFinite(Number(baseRiskAmount)) && Number(baseRiskAmount) > 0
-    ? Number(baseRiskAmount) * riskMultiplier
-    : null;
+  const baseRisk = Number.isFinite(Number(baseRiskAmount)) && Number(baseRiskAmount) > 0 ? Number(baseRiskAmount) : null;
+  const effectiveRisk = baseRisk != null ? baseRisk * riskMultiplier : null; // used in risk badge
+
 
   const hasLimit = maxDailyTrades != null && Number.isFinite(Number(maxDailyTrades)) && Number(maxDailyTrades) > 0;
   const limitNum = hasLimit ? Number(maxDailyTrades) : null;
@@ -95,26 +100,66 @@ export default function FloatInputForm({
 
           {/* Selected setup info */}
           {selectedSetup && (
-            <div className="rounded-lg border border-white/12 bg-[#0d1520] px-3 py-2.5 space-y-2">
+            <div className="rounded-lg border border-white/12 bg-[#0d1520] px-3 py-2.5 space-y-2.5">
+
+              {/* Row 1: badges */}
               <div className="flex items-center gap-2 flex-wrap">
                 {riskMeta && (
                   <span className={cn('rounded border px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide', riskMeta.color, riskMeta.bg)}>
-                    {riskMeta.label}
-                    {riskMultiplier !== 1 ? ` · ${riskMultiplier}×` : ''}
+                    {riskMeta.label}{riskMultiplier !== 1 ? ` · ${riskMultiplier}×` : ''}
                   </span>
                 )}
                 {effectiveRisk != null && (
                   <span className={cn('rounded border px-1.5 py-0.5 text-[9px] font-semibold tabular-nums', riskMeta?.color ?? 'text-white/60', riskMeta?.bg ?? '')}>
-                    Risk ${effectiveRisk.toFixed(2)}
+                    Risk ${effectiveRisk.toFixed(0)}
                   </span>
                 )}
                 {selectedSetup.timeframe && (
-                  <span className="text-[10px] text-white/60">{selectedSetup.timeframe}</span>
-                )}
-                {selectedSetup.expected_r_profile?.target && (
-                  <span className="text-[10px] text-cyan-300/90">{selectedSetup.expected_r_profile.target}R target</span>
+                  <span className="text-[10px] text-white/50">{selectedSetup.timeframe}</span>
                 )}
               </div>
+
+              {/* Chart thumbnails */}
+              {setupImages.length > 0 && (
+                <div className="flex gap-1.5">
+                  {setupImages.slice(0, 4).map((url, i) => (
+                    <img
+                      key={i}
+                      src={url}
+                      alt={`Chart ${i + 1}`}
+                      onClick={() => { setLbIndex(i); setLbOpen(true); }}
+                      className="h-10 w-16 object-cover rounded border border-white/15 cursor-pointer hover:opacity-80 hover:border-white/35 transition-all flex-shrink-0"
+                    />
+                  ))}
+                  {setupImages.length > 4 && (
+                    <button
+                      type="button"
+                      onClick={() => { setLbIndex(4); setLbOpen(true); }}
+                      className="h-10 w-10 rounded border border-white/15 bg-white/[0.04] flex items-center justify-center text-[9px] text-white/50 hover:bg-white/[0.08] transition-colors flex-shrink-0"
+                    >
+                      +{setupImages.length - 4}
+                    </button>
+                  )}
+                </div>
+              )}
+
+              {/* Row 2: stop loss rules */}
+              {selectedSetup.stop_loss_management?.length > 0 && (
+                <div className="space-y-0.5">
+                  <p className="text-[9px] uppercase tracking-widest text-violet-300/60 mb-1">Stop Loss Rules</p>
+                  {selectedSetup.stop_loss_management.slice(0, 4).map((rule, i) => (
+                    <div key={i} className="flex items-start gap-1.5">
+                      <span className="mt-1.5 h-1 w-1 rounded-full bg-violet-400/50 flex-shrink-0" />
+                      <span className="text-[10px] text-white/65 leading-snug">{rule}</span>
+                    </div>
+                  ))}
+                  {selectedSetup.stop_loss_management.length > 4 && (
+                    <p className="text-[9px] text-white/35 pl-2.5">+{selectedSetup.stop_loss_management.length - 4} more</p>
+                  )}
+                </div>
+              )}
+
+              {/* Row 3: entry criteria */}
               {selectedSetup.entry_criteria?.length > 0 && (
                 <div className="space-y-0.5">
                   {selectedSetup.entry_criteria.slice(0, 5).map((criterion, i) => (
@@ -128,6 +173,12 @@ export default function FloatInputForm({
                   )}
                 </div>
               )}
+              <MultiImageLightbox
+                isOpen={lbOpen}
+                images={setupImages}
+                startIndex={lbIndex}
+                onClose={() => setLbOpen(false)}
+              />
             </div>
           )}
         </div>

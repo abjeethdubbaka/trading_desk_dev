@@ -16,7 +16,6 @@ import {
   DetailedView,
   EmptyState,
   JournalPagination,
-  JournalStatsBar,
   JournalToolbar,
   VIEW_MODES,
   useJournalDataTransfer,
@@ -218,8 +217,6 @@ export default function Journal() {
         />
       )}
 
-      <JournalStatsBar trades={filteredTrades} />
-
       {isLoading ? (
         <div className="overflow-hidden rounded border border-white/10 bg-[#1a1a24]">
           {Array.from({ length: 6 }).map((_, i) => (
@@ -237,7 +234,7 @@ export default function Journal() {
                 <Skeleton className="h-4 w-12 rounded" />
                 <Skeleton className="h-4 w-10 rounded-full" />
               </div>
-              <div className="hidden w-[100px] flex-shrink-0 sm:block">
+              <div className="hidden w-[145px] flex-shrink-0 sm:block">
                 <Skeleton className="h-2.5 w-20 rounded-full" />
               </div>
               <div className="hidden w-[58px] flex-shrink-0 md:block">

@@ -133,22 +133,24 @@ export function useFloatPositionSizerController({ historyData, onCalculationSave
     const target  = Number.isFinite(Number(playbookRProfile.target))  && Number(playbookRProfile.target)  > 0 ? Number(playbookRProfile.target)  : null;
     const stretch = Number.isFinite(Number(playbookRProfile.stretch)) && Number(playbookRProfile.stretch) > 0 ? Number(playbookRProfile.stretch) : null;
 
+    const { min_percent, target_percent, stretch_percent } = playbookRProfile;
+
     const tiers = [];
-    if (min     != null) tiers.push(min);
-    if (target  != null) tiers.push(target);
-    if (stretch != null) tiers.push(stretch);
+    if (min    != null) tiers.push({ r: min,     pct: Number(min_percent)     });
+    if (target != null) tiers.push({ r: target,  pct: Number(target_percent)  });
+    if (stretch!= null) tiers.push({ r: stretch, pct: Number(stretch_percent) });
 
     if (tiers.length === 0) return null;
 
-    // Percent allocation per tier count: trim small, exit main, let runner ride
-    const SPLITS = {
-      1: [100],
-      2: [40, 60],
-      3: [25, 50, 25],
-    };
-    const splits = SPLITS[tiers.length] ?? tiers.map(() => Math.floor(100 / tiers.length));
+    // Use authored percentages when provided; fall back to equal split
+    const hasAuthored = tiers.some(({ pct }) => Number.isFinite(pct) && pct > 0);
+    const FALLBACK = { 1: [100], 2: [40, 60], 3: [25, 50, 25] };
+    const fallback = FALLBACK[tiers.length] ?? tiers.map(() => Math.floor(100 / tiers.length));
 
-    const levels = tiers.map((r, i) => ({ r, percent: splits[i] ?? 0 }));
+    const levels = tiers.map(({ r, pct }, i) => ({
+      r,
+      percent: hasAuthored ? (Number.isFinite(pct) && pct > 0 ? pct : 0) : fallback[i],
+    }));
     return { levels };
   }, [playbookRProfile]);
 

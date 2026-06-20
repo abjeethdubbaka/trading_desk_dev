@@ -51,80 +51,6 @@ function StatBlock({ label, value, color = 'text-white', sub = null }) {
   );
 }
 
-function PriceLadder({ entryPrice, stopLossPrice, targetPrice, direction }) {
-  const entry  = Number(entryPrice);
-  const stop   = Number(stopLossPrice);
-  const target = Number(targetPrice);
-
-  if (!Number.isFinite(entry)  || entry  <= 0) return null;
-  if (!Number.isFinite(stop)   || stop   <= 0) return null;
-  if (!Number.isFinite(target) || target <= 0) return null;
-  if (entry === stop || entry === target || stop === target) return null;
-
-  const high  = Math.max(stop, target);
-  const low   = Math.min(stop, target);
-  const range = high - low;
-  if (range <= 0) return null;
-
-  const toPct     = (p) => ((high - p) / range) * 100;
-  const entryPct  = Math.min(92, Math.max(8, toPct(entry)));
-  const isLong    = direction !== 'short';
-
-  const topZoneColor    = isLong ? 'bg-emerald-500/50' : 'bg-rose-500/50';
-  const bottomZoneColor = isLong ? 'bg-rose-500/50'    : 'bg-emerald-500/50';
-  const topPrice        = isLong ? target : stop;
-  const bottomPrice     = isLong ? stop   : target;
-  const topLabel        = isLong ? 'TARGET' : 'STOP';
-  const bottomLabel     = isLong ? 'STOP'   : 'TARGET';
-  const topColor        = isLong ? 'text-emerald-400' : 'text-rose-400';
-  const bottomColor     = isLong ? 'text-rose-400'    : 'text-emerald-400';
-
-  const riskAmt   = Math.abs(entry - stop);
-  const rewardAmt = Math.abs(target - entry);
-  const rr        = riskAmt > 0 ? rewardAmt / riskAmt : null;
-  const showEntry = entryPct > 16 && entryPct < 84;
-
-  return (
-    <div className="flex gap-2.5 items-stretch h-full">
-      <div className="relative w-6 flex-shrink-0 rounded-md overflow-hidden border border-white/10">
-        <div className={cn('absolute inset-x-0 top-0', topZoneColor)} style={{ height: `${entryPct}%` }} />
-        <div className={cn('absolute inset-x-0', bottomZoneColor)} style={{ top: `${entryPct}%`, bottom: 0 }} />
-        <div
-          className="absolute inset-x-0 z-10 h-[2px] bg-amber-300 shadow-[0_0_6px_rgba(253,224,71,0.9)]"
-          style={{ top: `${entryPct}%` }}
-        />
-      </div>
-
-      <div className="relative flex-1 min-w-[110px]">
-        <div className="absolute top-0 left-0">
-          <p className={cn('text-[9px] font-bold uppercase tracking-widest leading-none', topColor)}>{topLabel}</p>
-          <p className="mt-0.5 text-[11px] font-mono text-white/80">${topPrice.toFixed(2)}</p>
-        </div>
-
-        {showEntry && (
-          <div className="absolute left-0 -translate-y-1/2" style={{ top: `${entryPct}%` }}>
-            <p className="text-[9px] font-bold uppercase tracking-widest leading-none text-amber-400">ENTRY</p>
-            <p className="mt-0.5 text-[11px] font-mono text-white/80">${entry.toFixed(2)}</p>
-          </div>
-        )}
-
-        <div className="absolute bottom-0 left-0">
-          <p className={cn('text-[8px] font-bold uppercase tracking-widest leading-none', bottomColor)}>{bottomLabel}</p>
-          <p className="mt-0.5 text-[10px] font-mono text-white/75">${bottomPrice.toFixed(2)}</p>
-        </div>
-
-        {rr != null && (
-          <div className="absolute right-0 top-1/2 -translate-y-1/2">
-            <span className="rounded border border-cyan-500/25 bg-cyan-500/10 px-1.5 py-0.5 text-[9px] font-semibold text-cyan-300">
-              {rr.toFixed(1)}R
-            </span>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
 const SWEET_MID = 2.00;
 
 function SuggestedStops({ entryPrice, stopLossPrice, direction, onApply }) {
@@ -248,7 +174,6 @@ export default function ResultsDisplay({
 
   const isTimerUrgentBlink = isTimerRunning && remainingSeconds > 0 && remainingSeconds <= 10;
   const isLong = direction !== 'short';
-  const canShowLadder = Number(entryPrice) > 0 && Number(stopLossPrice) > 0 && Number(targetPrice) > 0;
 
   const ladderSegments = useMemo(() => {
     if (!Array.isArray(targets) || targets.length === 0) return [];
@@ -374,60 +299,69 @@ export default function ResultsDisplay({
       </div>
 
       {/* ── Hero ── */}
-      <div className={cn('flex min-h-0', canShowLadder ? 'divide-x divide-white/8' : '')}>
+      <div className="flex min-h-0">
 
-        {/* Left: focal number + stats */}
+        {/* Focal numbers + stats */}
         <div className="flex-1 p-4 space-y-4">
-          <div>
-            <p className="text-[9px] uppercase tracking-[0.18em] text-white/35">Position Size</p>
-            <p className="mt-0.5 text-[52px] font-black leading-none tabular-nums text-white">
-              {Number(shares || 0).toLocaleString()}
-            </p>
-            <p className="mt-1 text-[11px] text-white/30 tracking-wide">shares</p>
-          </div>
+          {/* Position Size | Max Profit | Deployed + At Risk */}
+          <div className="flex items-start gap-6 flex-wrap">
+            <div className="min-w-0">
+              <p className="text-[9px] uppercase tracking-[0.18em] text-white/35">Position Size</p>
+              <p className="mt-0.5 text-[28px] font-black leading-none tabular-nums text-white">
+                {Number(shares || 0).toLocaleString()}
+              </p>
+              <p className="mt-1 text-[11px] text-white/30 tracking-wide">shares</p>
+            </div>
 
-          <div className="grid grid-cols-2 gap-x-5 gap-y-3">
-            <StatBlock label="Deployed" value={asWholeMoney(positionValue)} color="text-white/70" />
-            <StatBlock label="At Risk" value={asMoney(actualRisk)} color="text-rose-300" sub={riskUsageSubtext} />
             {displayTotalProfit != null && (
-              <StatBlock
-                label="Max Profit"
-                value={`+${asMoney(displayTotalProfit)}`}
-                color="text-emerald-300"
-              />
+              <div className="border-l border-white/10 pl-6 min-w-0">
+                <p className="text-[9px] uppercase tracking-[0.18em] text-white/35">Max Profit</p>
+                <p className="mt-0.5 text-[28px] font-black leading-none tabular-nums text-emerald-300">
+                  +{asMoney(displayTotalProfit)}
+                </p>
+                {blendedR != null && (
+                  <p className="mt-1 text-[11px] text-purple-300/70 tracking-wide">{blendedR.toFixed(2)}R blended</p>
+                )}
+              </div>
             )}
-            {blendedR != null && (
-              <StatBlock
-                label="Blended R"
-                value={`${blendedR.toFixed(2)}R`}
-                color="text-purple-300"
-              />
-            )}
+
+            <div className="border-l border-white/10 pl-6 flex gap-5">
+              <StatBlock label="Deployed" value={asWholeMoney(positionValue)} color="text-white/70" />
+              <div className="flex gap-5">
+                <StatBlock label="At Risk" value={asMoney(actualRisk)} color="text-rose-300" sub={riskUsageSubtext} />
+                {(() => {
+                  const entry = Number(entryPrice);
+                  const stop  = Number(stopLossPrice);
+                  if (!Number.isFinite(entry) || entry <= 0 || !Number.isFinite(stop) || stop <= 0 || entry === stop) return null;
+                  const isLong    = direction !== 'short';
+                  const riskPct   = (Math.abs(entry - stop) / entry) * 100;
+                  if (Math.abs(riskPct - SWEET_MID) < 0.15) return null;
+                  const suggested = entry + (isLong ? -1 : 1) * entry * (SWEET_MID / 100);
+                  return (
+                    <div>
+                      <p className="text-[9px] uppercase tracking-widest text-white/35">Suggested Stop</p>
+                      <div className="mt-0.5 flex items-center gap-2">
+                        <span className="text-sm font-semibold font-mono text-white/70">${suggested.toFixed(2)}</span>
+                        {onApplyStop && (
+                          <button
+                            type="button"
+                            onClick={() => onApplyStop(suggested.toFixed(2))}
+                            className="rounded border border-white/12 bg-white/[0.04] px-1.5 py-0.5 text-[9px] text-white/50 hover:bg-white/10 hover:text-white/80 transition-colors"
+                          >
+                            Apply
+                          </button>
+                        )}
+                      </div>
+                      <p className="mt-0.5 text-[9px] text-white/30">{SWEET_MID}% risk · sweet spot</p>
+                    </div>
+                  );
+                })()}
+              </div>
+            </div>
           </div>
         </div>
 
-        {/* Right: price map */}
-        {canShowLadder && (
-          <div className="p-4 flex flex-col" style={{ minWidth: 180 }}>
-            <p className="mb-2.5 text-[9px] uppercase tracking-[0.18em] text-white/35">Price Map</p>
-            <div className="flex-1" style={{ minHeight: 200 }}>
-              <PriceLadder
-                entryPrice={entryPrice}
-                stopLossPrice={stopLossPrice}
-                targetPrice={targetPrice}
-                direction={direction}
-              />
-            </div>
-          </div>
-        )}
       </div>
-
-      <SuggestedStops
-        entryPrice={entryPrice}
-        stopLossPrice={stopLossPrice}
-        direction={direction}
-        onApply={onApplyStop}
-      />
 
       {/* ── Exit Strategy ── */}
       <div className="border-t border-white/8 px-4 py-3 space-y-3">

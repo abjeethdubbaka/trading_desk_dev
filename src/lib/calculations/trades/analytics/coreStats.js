@@ -42,8 +42,8 @@ export function calcCoreStats(trades = []) {
       if (p < largestLoss) largestLoss = p;
     }
 
-    const r = trade?.r_multiple;
-    if (r != null && isFinite(r)) {
+    const r = Number(trade?.r_multiple);
+    if (!isNaN(r) && isFinite(r)) {
       rSum += r;
       rCount++;
     }
@@ -61,7 +61,7 @@ export function calcCoreStats(trades = []) {
     avgPnL: totalPnL / totalTrades,
     avgWin: wins > 0 ? totalWinPnL / wins : 0,
     avgLoss: losses > 0 ? totalLossAbs / losses : 0,
-    avgR: rCount > 0 ? rSum / rCount : 0,
+    avgR: rCount > 0 ? (rSum / rCount || 0) : 0,
     profitFactor: totalLossAbs > 0 ? round(totalWinPnL / totalLossAbs, 2) : totalWinPnL > 0 ? Infinity : 0,
     largestWin,
     largestLoss,

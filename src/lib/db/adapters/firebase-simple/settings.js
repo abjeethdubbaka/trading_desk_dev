@@ -4,8 +4,8 @@
  * Settings collection operations for Firebase Simple adapter.
  */
 
-import { deleteDoc, doc, getDoc, setDoc } from 'firebase/firestore';
-import { broadcast, addUpdateTimestamp } from './utils.js';
+import { addDoc, collection, deleteDoc, doc, getDoc, getDocs, orderBy, query, setDoc } from 'firebase/firestore';
+import { broadcast, addCreateTimestamps, addUpdateTimestamp } from './utils.js';
 
 export function createSettingsAdapter(db) {
   return {
@@ -45,6 +45,25 @@ export function createSettingsAdapter(db) {
         throw error;
       }
     }
+  };
+}
+
+export function createSettingsPresetsAdapter(db) {
+  return {
+    async list() {
+      const q = query(collection(db, 'settings_presets'), orderBy('created_date', 'desc'));
+      const snap = await getDocs(q);
+      return snap.docs.map(d => ({ ...d.data(), id: d.id }));
+    },
+    async create(data) {
+      const clean = addCreateTimestamps({ ...data });
+      const ref = await addDoc(collection(db, 'settings_presets'), clean);
+      return { ...clean, id: ref.id };
+    },
+    async delete(id) {
+      await deleteDoc(doc(db, 'settings_presets', id));
+      return true;
+    },
   };
 }
 

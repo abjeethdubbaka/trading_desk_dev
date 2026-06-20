@@ -1,4 +1,5 @@
 import { resolveShareFloatRange } from '@/lib/calculations/trades';
+import { PLACEHOLDER_USER_ID } from '@/lib/constants';
 
 export class TradeCreator {
   static async createTrade(params) {
@@ -61,7 +62,7 @@ export class TradeCreator {
       screenshots: [],
       trade_plan_id: null,
       strategy_preset_id: null,
-      user_id: 'user-123'
+      user_id: PLACEHOLDER_USER_ID
     };
 
     return newTrade;

@@ -2,11 +2,6 @@ import { sanitizeSetupTypes } from '../../components/journal/AddTradeModal/const
 
 export const PLAYBOOK_FIELD = 'strategy_playbook';
 
-const DEFAULT_EXPECTED_R_PROFILE = Object.freeze({
-  min: null,
-  target: null,
-  stretch: null,
-});
 
 function toTrimmedString(value) {
   return String(value ?? '').trim();
@@ -85,8 +80,11 @@ function normalizeExpectedRProfile(input) {
 
   return {
     min: toOptionalNumber(source.min),
+    min_percent: toOptionalNumber(source.min_percent),
     target: toOptionalNumber(source.target),
+    target_percent: toOptionalNumber(source.target_percent),
     stretch: toOptionalNumber(source.stretch),
+    stretch_percent: toOptionalNumber(source.stretch_percent),
   };
 }
 
@@ -108,8 +106,10 @@ export function createBlankPlaybookEntry() {
     exit_criteria: [],
     stop_loss_management: [],
     invalidations: [],
+    steps: [],
     examples: [],
-    expected_r_profile: { ...DEFAULT_EXPECTED_R_PROFILE },
+    images: [],
+    expected_r_profile: { min: null, min_percent: null, target: null, target_percent: null, stretch: null, stretch_percent: null },
     tags: [],
     risk_level: 'normal',
     is_active: true,
@@ -145,7 +145,16 @@ export function normalizePlaybookEntry(entry) {
     exit_criteria: normalizeLineItems(source.exit_criteria || source.exitCriteria),
     stop_loss_management: normalizeLineItems(source.stop_loss_management || source.stopLossManagement),
     invalidations: normalizeLineItems(source.invalidations),
+    steps: Array.isArray(source.steps)
+      ? source.steps
+          .map((s) => ({
+            label: String(s?.label ?? s ?? '').trim(),
+            grade: typeof s?.grade === 'string' ? s.grade : '',
+          }))
+          .filter((s) => s.label)
+      : [],
     examples: normalizeExamples(source.examples),
+    images: Array.isArray(source.images) ? source.images.filter((s) => typeof s === 'string' && s.length > 0) : [],
     expected_r_profile: normalizeExpectedRProfile(source.expected_r_profile || source.expectedRProfile),
     tags: normalizeTags(source.tags),
     risk_level: ['half', 'normal', 'double'].includes(source.risk_level) ? source.risk_level : 'normal',

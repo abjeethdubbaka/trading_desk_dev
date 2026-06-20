@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
+import { PLACEHOLDER_USER_ID } from '@/lib/constants';
 import { calculatePnL } from '../utils/calculationUtils';
 import { getCurrentLocalDateTime, utcToLocalDateTime } from '../utils/dateUtils';
 import { buildTradeNotes, stripCalculatorAutoNote } from '../../utils/notes';
@@ -28,8 +29,6 @@ const normalizeStrategyStepFollowed = (value) => {
   return null;
 };
 
-const normalizeStrategyStepGrade = (value) => String(value ?? '').trim().toUpperCase();
-
 const normalizeStrategyStepResults = (results) => (
   Array.isArray(results)
     ? results.map((value) => ({
@@ -39,14 +38,14 @@ const normalizeStrategyStepResults = (results) => (
             : '',
         grade:
           value && typeof value === 'object' && !Array.isArray(value)
-            ? normalizeStrategyStepGrade(value.grade)
+            ? String(value.grade ?? '').trim().toUpperCase()
             : '',
         followed: normalizeStrategyStepFollowed(value),
       }))
     : []
 );
 
-export const useTradeForm = (initialData, userId = 'user-123') => {
+export const useTradeForm = (initialData, userId = PLACEHOLDER_USER_ID) => {
   const getDefaultReflectionAnswers = () => ({
     what_went_wrong: '',
     what_learned: ''
@@ -281,26 +280,13 @@ export const useTradeForm = (initialData, userId = 'user-123') => {
   }, []);
 
   const prepareForSubmission = useCallback(() => {
-    // Auto-detect direction if stop loss is greater than entry price
-    const entryPrice = parseFloat(formData.entry_price) || 0;
-    const stopLoss = parseFloat(formData.stop_loss) || 0;
-    let detectedDirection = formData.direction;
-    
-    if (stopLoss && entryPrice) {
-      if (stopLoss > entryPrice && formData.direction === 'long') {
-        detectedDirection = 'short';
-      } else if (stopLoss < entryPrice && formData.direction === 'short') {
-        detectedDirection = 'long';
-      }
-    }
-    
     // Calculate final values for submission
     const { pnl, pnlPercent, rMultiple } = calculatePnL({
       entryPrice: formData.entry_price,
       exitPrice: formData.exit_price,
       stopLoss: formData.stop_loss,
       positionSize: formData.position_size,
-      direction: detectedDirection, // Use detected direction
+      direction: formData.direction,
       fee: formData.fee
     });
 
@@ -328,7 +314,7 @@ export const useTradeForm = (initialData, userId = 'user-123') => {
 
     const submissionData = {
       ...formData,
-      direction: detectedDirection, // Use detected direction
+      direction: formData.direction,
       symbol: formData.symbol.toUpperCase().trim(),
       entry_price: parseFloat(formData.entry_price) || 0,
       exit_price: normalizedExitPrice,

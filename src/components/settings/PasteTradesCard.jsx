@@ -2,7 +2,6 @@ import React, { useMemo, useState } from 'react';
 import { ClipboardPaste, Upload } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { parseTradesPastedText } from '@/components/journal/utils/csvImport';
 
@@ -22,9 +21,9 @@ const SAMPLE_HEADERS = [
 
 const DEFAULT_ROLLOVER_DAYS = [1, 2, 3];
 
-const toYearValue = (value, fallback = 2025) => {
+const toYearValue = (value, fallback) => {
   const parsed = Number(value);
-  return Number.isInteger(parsed) ? parsed : fallback;
+  return Number.isInteger(parsed) ? parsed : (fallback ?? new Date().getFullYear());
 };
 
 export default function PasteTradesCard({
@@ -33,8 +32,8 @@ export default function PasteTradesCard({
   isImporting = false,
 }) {
   const [pasteValue, setPasteValue] = useState('');
-  const [missingYearBase, setMissingYearBase] = useState('2025');
   const [parseResult, setParseResult] = useState(null);
+  const missingYearBase = String(new Date().getFullYear());
 
   const canParse = String(pasteValue || '').trim().length > 0;
   const parsedTrades = Array.isArray(parseResult?.trades) ? parseResult.trades : [];
@@ -113,26 +112,6 @@ export default function PasteTradesCard({
         <p className="text-xs text-white/50">
           Paste Trade The Pool table text directly. No CSV/export needed.
         </p>
-      </div>
-
-      <div className="grid grid-cols-1 gap-2 sm:grid-cols-[180px_1fr]">
-        <div className="space-y-1">
-          <label className="text-[11px] uppercase tracking-wide text-white/55" htmlFor="missing-year-base">
-            Missing Year Base
-          </label>
-          <Input
-            id="missing-year-base"
-            value={missingYearBase}
-            onChange={(event) => setMissingYearBase(event.target.value)}
-            inputMode="numeric"
-            className="bg-white/5 border-white/15"
-          />
-        </div>
-        <div className="rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2">
-          <p className="text-[11px] text-white/60">
-            Year rule: missing year uses base year ({toYearValue(missingYearBase, 2025)}). Dates on day 1/2/3 use base + 1.
-          </p>
-        </div>
       </div>
 
       <Textarea

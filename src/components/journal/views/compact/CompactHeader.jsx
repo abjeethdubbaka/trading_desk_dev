@@ -76,7 +76,7 @@ export function CompactHeader({
       <div className="w-[110px] flex-shrink-0">
         <SortableHeader label="Symbol" sortKey="symbol" {...sortProps} />
       </div>
-      <div className="hidden w-[100px] flex-shrink-0 sm:block">
+      <div className="hidden w-[145px] flex-shrink-0 sm:block">
         <ColLabel>Entry → Exit</ColLabel>
       </div>
       <div className="hidden w-[58px] flex-shrink-0 md:block">
@@ -102,8 +102,9 @@ export function CompactHeader({
         <ColLabel>Plan</ColLabel>
       </div>
 
-      <div className="w-20 flex-shrink-0">
+      <div className="w-20 flex-shrink-0 flex items-center gap-2">
         <ColLabel>Img</ColLabel>
+        <ColLabel>Tags</ColLabel>
       </div>
       <div className="hidden lg:block w-[60px] flex-shrink-0">
         <ColLabel>Done</ColLabel>

@@ -16,12 +16,11 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Search, Calendar, Plus, LayoutGrid, List, Upload, Loader2, Download, ChevronDown } from 'lucide-react';
+import { Search, Calendar, Plus, LayoutGrid, List, Upload, Loader2, Download, ChevronDown, X } from 'lucide-react';
 import { cn } from '@/lib/utils/general';
 import { useSettings } from '@/lib/context/SettingsContext';
 import { FILTER_OPTIONS, DATE_RANGE_OPTIONS } from '../utils/constants';
 import { PresetMenu } from './PresetMenu';
-import { TagSelector } from '../components/TagSelector';
 
 export default function JournalToolbar({
   searchTerm,
@@ -81,14 +80,14 @@ export default function JournalToolbar({
   return (
     <div className="space-y-2">
       <div className="flex flex-wrap items-center gap-2">
-        <div className="relative min-w-[260px] w-full md:w-auto md:flex-1 lg:max-w-[420px]">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+        <div className="relative min-w-[260px] w-full md:w-auto md:flex-1 lg:max-w-[520px]">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
           <Input
             ref={searchRef}
             value={searchTerm}
             onChange={(e) => onSearchChange(e.target.value)}
-            placeholder="Search trades by symbol, setup, notes..."
-            className="pl-10"
+            placeholder="Search symbol, setup, notes, #tag…"
+            className="pl-10 pr-3"
           />
         </div>
 
@@ -203,25 +202,32 @@ export default function JournalToolbar({
         </div>
       </div>
 
-      {/* Tag filter */}
-      {onTagFilterChange && (
-        <div className="flex items-center gap-2">
-          <span className="text-[10px] text-white/30 uppercase tracking-wider flex-shrink-0">Tags</span>
-          <TagSelector
-            value={tagFilter ?? []}
-            onChange={onTagFilterChange}
-            placeholder="Filter by tag…"
-            className="flex-1 max-w-xs"
-          />
-          {tagFilter?.length > 0 && (
-            <button
-              type="button"
-              onClick={() => onTagFilterChange([])}
-              className="text-[10px] text-white/30 hover:text-white/60 transition-colors"
+      {/* Active tag chips (set by clicking tag labels in trade rows) */}
+      {tagFilter?.length > 0 && (
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className="text-[10px] text-white/30 uppercase tracking-wider">Tags:</span>
+          {tagFilter.map((tag) => (
+            <span
+              key={tag}
+              className="flex items-center gap-1 rounded-full border border-cyan-500/30 bg-cyan-500/10 px-2 py-0.5 text-[11px] text-cyan-300"
             >
-              Clear
-            </button>
-          )}
+              #{tag}
+              <button
+                type="button"
+                onClick={() => onTagFilterChange(tagFilter.filter((t) => t !== tag))}
+                className="hover:text-white transition-colors"
+              >
+                <X className="w-2.5 h-2.5" />
+              </button>
+            </span>
+          ))}
+          <button
+            type="button"
+            onClick={() => onTagFilterChange([])}
+            className="text-[10px] text-white/30 hover:text-white/60 transition-colors"
+          >
+            Clear all
+          </button>
         </div>
       )}
 

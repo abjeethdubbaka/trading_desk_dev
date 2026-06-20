@@ -203,7 +203,7 @@ export function CompactTradeRow({
         </div>
 
         {/* Entry → Exit (exit_price is editable) */}
-        <div className="w-[100px] flex-shrink-0 hidden sm:block" onClick={(e) => e.stopPropagation()}>
+        <div className="w-[145px] flex-shrink-0 hidden sm:block" onClick={(e) => e.stopPropagation()}>
           <span className="text-[11px] font-mono text-white/50">
             {formatCurrency(entryPrice)}
             {exitPrice ? (
@@ -302,8 +302,8 @@ export function CompactTradeRow({
           />
         </div>
 
-        {/* Screenshots */}
-        <div className="flex items-center gap-1 mx-2 flex-shrink-0">
+        {/* Screenshots + Tags */}
+        <div className="flex items-center gap-1.5 mx-2 flex-shrink-0 min-w-0" onClick={(e) => e.stopPropagation()}>
           {screenshots.slice(0, 2).map((id, i) => (
             <TradeThumbnail
               key={id ?? i}
@@ -318,6 +318,13 @@ export function CompactTradeRow({
           )}
           {!screenshots.length && (
             <Image className="w-3.5 h-3.5 text-white/12" />
+          )}
+          {tags.length > 0 && (
+            <div className="flex items-center gap-1 flex-wrap">
+              {tags.map((name) => (
+                <TagChip key={name} name={name} size="xs" onClick={onTagClick} />
+              ))}
+            </div>
           )}
         </div>
 
@@ -348,15 +355,6 @@ export function CompactTradeRow({
           </button>
         </div>
       </div>
-
-      {/* Tags row (shown when present) */}
-      {tags.length > 0 && (
-        <div className="flex items-center gap-1 flex-wrap px-8 pb-1">
-          {tags.map((name) => (
-            <TagChip key={name} name={name} size="xs" onClick={onTagClick} />
-          ))}
-        </div>
-      )}
 
       {expanded && (
         <div

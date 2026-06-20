@@ -19,9 +19,8 @@ import {
 import { useTradeForm } from './useTradeForm';
 import { localToUTCISO, isValidExitTime } from '../utils/dateUtils';
 import { calculatePnL } from '../utils/calculationUtils';
-import { buildSetupTypeOptions } from '../constants/tradeConstants';
 
-const USER_ID = 'user-123';
+import { PLACEHOLDER_USER_ID as USER_ID } from '@/lib/constants';
 const SYMBOL_PATTERN = /^[A-Z]{1,5}$/;
 const ALERT_PRIORITIES = ['warning', 'focus'];
 const normalizeStrategyStepGrade = (value) => String(value ?? '').trim().toUpperCase();
@@ -85,23 +84,6 @@ const normalizeStrategySteps = (steps) => (
     : []
 );
 
-const resolveStrategyStepsForSetup = (stepsBySetup, setupType, fallbackSteps = []) => {
-  const map = stepsBySetup && typeof stepsBySetup === 'object' && !Array.isArray(stepsBySetup)
-    ? stepsBySetup
-    : {};
-  const hasPersistedMap = Object.keys(map).length > 0;
-  const normalizedSetup = String(setupType || '').trim().toLowerCase();
-  if (!normalizedSetup) {
-    return hasPersistedMap ? [] : normalizeStrategySteps(fallbackSteps);
-  }
-
-  const matchedKey = Object.keys(map).find(
-    (key) => String(key || '').trim().toLowerCase() === normalizedSetup
-  );
-
-  if (!matchedKey) return hasPersistedMap ? [] : normalizeStrategySteps(fallbackSteps);
-  return normalizeStrategySteps(map[matchedKey]);
-};
 
 const toStepLabelKey = (value) => String(value ?? '').trim().toLowerCase();
 
@@ -228,42 +210,32 @@ export function useAddTradeModalController({ open, onSave, initialData }) {
   );
 
   const setupTypeOptions = useMemo(() => {
-    const configuredSetupTypes = settings?.journal_preferences?.default_setup_types;
-    const activePlaybookSetupTypes = playbookEntries
-      .filter((entry) => entry.is_active)
-      .map((entry) => entry.name);
-    const options = buildSetupTypeOptions([
-      ...activePlaybookSetupTypes,
-      ...(Array.isArray(configuredSetupTypes) ? configuredSetupTypes : []),
-    ]);
+    const seen = new Set();
+    const options = playbookEntries
+      .filter((entry) => entry.is_active && String(entry.name || '').trim())
+      .map((entry) => entry.name)
+      .filter((name) => {
+        const key = name.toLowerCase();
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+
     const selectedSetup = String(formData.setup_type || '').trim();
-
     if (!selectedSetup || selectedSetup.toLowerCase() === 'manual') return options;
-    if (options.some((option) => option.toLowerCase() === selectedSetup.toLowerCase())) return options;
-
+    if (options.some((o) => o.toLowerCase() === selectedSetup.toLowerCase())) return options;
     return [...options, selectedSetup];
-  }, [
-    formData.setup_type,
-    playbookEntries,
-    settings?.journal_preferences?.default_setup_types,
-  ]);
+  }, [formData.setup_type, playbookEntries]);
 
   const selectedPlaybookEntry = useMemo(
     () => getPlaybookEntryBySetupName(playbookEntries, formData.setup_type),
     [formData.setup_type, playbookEntries]
   );
 
-  const strategyStepsForSetup = useMemo(() => {
-    return resolveStrategyStepsForSetup(
-      settings?.strategy_steps_by_setup,
-      formData.setup_type,
-      settings?.strategy_steps
-    );
-  }, [
-    formData.setup_type,
-    settings?.strategy_steps,
-    settings?.strategy_steps_by_setup,
-  ]);
+  const strategyStepsForSetup = useMemo(
+    () => normalizeStrategySteps(selectedPlaybookEntry?.steps ?? []),
+    [selectedPlaybookEntry]
+  );
 
   const strategyStepResults = useMemo(
     () => normalizeStrategyStepResults(formData.strategy_step_results, strategyStepsForSetup),

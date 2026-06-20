@@ -12,10 +12,10 @@ import { useTradeEvents }   from '@/components/journal';
 import {
   calcCoreStats,
   calcTodayStats,
-  getDailySequence,
   buildEquityCurve,
 } from '@/lib/calculations/trades';
 import { buildDisciplineSnapshot } from '@/lib/calculations/discipline';
+import { ACCOUNT_TIERS } from '@/lib/config/accountTypes';
 import { toFiniteNumber } from '@/lib/utils/general';
 
 import { Skeleton } from '@/components/ui/skeleton';
@@ -47,21 +47,14 @@ export default function Dashboard() {
   // ── Analytics (pure functions, no extra queries) ──────────────────────────
   const allStats   = useMemo(() => calcCoreStats(trades),          [trades]);
   const todayStats = useMemo(() => calcTodayStats(trades),         [trades]);
-  const fourteenDaySequence = useMemo(() => getDailySequence(trades, 14), [trades]);
   const curve      = useMemo(() => buildEquityCurve(trades, accountSize), [trades, accountSize]);
   const disciplineSnapshot = useMemo(
     () => buildDisciplineSnapshot(trades, settings),
     [trades, settings]
   );
-  const avg14DayPnl = useMemo(() => {
-    if (!fourteenDaySequence.length) return 0;
-    const total = fourteenDaySequence.reduce((sum, day) => sum + toFiniteNumber(day?.pnl, 0), 0);
-    return total / fourteenDaySequence.length;
-  }, [fourteenDaySequence]);
-  const avg14DayResult = avg14DayPnl >= 0 ? 'W' : 'L';
-
   const currentBalance = accountSize + toFiniteNumber(allStats.totalPnL, 0);
   const maxDailyLoss = -Math.abs(maxDollars);
+  const tierLabel = ACCOUNT_TIERS[currentTier]?.label ?? (currentTier === 'custom' ? 'Custom' : currentTier);
 
   if (isLoading) {
     return (
@@ -127,8 +120,15 @@ export default function Dashboard() {
         currentBalance={currentBalance}
         totalPnL={allStats.totalPnL}
         winRate={allStats.winRate}
-        avgR={allStats.avgR}
-        avg14DayResult={avg14DayResult}
+        wins={allStats.wins}
+        totalTrades={allStats.totalTrades}
+        avgWin={allStats.avgWin}
+        avgLoss={allStats.avgLoss}
+        profitFactor={allStats.profitFactor}
+        todayPnL={todayStats.totalPnL}
+        todayTrades={todayStats.totalTrades}
+        trades={trades}
+        tierLabel={tierLabel}
       />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
@@ -167,27 +167,10 @@ export default function Dashboard() {
             >
               <MorningBrief trades={trades} />
             </Suspense>
-            <Suspense
-              fallback={
-                <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-4 space-y-3" style={{ height: 200 }}>
-                  <div className="flex items-center justify-between">
-                    <Skeleton className="h-3 w-28 rounded-full" />
-                    <Skeleton className="h-5 w-12 rounded-full" />
-                  </div>
-                  <div className="grid grid-cols-2 gap-2 pt-1">
-                    {[1, 2, 3, 4].map((i) => (
-                      <div key={i} className="rounded-lg border border-white/8 p-2.5 space-y-1.5">
-                        <Skeleton className="h-2 w-14 rounded-full" />
-                        <Skeleton className="h-4 w-10 rounded" />
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              }
-            >
+            <DailyImprovements />
+            <Suspense fallback={null}>
               <AIModelScorecard />
             </Suspense>
-            <DailyImprovements />
           </div>
         )}
       </div>

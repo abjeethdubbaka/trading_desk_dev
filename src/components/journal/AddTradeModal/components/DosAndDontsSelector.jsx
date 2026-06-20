@@ -78,6 +78,7 @@ function RuleGroup({ title, type, items, selectedRuleIds, onToggle }) {
 }
 
 export default function DosAndDontsSelector({ tradeDraft, selectedRuleIds = [], onSelectionChange }) {
+  const [collapsed, setCollapsed] = useState(true);
   const [items, setItems] = useState(() => loadDosAndDontsItems());
   const [newRuleType, setNewRuleType] = useState('do');
   const [newRuleText, setNewRuleText] = useState('');
@@ -183,13 +184,30 @@ export default function DosAndDontsSelector({ tradeDraft, selectedRuleIds = [], 
   const canAddCustomRule = normalizeText(newRuleText).length > 0;
 
   return (
-    <div className="space-y-3 border border-white/20 rounded-lg p-4 bg-white/5">
-      <div className="space-y-1">
-        <Label className="text-sm font-semibold text-white">Dos & Don&apos;ts for This Trade</Label>
+    <div className="border border-white/15 rounded-lg bg-white/[0.03] overflow-hidden">
+      <button
+        type="button"
+        onClick={() => setCollapsed((v) => !v)}
+        className="w-full flex items-center justify-between gap-2 px-4 py-2.5 hover:bg-white/[0.03] transition-colors text-left"
+      >
+        <div className="flex items-center gap-2">
+          <Label className="text-sm font-semibold text-white pointer-events-none">Dos &amp; Don&apos;ts for This Trade</Label>
+          {selectedRuleIds.length > 0 && (
+            <span className="rounded-full bg-emerald-500/20 border border-emerald-500/30 px-1.5 py-0.5 text-[9px] font-semibold text-emerald-300">
+              {selectedRuleIds.length}
+            </span>
+          )}
+        </div>
+        {collapsed
+          ? <ChevronRight className="h-3.5 w-3.5 text-white/35 flex-shrink-0" />
+          : <ChevronDown className="h-3.5 w-3.5 text-white/35 flex-shrink-0" />
+        }
+      </button>
+
+      {!collapsed && <div className="space-y-3 px-4 pb-4">
         <p className="text-[11px] text-white/55">
           Select existing rules or create new ones directly while logging this trade.
         </p>
-      </div>
 
       {selectedRules.length > 0 ? (
         <div className="flex flex-wrap gap-1.5">
@@ -300,6 +318,7 @@ export default function DosAndDontsSelector({ tradeDraft, selectedRuleIds = [], 
           </>
         ) : null}
       </div>
+      </div>}
     </div>
   );
 }
