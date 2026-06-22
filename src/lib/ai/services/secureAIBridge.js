@@ -18,7 +18,9 @@ function isFallbackSafeBridgeError(error) {
   return (
     message.includes('not configured') ||
     message.includes('unsupported kind') ||
-    message.includes('missing kind')
+    message.includes('missing kind') ||
+    message.includes('requires a subscription') ||
+    message.includes('403')
   );
 }
 

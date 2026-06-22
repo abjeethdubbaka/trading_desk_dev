@@ -34,9 +34,9 @@ export function ConfirmDialog({
       <DialogContent className="max-w-sm bg-[#13131e] border-white/10 text-white">
         <DialogHeader>
           <DialogTitle className="text-white">{title}</DialogTitle>
-          {description && (
-            <DialogDescription className="text-white/50">{description}</DialogDescription>
-          )}
+          <DialogDescription className={description ? 'text-white/50' : 'sr-only'}>
+            {description || 'Confirm this action.'}
+          </DialogDescription>
         </DialogHeader>
         <DialogFooter className="gap-2 sm:gap-2">
           <Button

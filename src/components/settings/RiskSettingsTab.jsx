@@ -1,10 +1,12 @@
 import React from 'react';
 import { Input } from '@/components/ui/input';
 import Field from '@/components/settings/Field';
+import TagManager from '@/components/settings/TagManager';
 
 export default function RiskSettingsTab({
   settings,
   updateFields,
+  saveImmediately,
   getDisplayValue,
   handleFieldChange,
   commitDraftField,
@@ -65,6 +67,19 @@ export default function RiskSettingsTab({
           />
           Enable timer sound cues
         </label>
+      </Field>
+
+      <Field label="Default tags" hint="Check a tag to auto-apply it to every new trade. Rename or delete tags here too — saves instantly.">
+        <TagManager
+          defaultTags={Array.isArray(settings?.default_tags) ? settings.default_tags : []}
+          onChange={(tags) => {
+            if (saveImmediately) {
+              saveImmediately({ default_tags: tags });
+            } else {
+              updateFields({ default_tags: tags });
+            }
+          }}
+        />
       </Field>
     </div>
   );

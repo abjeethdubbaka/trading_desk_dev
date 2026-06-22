@@ -12,6 +12,7 @@ import { TagChip } from '../../components/TagChip';
 import { EditableCell } from '../cells/EditableCell';
 import { useInlineTradeEdit } from '../../hooks/useInlineTradeEdit';
 import { getTradePnL } from '@/lib/utils/tradeFields';
+import { getTradeHoldDurationMinutes, formatHoldDuration } from '@/lib/calculations/trades';
 import { TradeCompleteness } from '../../components/TradeCompleteness';
 import { useQueryClient } from '@tanstack/react-query';
 import { tradeKeys } from '@/lib/hooks/useTrades/queryKeys';
@@ -302,8 +303,22 @@ export function CompactTradeRow({
           />
         </div>
 
-        {/* Screenshots + Tags */}
+        {/* Duration (entry → exit, total hold time) */}
+        <div className={cn('w-[80px] flex-shrink-0', columns?.duration ? 'hidden xl:block' : 'hidden')}>
+          <span className="text-[11px] font-mono text-white/40">
+            {formatHoldDuration(getTradeHoldDurationMinutes(trade))}
+          </span>
+        </div>
+
+        {/* Tags + Screenshots */}
         <div className="flex items-center gap-1.5 mx-2 flex-shrink-0 min-w-0" onClick={(e) => e.stopPropagation()}>
+          {tags.length > 0 && (
+            <div className="flex items-center gap-1 flex-wrap">
+              {tags.map((name) => (
+                <TagChip key={name} name={name} size="xs" onClick={onTagClick} />
+              ))}
+            </div>
+          )}
           {screenshots.slice(0, 2).map((id, i) => (
             <TradeThumbnail
               key={id ?? i}
@@ -318,13 +333,6 @@ export function CompactTradeRow({
           )}
           {!screenshots.length && (
             <Image className="w-3.5 h-3.5 text-white/12" />
-          )}
-          {tags.length > 0 && (
-            <div className="flex items-center gap-1 flex-wrap">
-              {tags.map((name) => (
-                <TagChip key={name} name={name} size="xs" onClick={onTagClick} />
-              ))}
-            </div>
           )}
         </div>
 

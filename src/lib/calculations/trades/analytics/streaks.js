@@ -54,3 +54,30 @@ export function getDailySequence(trades = [], n = 20) {
     return { date, pnl: round(pnl, 2), result };
   });
 }
+
+const TRADING_DAYS_PER_MONTH = 21;
+
+/**
+ * Projects a monthly expected return by extrapolating the average daily P&L
+ * (over days that actually had trades) across a standard 21 trading-day month.
+ */
+export function calcMonthlyExpectedReturn(trades = [], accountSize = 0) {
+  const groupedByDay = groupByDay(trades);
+  const tradingDays = Object.keys(groupedByDay).length;
+
+  if (!tradingDays) {
+    return { avgDailyPnL: 0, dollars: 0, percent: 0, tradingDays: 0 };
+  }
+
+  const totalPnL = Object.values(groupedByDay).reduce((sum, day) => sum + (day?.totalPnL ?? 0), 0);
+  const avgDailyPnL = totalPnL / tradingDays;
+  const dollars = avgDailyPnL * TRADING_DAYS_PER_MONTH;
+  const percent = accountSize > 0 ? (dollars / accountSize) * 100 : 0;
+
+  return {
+    avgDailyPnL: round(avgDailyPnL, 2),
+    dollars: round(dollars, 2),
+    percent: round(percent, 2),
+    tradingDays,
+  };
+}

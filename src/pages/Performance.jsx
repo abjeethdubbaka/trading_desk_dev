@@ -13,19 +13,18 @@ import EmotionMatrix from '@/components/performance/EmotionMatrix';
 import PerformanceByDayOfWeek from '@/components/performance/PerformanceByDayOfWeek';
 import PerformanceByHoldDurationBuckets from '@/components/performance/PerformanceByHoldDurationBuckets';
 import PerformanceByHourOfDay from '@/components/performance/PerformanceByHourOfDay';
+import PerformanceByMonthOfYear from '@/components/performance/PerformanceByMonthOfYear';
+import { calculatePerformanceByMonthOfYear } from '@/components/performance/utils';
 import PerformanceByPrice from '@/components/performance/PerformanceByPrice';
 import PerformanceBySetupType from '@/components/performance/PerformanceBySetupType';
 import PerformanceByShareFloatRange from '@/components/performance/PerformanceByShareFloatRange';
-import SetupTimeFloatHeatmap from '@/components/performance/SetupTimeFloatHeatmap';
 import PlanAdherenceCard from '@/components/performance/PlanAdherenceCard';
 import WeeklyReviewCard from '@/components/performance/WeeklyReviewCard';
-import SetupQualityPerTradeCard from '@/components/performance/SetupQualityPerTradeCard';
 import MistakePatternInsights from '@/components/performance/MistakePatternInsights';
 import StrategyEngineCard from '@/components/performance/StrategyEngineCard';
 import PnLCalendarHeatmap from '@/components/performance/PnLCalendarHeatmap';
 import EquityCurveChart from '@/components/performance/EquityCurveChart';
 import WinRateBySetupChart from '@/components/performance/WinRateBySetupChart';
-import TimeOfDayHeatmap from '@/components/performance/TimeOfDayHeatmap';
 import AnalysisPanel from '@/components/journal/analysis/AnalysisPanel';
 import InfoHint from '@/components/ui/InfoHint';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -40,14 +39,15 @@ import {
   calcCoreStats,
   calcHoldTimeStats,
   calcMaxDrawdown,
+  calcMonthlyExpectedReturn,
   calcSharpeRatio,
+  computeTradeSetupQuality,
   formatHoldDuration,
   perfByDayOfWeek,
   perfByHoldDurationBuckets,
   perfByHourOfDay,
   perfByPriceRange,
   perfBySetupType,
-  perfBySetupTimeFloatHeatmap,
   perfByShareFloatRange,
 } from '@/lib/calculations/trades';
 import { cn, toFiniteNumber } from '@/lib/utils/general';
@@ -161,6 +161,22 @@ export default function PerformancePage() {
   const maxDD = useMemo(() => calcMaxDrawdown(curve), [curve]);
   const sharpe = useMemo(() => calcSharpeRatio(periodTrades), [periodTrades]);
   const holdStats = useMemo(() => calcHoldTimeStats(periodTrades), [periodTrades]);
+  const monthlyExpectedReturn = useMemo(
+    () => calcMonthlyExpectedReturn(periodTrades, accountSize),
+    [periodTrades, accountSize]
+  );
+  const qualityScore = useMemo(() => {
+    let sum = 0;
+    let count = 0;
+    periodTrades.forEach((trade) => {
+      const score = computeTradeSetupQuality(trade, { riskLimit })?.score;
+      if (Number.isFinite(score)) {
+        sum += score;
+        count += 1;
+      }
+    });
+    return count > 0 ? Math.round(sum / count) : null;
+  }, [periodTrades, riskLimit]);
 
   // Secondary analytics — deferred so React can yield to the core render first
   const deferredTrades = useDeferredValue(periodTrades);
@@ -168,18 +184,11 @@ export default function PerformancePage() {
 
   const byHour = useMemo(() => perfByHourOfDay(deferredTrades), [deferredTrades]);
   const byDay = useMemo(() => perfByDayOfWeek(deferredTrades), [deferredTrades]);
+  const byMonth = useMemo(() => calculatePerformanceByMonthOfYear(deferredTrades), [deferredTrades]);
   const bySetup = useMemo(() => perfBySetupType(deferredTrades), [deferredTrades]);
   const byPrice = useMemo(() => perfByPriceRange(deferredTrades), [deferredTrades]);
   const byFloat = useMemo(
     () => perfByShareFloatRange(deferredTrades, { floatCategories: deferredSettings?.float_categories }),
-    [deferredTrades, deferredSettings?.float_categories]
-  );
-  const setupTimeFloatHeatmap = useMemo(
-    () => perfBySetupTimeFloatHeatmap(deferredTrades, {
-      setupLimit: 8,
-      hourLimit: 8,
-      floatCategories: deferredSettings?.float_categories,
-    }),
     [deferredTrades, deferredSettings?.float_categories]
   );
   const strategySnapshot = useMemo(
@@ -217,11 +226,6 @@ export default function PerformancePage() {
     () => [...byPrice].filter((row) => row.trades > 0).sort((a, b) => b.totalPnL - a.totalPnL)[0] ?? null,
     [byPrice]
   );
-  const setupsTopCombo = useMemo(
-    () => setupTimeFloatHeatmap?.topCombos?.[0] ?? null,
-    [setupTimeFloatHeatmap]
-  );
-
   if (isLoading) {
     return (
       <div className="space-y-5">
@@ -432,10 +436,13 @@ export default function PerformancePage() {
             />
           </TabHero>
 
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+          <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
             <PerformanceByHoldDurationBuckets data={byHoldBucket} />
-            <PerformanceByHourOfDay data={byHour} />
-            <PerformanceByDayOfWeek data={byDay} />
+            <div className="space-y-3">
+              <PerformanceByHourOfDay data={byHour} />
+              <PerformanceByDayOfWeek data={byDay} />
+              <PerformanceByMonthOfYear data={byMonth} />
+            </div>
           </div>
         </TabsContent>
 
@@ -461,15 +468,6 @@ export default function PerformancePage() {
               value={setupsTopPrice ? `${setupsTopPrice.range} (${formatCompactCurrency(setupsTopPrice.totalPnL)})` : '--'}
               tone="text-sky-200"
             />
-            <InsightChip
-              label="Top Combo"
-              value={
-                setupsTopCombo
-                  ? `${setupsTopCombo.setup} @ ${setupsTopCombo.hour} [${setupsTopCombo.floatKey}]`
-                  : '--'
-              }
-              tone="text-emerald-200"
-            />
             <InsightChip label="Total Setups" value={String(bySetup.length)} tone="text-white" />
           </TabHero>
 
@@ -480,7 +478,6 @@ export default function PerformancePage() {
             <PerformanceByPrice data={byPrice} />
             <PerformanceByShareFloatRange data={byFloat} />
           </div>
-          <SetupTimeFloatHeatmap data={setupTimeFloatHeatmap} />
         </TabsContent>
 
         <TabsContent value="analysis" className="mt-4 space-y-4">
@@ -498,12 +495,23 @@ export default function PerformancePage() {
             />
             <InsightChip label="Sharpe" value={sharpe.toFixed(2)} tone="text-sky-200" />
             <InsightChip label="Max Drawdown" value={`-$${Math.abs(maxDD).toFixed(0)}`} tone="text-red-300" />
+            <InsightChip
+              label="Monthly Expected Return"
+              value={
+                monthlyExpectedReturn.tradingDays > 0
+                  ? `${formatCompactCurrency(monthlyExpectedReturn.dollars)} (${monthlyExpectedReturn.percent >= 0 ? '+' : ''}${monthlyExpectedReturn.percent.toFixed(1)}%)`
+                  : '--'
+              }
+              tone={monthlyExpectedReturn.dollars >= 0 ? 'text-emerald-200' : 'text-red-300'}
+            />
+            <InsightChip
+              label="Quality Score"
+              value={qualityScore != null ? `${qualityScore}` : '--'}
+              tone={qualityScore >= 80 ? 'text-emerald-200' : qualityScore >= 60 ? 'text-amber-200' : 'text-red-300'}
+            />
           </TabHero>
 
-          <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
-            <SetupQualityPerTradeCard trades={periodTrades} riskLimit={riskLimit} />
-            <MistakePatternInsights insights={mistakeInsights} />
-          </div>
+          <MistakePatternInsights insights={mistakeInsights} />
 
           <div className="rounded-2xl border border-white/10 bg-gradient-to-br from-[#141423] to-[#101016] p-1">
             <AnalysisPanel trades={periodTrades} isCollapsed={false} />
@@ -516,7 +524,6 @@ export default function PerformancePage() {
             <EquityCurveChart curve={curve} initialBalance={accountSize} />
             <WinRateBySetupChart data={bySetup} />
           </div>
-          <TimeOfDayHeatmap trades={periodTrades} />
         </TabsContent>
       </Tabs>
     </div>

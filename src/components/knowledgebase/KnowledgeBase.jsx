@@ -2,7 +2,6 @@ import React, { useState, useMemo } from 'react';
 import { Header } from './components/Header';
 import { SearchAndFilters } from './components/SearchAndFilters';
 import { LearningStats } from './components/LearningStats';
-import { LearningPath } from './components/LearningPath';
 import { KnowledgeEntries } from './components/KnowledgeEntries';
 import { LearningEntries as LearningContent } from './components/LearningEntries';
 import { EmptyState } from './components/EmptyState';
@@ -13,7 +12,6 @@ import { useLearningProgress } from './hooks/useLearningProgress';
 
 export default function KnowledgeBase() {
   const [activeTab, setActiveTab] = useState('knowledge');
-  const [showLearningPath, setShowLearningPath] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
   const [editingEntry, setEditingEntry] = useState(null);
   const [viewingEntry, setViewingEntry] = useState(null);
@@ -159,8 +157,6 @@ export default function KnowledgeBase() {
           onCreateEntry={handleCreateEntryClick}
           activeTab={activeTab}
           setActiveTab={setActiveTab}
-          showLearningPath={showLearningPath}
-          setShowLearningPath={setShowLearningPath}
         />
       </Header>
 
@@ -177,11 +173,6 @@ export default function KnowledgeBase() {
       {/* Learning Stats Dashboard */}
       {activeTab === 'learning' && (
         <LearningStats stats={learningStats} />
-      )}
-
-      {/* Learning Path View */}
-      {showLearningPath && (
-        <LearningPath />
       )}
 
       {/* Content Display */}

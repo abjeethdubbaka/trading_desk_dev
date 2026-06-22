@@ -45,7 +45,8 @@ const normalizeStrategyStepResults = (results) => (
     : []
 );
 
-export const useTradeForm = (initialData, userId = PLACEHOLDER_USER_ID) => {
+export const useTradeForm = (initialData, userId = PLACEHOLDER_USER_ID, defaultTags = []) => {
+  const normalizedDefaultTags = Array.isArray(defaultTags) ? defaultTags : [];
   const getDefaultReflectionAnswers = () => ({
     what_went_wrong: '',
     what_learned: ''
@@ -109,7 +110,7 @@ export const useTradeForm = (initialData, userId = PLACEHOLDER_USER_ID) => {
     share_float: null,
     float_category: null,
     share_float_range: null,
-    tags: [],
+    tags: [...normalizedDefaultTags],
   });
 
   // Initialize form with initial data - only run when initialData actually changes
@@ -234,9 +235,9 @@ export const useTradeForm = (initialData, userId = PLACEHOLDER_USER_ID) => {
       share_float: null,
       float_category: null,
       share_float_range: null,
-      tags: [],
+      tags: [...normalizedDefaultTags],
     });
-  }, [initialFormData]);
+  }, [initialFormData, normalizedDefaultTags]);
 
   const updateField = useCallback((field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));

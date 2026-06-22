@@ -1,4 +1,5 @@
 import { resolveShareFloatRange } from '@/lib/calculations/trades';
+import { calculatePnL } from '@/components/journal/AddTradeModal/utils/calculationUtils';
 import { PLACEHOLDER_USER_ID } from '@/lib/constants';
 
 export class TradeCreator {
@@ -6,6 +7,7 @@ export class TradeCreator {
     const {
       symbol,
       entryPrice,
+      exitPrice,
       direction,
       comment,
       calculation,
@@ -13,7 +15,8 @@ export class TradeCreator {
       floatData,
       floatCategory,
       floatCategories,
-      stopLoss // Add stopLoss parameter
+      stopLoss, // Add stopLoss parameter
+      setupType
     } = params;
 
     if (!symbol || !entryPrice) {
@@ -35,24 +38,41 @@ export class TradeCreator {
       ? resolvedShareFloatRange.key
       : null;
     const normalizedComment = String(comment || '').trim();
+    const normalizedDirection = direction || 'long';
+    const quantity = calculation?.shares || shares || 100;
+    const stopLossNum = stopLoss ? parseFloat(stopLoss) : (calculation?.stopLossPrice || null);
+
+    const exitPriceNum = parseFloat(exitPrice);
+    const hasExit = Number.isFinite(exitPriceNum) && exitPriceNum > 0;
+    const { pnl, pnlPercent, rMultiple } = hasExit
+      ? calculatePnL({
+          entryPrice,
+          exitPrice: exitPriceNum,
+          stopLoss: stopLossNum,
+          positionSize: quantity,
+          direction: normalizedDirection,
+          fee: 0,
+        })
+      : { pnl: 0, pnlPercent: 0, rMultiple: null };
 
     const newTrade = {
       symbol: symbol.toUpperCase(),
-      direction: direction || 'long',
+      direction: normalizedDirection,
       entry_price: parseFloat(entryPrice),
-      exit_price: calculation?.targetPrice || null,
-      position_size: calculation?.shares || shares || 100,
-      quantity: calculation?.shares || shares || 100,
+      exit_price: hasExit ? exitPriceNum : null,
+      position_size: quantity,
+      quantity,
       entry_time: new Date().toISOString(),
-      exit_time: null,
-      pnl: 0,
-      r_multiple: this.calculateRMultiple(entryPrice, stopLoss, calculation?.targetPrice),
-      stop_loss: stopLoss ? parseFloat(stopLoss) : (calculation?.stopLossPrice || null),
+      exit_time: hasExit ? new Date().toISOString() : null,
+      pnl,
+      pnl_percent: pnlPercent,
+      r_multiple: rMultiple,
+      stop_loss: stopLossNum,
       share_float: shareFloat,
       float_category: normalizedFloatCategory,
       share_float_range: shareFloatRange,
       fee: 0,
-      setup_type: 'Calculator Entry',
+      setup_type: setupType || 'Calculator Entry',
       notes: normalizedComment,
       // Keep shape aligned with Journal submission format
       emotions: ['neutral'],
@@ -66,15 +86,6 @@ export class TradeCreator {
     };
 
     return newTrade;
-  }
-
-  static calculateRMultiple(entryPrice, stopLoss, targetPrice) {
-    if (!entryPrice || !stopLoss || !targetPrice) return null;
-    
-    const risk = Math.abs(entryPrice - stopLoss);
-    const reward = Math.abs(targetPrice - entryPrice);
-    
-    return risk > 0 ? (reward / risk).toFixed(2) : null;
   }
 
   static async saveTrade(_tradeData) {

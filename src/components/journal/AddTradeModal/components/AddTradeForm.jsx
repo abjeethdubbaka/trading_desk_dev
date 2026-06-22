@@ -10,7 +10,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Loader2, ShieldAlert } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import { cn } from "@/lib/utils";
 import DirectionToggle from './DirectionToggle';
 import PriceFields from './PriceFields';
@@ -20,7 +20,6 @@ import EmotionsSelect from './EmotionsSelect';
 import NotesFields from './NotesFields';
 import ScreenshotUpload from './ScreenshotUpload';
 import DosAndDontsSelector from './DosAndDontsSelector';
-import StrategySignal from './StrategySignal';
 import { SETUP_TYPE_OPTIONS as DEFAULT_SETUP_TYPE_OPTIONS } from '../constants/tradeConstants';
 import { TagSelector } from '../../components/TagSelector';
 
@@ -44,10 +43,6 @@ export default function AddTradeForm({
     screenshotIds,
     uploading,
     selectedRuleIds,
-    suggestionTrade,
-    preTradeAlert,
-    strategyRecommendation,
-    strategyRecommendedNow,
     setupTypeOptions = DEFAULT_SETUP_TYPE_OPTIONS,
     strategyStepsForSetup = [],
     strategyStepResults = [],
@@ -170,11 +165,6 @@ export default function AddTradeForm({
         />
       </div>
 
-      <StrategySignal
-        recommendation={strategyRecommendation}
-        recommendedNow={strategyRecommendedNow}
-      />
-
 
       {presets.length > 0 && (
         <div className="space-y-2">
@@ -198,34 +188,31 @@ export default function AddTradeForm({
         </div>
       )}
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
         <EmotionsSelect
           value={formData.emotions}
           onChange={(value) => updateField('emotions', value)}
         />
         <div className="space-y-2">
           <Label>Followed Plan?</Label>
-          <div className="flex items-center gap-2 h-10">
+          <div className="flex items-center h-10">
             <Checkbox
               id="followed-plan"
               checked={formData.followed_plan}
               onCheckedChange={(checked) => updateField('followed_plan', checked)}
               className="border-white/20 data-[state=checked]:bg-emerald-600 data-[state=checked]:border-emerald-600"
             />
-            <Label htmlFor="followed-plan" className="text-sm cursor-pointer">
-              Yes, I followed my trading plan
-            </Label>
           </div>
         </div>
-      </div>
 
-      <div className="space-y-2">
-        <Label>Tags</Label>
-        <TagSelector
-          value={Array.isArray(formData.tags) ? formData.tags : []}
-          onChange={(tags) => updateField('tags', tags)}
-          placeholder="Add tags…"
-        />
+        <div className="space-y-2">
+          <Label>Tags</Label>
+          <TagSelector
+            value={Array.isArray(formData.tags) ? formData.tags : []}
+            onChange={(tags) => updateField('tags', tags)}
+            placeholder="Add tags…"
+          />
+        </div>
       </div>
 
       <NotesFields
@@ -243,25 +230,9 @@ export default function AddTradeForm({
       />
 
       <DosAndDontsSelector
-        tradeDraft={suggestionTrade}
         selectedRuleIds={selectedRuleIds}
         onSelectionChange={(ids) => updateField('dos_donts_rule_ids', ids)}
       />
-
-      {preTradeAlert && (
-        <div className="rounded-lg border border-amber-500/25 bg-amber-500/8 px-3 py-2.5">
-          <div className="flex items-start gap-2">
-            <ShieldAlert className="w-4 h-4 text-amber-400 mt-0.5 flex-shrink-0" />
-            <div>
-              <p className="text-xs font-semibold text-amber-300">Soft guardrail: {preTradeAlert.title}</p>
-              <p className="text-xs text-amber-200/90 mt-0.5">{preTradeAlert.message}</p>
-              <p className="text-[10px] text-amber-100/70 mt-1.5">
-                Guidance only - you can still log this trade.
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
 
       <div className="flex justify-end gap-3 pt-4 border-t border-white/10">
         <Button

@@ -1,24 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Check, ChevronDown, ChevronRight, Plus } from 'lucide-react';
-import { toast } from 'sonner';
+import { Check, ChevronDown, ChevronRight } from 'lucide-react';
 import { cn } from "@/lib/utils";
-import {
-  addRuleFromTradeNote,
-  getRuleSuggestionsFromTrade,
-  loadDosAndDontsItems,
-} from '@/components/dosanddonts/storage';
-
-const normalizeText = (value) => String(value || '').trim().replace(/\s+/g, ' ');
+import { loadDosAndDontsItems } from '@/components/dosanddonts/storage';
 
 const byUsageThenTitle = (a, b) => {
   const usageDiff = (Number(b?.usage_count) || 0) - (Number(a?.usage_count) || 0);
@@ -37,7 +21,9 @@ function RuleGroup({ title, type, items, selectedRuleIds, onToggle }) {
       </p>
       <div className="space-y-1.5 max-h-44 overflow-y-auto pr-1">
         {items.length === 0 ? (
-          <p className="text-[11px] text-white/45 px-1 py-1">No rules yet.</p>
+          <p className="text-[11px] text-white/45 px-1 py-1">
+            No rules yet — add some in the Do&apos;s &amp; Don&apos;ts page.
+          </p>
         ) : (
           items.map((item) => {
             const selected = selectedRuleIds.includes(item.id);
@@ -77,12 +63,9 @@ function RuleGroup({ title, type, items, selectedRuleIds, onToggle }) {
   );
 }
 
-export default function DosAndDontsSelector({ tradeDraft, selectedRuleIds = [], onSelectionChange }) {
+export default function DosAndDontsSelector({ selectedRuleIds = [], onSelectionChange }) {
   const [collapsed, setCollapsed] = useState(true);
   const [items, setItems] = useState(() => loadDosAndDontsItems());
-  const [newRuleType, setNewRuleType] = useState('do');
-  const [newRuleText, setNewRuleText] = useState('');
-  const [isCreateRuleOpen, setIsCreateRuleOpen] = useState(false);
 
   useEffect(() => {
     if (typeof window === 'undefined') return undefined;
@@ -110,10 +93,6 @@ export default function DosAndDontsSelector({ tradeDraft, selectedRuleIds = [], 
     return items.filter((item) => selectedIdSet.has(item.id));
   }, [items, selectedRuleIds]);
 
-  const suggestionLists = useMemo(() => (
-    getRuleSuggestionsFromTrade(tradeDraft || {})
-  ), [tradeDraft]);
-
   const toggleRule = (ruleId) => {
     const ruleKey = String(ruleId || '').trim();
     if (!ruleKey) return;
@@ -125,63 +104,6 @@ export default function DosAndDontsSelector({ tradeDraft, selectedRuleIds = [], 
 
     onSelectionChange([...new Set(next)]);
   };
-
-  const createRuleFromText = (text, type) => {
-    const normalized = normalizeText(text);
-    if (!normalized) {
-      toast.error('Add text first to create a Do/Don\'t rule.');
-      return false;
-    }
-
-    const result = addRuleFromTradeNote({
-      trade: tradeDraft,
-      type,
-      note: normalized,
-    });
-
-    if (result.ok) {
-      const created = result.item;
-      const nextSelection = [...new Set([...selectedRuleIds, created.id])];
-      onSelectionChange(nextSelection);
-      setItems(loadDosAndDontsItems());
-      toast.success(`Added ${type === 'dont' ? "Don't" : 'Do'} rule and selected it.`);
-      return true;
-    }
-
-    if (result.reason === 'duplicate') {
-      const duplicate = result.item || items.find((item) => (
-        item?.type === type
-        && normalizeText(item?.description).toLowerCase() === normalized.toLowerCase()
-      ));
-
-      if (duplicate?.id) {
-        const nextSelection = [...new Set([...selectedRuleIds, duplicate.id])];
-        onSelectionChange(nextSelection);
-        toast.warning('Rule already exists. Selected the existing one.');
-        return true;
-      }
-
-      toast.warning('This rule already exists.');
-      return false;
-    }
-
-    if (result.reason === 'storage_error') {
-      toast.error('Could not save rule to local storage.');
-      return false;
-    }
-
-    toast.error('Could not create rule from this note.');
-    return false;
-  };
-
-  const handleCreateCustomRule = () => {
-    const created = createRuleFromText(newRuleText, newRuleType);
-    if (created) {
-      setNewRuleText('');
-    }
-  };
-
-  const canAddCustomRule = normalizeText(newRuleText).length > 0;
 
   return (
     <div className="border border-white/15 rounded-lg bg-white/[0.03] overflow-hidden">
@@ -206,7 +128,7 @@ export default function DosAndDontsSelector({ tradeDraft, selectedRuleIds = [], 
 
       {!collapsed && <div className="space-y-3 px-4 pb-4">
         <p className="text-[11px] text-white/55">
-          Select existing rules or create new ones directly while logging this trade.
+          Select the rules from your Do&apos;s &amp; Don&apos;ts list that apply to this trade.
         </p>
 
       {selectedRules.length > 0 ? (
@@ -246,77 +168,6 @@ export default function DosAndDontsSelector({ tradeDraft, selectedRuleIds = [], 
           selectedRuleIds={selectedRuleIds}
           onToggle={toggleRule}
         />
-      </div>
-
-      <div className="space-y-2">
-        <button
-          type="button"
-          onClick={() => setIsCreateRuleOpen((prev) => !prev)}
-          className="flex items-center gap-1.5 rounded px-1 py-0.5 text-[11px] uppercase tracking-wide text-white/55 transition-colors hover:bg-white/5"
-        >
-          {isCreateRuleOpen ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
-          Create New Rule
-        </button>
-
-        {isCreateRuleOpen ? (
-          <>
-            <div className="grid md:grid-cols-[120px_1fr_auto] gap-2">
-              <Select value={newRuleType} onValueChange={(value) => setNewRuleType(value === 'dont' ? 'dont' : 'do')}>
-                <SelectTrigger className="bg-white/5 border-white/10">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent className="bg-[#1a1a24] border-white/10">
-                  <SelectItem value="do">Do</SelectItem>
-                  <SelectItem value="dont">Don&apos;t</SelectItem>
-                </SelectContent>
-              </Select>
-              <Input
-                value={newRuleText}
-                onChange={(event) => setNewRuleText(event.target.value)}
-                placeholder="Add a focused rule from this trade..."
-                className="bg-white/5 border-white/10"
-              />
-              <Button
-                type="button"
-                onClick={handleCreateCustomRule}
-                disabled={!canAddCustomRule}
-                className="bg-emerald-600 hover:bg-emerald-700"
-              >
-                <Plus className="w-4 h-4 mr-1" />
-                Add
-              </Button>
-            </div>
-
-            <div className="grid md:grid-cols-2 gap-2.5">
-              <div className="rounded border border-emerald-500/20 bg-emerald-500/5 p-2 space-y-1.5">
-                <p className="text-[10px] uppercase tracking-wide text-emerald-300/90">Suggestions: Repeat (Do)</p>
-                {suggestionLists.dos.map((suggestion, index) => (
-                  <button
-                    key={`suggest-do-${index}`}
-                    type="button"
-                    onClick={() => createRuleFromText(suggestion, 'do')}
-                    className="w-full text-left text-[10px] text-emerald-100/85 border border-emerald-500/25 rounded px-2 py-1 hover:bg-emerald-500/15 transition-colors"
-                  >
-                    {suggestion}
-                  </button>
-                ))}
-              </div>
-              <div className="rounded border border-rose-500/20 bg-rose-500/5 p-2 space-y-1.5">
-                <p className="text-[10px] uppercase tracking-wide text-rose-300/90">Suggestions: What Went Wrong (Don&apos;t)</p>
-                {suggestionLists.donts.map((suggestion, index) => (
-                  <button
-                    key={`suggest-dont-${index}`}
-                    type="button"
-                    onClick={() => createRuleFromText(suggestion, 'dont')}
-                    className="w-full text-left text-[10px] text-rose-100/85 border border-rose-500/25 rounded px-2 py-1 hover:bg-rose-500/15 transition-colors"
-                  >
-                    {suggestion}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </>
-        ) : null}
       </div>
       </div>}
     </div>

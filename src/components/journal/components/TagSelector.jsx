@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { TagsService, normalizeTagName } from '@/lib/services/TagsService';
+import { ChevronDown } from 'lucide-react';
+import { TagsService, normalizeTagName, tagNameKey } from '@/lib/services/TagsService';
 import { TagChip } from './TagChip';
 import { cn } from '@/lib/utils/general';
 
@@ -16,19 +17,22 @@ export function TagSelector({ value = [], onChange, placeholder = 'Add tag…', 
   const containerRef = useRef(null);
 
   const allTags = TagsService.getAll();
+  const valueKeys = value.map(tagNameKey);
 
   useEffect(() => {
     if (!input.trim()) {
-      setSuggestions([]);
+      // Dropdown with no typed query yet — show existing tags as suggestions.
+      setSuggestions(allTags.filter((t) => !valueKeys.includes(tagNameKey(t.name))).slice(0, 8));
       return;
     }
-    const q = input.toLowerCase().trim();
+    const q = tagNameKey(input);
     const matches = allTags
-      .filter((t) => t.name.includes(q) && !value.includes(t.name))
+      .filter((t) => tagNameKey(t.name).includes(q) && !valueKeys.includes(tagNameKey(t.name)))
       .slice(0, 8);
 
     const normalized = normalizeTagName(input);
-    const exactExists = allTags.some((t) => t.name === normalized) || value.includes(normalized);
+    const normalizedKey = tagNameKey(normalized);
+    const exactExists = allTags.some((t) => tagNameKey(t.name) === normalizedKey) || valueKeys.includes(normalizedKey);
     if (normalized && !exactExists) {
       setSuggestions([...matches, { id: '__new__', name: normalized, isNew: true }]);
     } else {
@@ -38,9 +42,9 @@ export function TagSelector({ value = [], onChange, placeholder = 'Add tag…', 
 
   const addTag = (name) => {
     const normalized = normalizeTagName(name);
-    if (!normalized || value.includes(normalized)) return;
-    TagsService.findOrCreate(normalized);
-    onChange([...value, normalized]);
+    if (!normalized || valueKeys.includes(tagNameKey(normalized))) return;
+    const tag = TagsService.findOrCreate(normalized);
+    onChange([...value, tag?.name ?? normalized]);
     setInput('');
     setSuggestions([]);
     inputRef.current?.focus();
@@ -90,6 +94,13 @@ export function TagSelector({ value = [], onChange, placeholder = 'Add tag…', 
           placeholder={value.length ? '' : placeholder}
           className="flex-1 min-w-[80px] bg-transparent text-xs text-white outline-none placeholder:text-white/30"
         />
+        <button
+          type="button"
+          onMouseDown={(e) => { e.preventDefault(); setOpen((prev) => !prev); inputRef.current?.focus(); }}
+          className="flex-shrink-0 p-0.5 text-white/30 hover:text-white/60 transition-colors"
+        >
+          <ChevronDown className={cn('w-3.5 h-3.5 transition-transform', open && 'rotate-180')} />
+        </button>
       </div>
 
       {open && suggestions.length > 0 && (

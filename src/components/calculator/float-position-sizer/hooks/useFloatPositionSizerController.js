@@ -8,11 +8,8 @@ import { validateTrade } from '@/lib/validation/trades';
 import { calcPosition } from '@/lib/calculations/trades';
 import { useAnalysisTimer } from '@/lib/context/AnalysisTimerContext';
 import { TradeCreator } from '../../float-calculator/TradeCreator';
-import { FloatDataService } from '../../float-calculator/FloatDataService';
 import { clearCalculatorState, loadCalculatorState, saveCalculatorState } from '../statePersistence';
-import { buildFloatSmartPlan } from '../floatSmartPlan';
 
-const floatDataService = new FloatDataService();
 const CALCULATOR_DECISION_EVENT = 'calculator-decision-context';
 
 export function useFloatPositionSizerController({ historyData, onCalculationSaved }) {
@@ -63,12 +60,16 @@ export function useFloatPositionSizerController({ historyData, onCalculationSave
   const [floatData, setFloatData] = useState(() => (
     initialState.floatData && typeof initialState.floatData === 'object' ? initialState.floatData : null
   ));
-  const [loadingFloat, setLoadingFloat] = useState(false);
   const [calculation, setCalculation] = useState(() => (
     initialState.calculation && typeof initialState.calculation === 'object' ? initialState.calculation : null
   ));
   const [comment, setComment] = useState(() => String(initialState.comment || ''));
   const [selectedSetupId, setSelectedSetupId_raw] = useState(() => String(initialState.selectedSetupId || ''));
+  const [exitPrice, setExitPrice] = useState('');
+  const [isSavingTrade, setIsSavingTrade] = useState(false);
+  const [lossLimitInfo, setLossLimitInfo] = useState(null); // { todayPnL, maxDailyLoss } or null
+
+  const dismissLossLimitInfo = useCallback(() => setLossLimitInfo(null), []);
 
   const setSelectedSetupId = useCallback((value) => {
     setSelectedSetupId_raw(value);
@@ -88,8 +89,13 @@ export function useFloatPositionSizerController({ historyData, onCalculationSave
     setShareFloat(null);
     setFloatCategory(null);
     setFloatData(null);
+    setExitPrice('');
     clearCalculation();
   }, [clearCalculation]);
+
+  const updateExitPrice = useCallback((value) => {
+    setExitPrice((prev) => (prev === value ? prev : value));
+  }, []);
 
   const updateEntryPrice = useCallback((value) => {
     setEntryPrice((prev) => (prev === value ? prev : value));
@@ -153,14 +159,6 @@ export function useFloatPositionSizerController({ historyData, onCalculationSave
     }));
     return { levels };
   }, [playbookRProfile]);
-
-  const resolveCategory = useCallback((floatSize) => {
-    if (!floatSize || !floatCategories) return null;
-    for (const [key, cat] of Object.entries(floatCategories)) {
-      if (floatSize >= cat.min && floatSize < cat.max) return key;
-    }
-    return null;
-  }, [floatCategories]);
 
   const buildCalculationParams = useCallback((overrides = {}) => ({
     entryPrice,
@@ -310,128 +308,6 @@ export function useFloatPositionSizerController({ historyData, onCalculationSave
     });
   }, [symbol, entryPrice, customStop, comment, direction, shareFloat, floatCategory, floatData, calculation, selectedSetupId]);
 
-  const fetchShareFloat = useCallback(async () => {
-    const symbolToFetch = symbol?.trim().toUpperCase();
-    if (!symbolToFetch) {
-      toast.error('Enter a symbol first');
-      return;
-    }
-
-    const cached = floatDataService.loadSavedFloatData();
-    if (floatDataService.isCacheValid(cached, symbolToFetch)) {
-      const resolvedCategory = resolveCategory(cached.share_float);
-      setFloatData(cached);
-      setShareFloat(cached.share_float);
-      setFloatCategory(resolvedCategory);
-      toast.success(`Using cached ${cached.share_float.toLocaleString()} share float`);
-
-      if (entryPrice) {
-        try {
-          runCalculation({
-            shareFloat: cached.share_float ?? undefined,
-            floatCategory: resolvedCategory ?? undefined,
-          }, 'auto');
-          toast.success(`Position calculated for ${symbolToFetch}`);
-        } catch (error) {
-          toast.error(`Position calculation failed: ${error.message}`);
-        }
-      }
-      return;
-    }
-
-    setLoadingFloat(true);
-    try {
-      const data = await floatDataService.fetchFloatData(symbolToFetch);
-
-      if (!data?.share_float) {
-        toast.error(`No share float found for ${symbolToFetch}`);
-        return;
-      }
-
-      const resolvedCategory = resolveCategory(data.share_float);
-      setFloatData(data);
-      setShareFloat(data.share_float);
-      setFloatCategory(resolvedCategory);
-
-      floatDataService.saveFloatData(data);
-
-      if (entryPrice) {
-        try {
-          runCalculation({
-            shareFloat: data.share_float ?? undefined,
-            floatCategory: resolvedCategory ?? undefined,
-          }, 'auto');
-          toast.success(`Float data loaded for ${symbolToFetch} and position calculated`);
-        } catch (error) {
-          toast.error(`Position calculation failed: ${error.message}`);
-        }
-      } else {
-        toast.success(`Float data loaded for ${symbolToFetch}`);
-      }
-    } catch {
-      toast.error('Failed to fetch float data');
-    } finally {
-      setLoadingFloat(false);
-    }
-  }, [symbol, entryPrice, resolveCategory, runCalculation]);
-
-  const floatCategoryLabel = useMemo(() => {
-    if (!floatCategory) return 'Unknown Float';
-    const category = floatCategories?.[floatCategory];
-    return category?.label || String(floatCategory).toUpperCase();
-  }, [floatCategories, floatCategory]);
-
-  const smartFloatPlan = useMemo(
-    () => buildFloatSmartPlan({
-      entryPrice,
-      direction,
-      shareFloat,
-      floatRangeKey: floatCategory || 'unknown',
-      floatRangeLabel: floatCategoryLabel,
-      settings,
-      marketContext: floatData || {},
-    }),
-    [direction, entryPrice, floatCategory, floatCategoryLabel, floatData, settings, shareFloat]
-  );
-
-  const handleApplyFloatSmartPlan = useCallback(() => {
-    if (!smartFloatPlan?.hasFloatData || !smartFloatPlan?.canApply) {
-      toast.error('Fetch float data and enter entry price first.');
-      return;
-    }
-
-    const recommendation = smartFloatPlan.recommendations || {};
-    const nextStopPrice = Number(recommendation.stopPrice);
-    const nextRiskAmount = Number(recommendation.riskAmount);
-    const nextPreferredR = Number(recommendation.preferredR);
-
-    const overrides = {
-      shareFloat: shareFloat ?? undefined,
-      floatCategory: floatCategory ?? undefined,
-    };
-
-    if (Number.isFinite(nextStopPrice) && nextStopPrice > 0) {
-      const normalizedStop = nextStopPrice.toFixed(2);
-      setCustomStop(normalizedStop);
-      overrides.stopLossPrice = normalizedStop;
-    }
-
-    if (Number.isFinite(nextRiskAmount) && nextRiskAmount > 0) {
-      overrides.riskAmount = nextRiskAmount;
-    }
-
-    if (Number.isFinite(nextPreferredR) && nextPreferredR > 0) {
-      overrides.riskRewardRatio = Number(nextPreferredR.toFixed(2));
-    }
-
-    try {
-      runCalculation(overrides, 'smart');
-      toast.success('Applied float-smart dynamic risk and exit plan.');
-    } catch (error) {
-      toast.error(`Failed to apply smart plan: ${error.message}`);
-    }
-  }, [floatCategory, runCalculation, shareFloat, smartFloatPlan]);
-
   const handleCalculate = useCallback(() => {
     if (!entryPrice) {
       toast.error('Enter an entry price');
@@ -523,6 +399,12 @@ export function useFloatPositionSizerController({ historyData, onCalculationSave
       return;
     }
 
+    const exitPriceNum = parseFloat(exitPrice);
+    if (!Number.isFinite(exitPriceNum) || exitPriceNum <= 0) {
+      toast.error('Enter an exit price first');
+      return;
+    }
+
     const normalizedSymbol = String(symbol || '').trim().toUpperCase();
     if (!normalizedSymbol) {
       toast.error('Enter a symbol first');
@@ -533,10 +415,12 @@ export function useFloatPositionSizerController({ historyData, onCalculationSave
       return;
     }
 
+    setIsSavingTrade(true);
     try {
       const tradeData = await TradeCreator.createTrade({
         symbol: normalizedSymbol,
         entryPrice,
+        exitPrice: exitPriceNum,
         direction,
         comment,
         calculation,
@@ -544,6 +428,7 @@ export function useFloatPositionSizerController({ historyData, onCalculationSave
         floatCategory,
         floatCategories,
         stopLoss: customStop || calculation?.stopLossPrice,
+        setupType: selectedSetup?.name || null,
       });
 
       const validation = validateTrade(tradeData);
@@ -553,11 +438,35 @@ export function useFloatPositionSizerController({ historyData, onCalculationSave
       }
 
       await createTrade(tradeData);
-      toast.success('Trade added to journal');
+      const pnl = Number(tradeData.pnl) || 0;
+      toast.success(`${normalizedSymbol} saved: ${pnl >= 0 ? '+' : ''}$${pnl.toFixed(2)}`);
+
+      if (pnl < 0) {
+        const maxDailyLoss = Math.abs(Number(settings?.max_dollars) || 0);
+        const start = new Date();
+        start.setHours(0, 0, 0, 0);
+        const end = new Date();
+        end.setHours(23, 59, 59, 999);
+
+        const todayPnLBefore = allTrades.reduce((sum, t) => {
+          const d = new Date(t.entry_time || t.created_date || 0);
+          return d >= start && d <= end ? sum + (Number(t.pnl) || 0) : sum;
+        }, 0);
+
+        const projectedTodayPnL = todayPnLBefore + pnl;
+
+        if (maxDailyLoss > 0 && Math.abs(projectedTodayPnL) >= maxDailyLoss) {
+          setLossLimitInfo({ todayPnL: projectedTodayPnL, maxDailyLoss });
+        }
+      }
+
+      setExitPrice('');
     } catch (error) {
       toast.error(`Failed: ${error.message}`);
+    } finally {
+      setIsSavingTrade(false);
     }
-  }, [symbol, entryPrice, customStop, direction, comment, calculation, floatData, floatCategory, floatCategories, createTrade]);
+  }, [symbol, entryPrice, exitPrice, customStop, direction, comment, calculation, floatData, floatCategory, floatCategories, createTrade, selectedSetup, settings?.max_dollars, allTrades]);
 
   const handleReset = useCallback(() => {
     setSymbol('');
@@ -568,19 +477,19 @@ export function useFloatPositionSizerController({ historyData, onCalculationSave
     setFloatCategory(null);
     setFloatData(null);
     setCalculation(null);
+    setExitPrice('');
+    setLossLimitInfo(null);
     clearCalculatorState();
   }, []);
 
   const hasSymbol = Boolean(symbol?.trim());
   const hasEntryPrice = Boolean(entryPrice);
-  const hasFloatData = Boolean(shareFloat && floatData);
   const hasCalculation = Boolean(calculation);
-  const canAddToJournal = Boolean(entryPrice && customStop);
+  const canAddToJournal = Boolean(entryPrice && customStop && exitPrice);
 
   const statusPills = [
     { label: 'Symbol', ready: hasSymbol },
     { label: 'Entry', ready: hasEntryPrice },
-    { label: 'Float Data', ready: hasFloatData },
     { label: 'Calculated', ready: hasCalculation },
   ];
 
@@ -594,27 +503,28 @@ export function useFloatPositionSizerController({ historyData, onCalculationSave
     symbol,
     entryPrice,
     customStop,
+    exitPrice,
     comment,
     direction,
     shareFloat,
     floatCategory,
     floatData,
-    loadingFloat,
-    smartFloatPlan,
     calculation,
     statusPills,
     canAddToJournal,
     updateSymbol,
     updateEntryPrice,
     updateCustomStop,
+    updateExitPrice,
     updateComment,
     updateDirection,
-    fetchShareFloat,
-    handleApplyFloatSmartPlan,
     handleCalculate,
     handleRefreshSettings,
     handleAddToJournal,
     handleReset,
+    isSavingTrade,
+    lossLimitInfo,
+    dismissLossLimitInfo,
     playbookEntries,
     selectedSetupId,
     setSelectedSetupId,

@@ -1,5 +1,5 @@
 import React from 'react';
-import { computeEmotionStats } from '@/lib/calculations/trades';
+import { calcCoreStats, computeEmotionStats } from '@/lib/calculations/trades';
 import { cn } from '@/lib/utils/general';
 
 const COLORS = {
@@ -14,15 +14,10 @@ const COLORS = {
 export default function EmotionMatrix({ trades = [] }) {
   const stats = computeEmotionStats(trades);
   if (!stats.length) return null;
-  
-  // Calculate totalPnL for each emotion
-  const statsWithTotal = stats.map(stat => ({
-    ...stat,
-    totalPnL: stat.avgPnL * stat.trades
-  }));
-  
-  const best = [...statsWithTotal].sort((a, b) => b.avgPnL - a.avgPnL)[0];
-  const worst = [...statsWithTotal].sort((a, b) => a.avgPnL - b.avgPnL)[0];
+
+  const best = [...stats].sort((a, b) => b.avgPnL - a.avgPnL)[0];
+  const worst = [...stats].sort((a, b) => a.avgPnL - b.avgPnL)[0];
+  const overall = calcCoreStats(trades);
 
   return (
     <div className="bg-[#13131e] border border-white/8 rounded-2xl p-5 space-y-4">
@@ -38,12 +33,12 @@ export default function EmotionMatrix({ trades = [] }) {
             <th className="text-right pb-2 pl-3">Total</th>
           </tr></thead>
           <tbody className="divide-y divide-white/5">
-            {statsWithTotal.map((row) => {
+            {stats.map((row) => {
               const c = COLORS[row.emotion] || COLORS.neutral;
               return (
                 <tr key={row.emotion} className="hover:bg-white/3 transition-colors">
                   <td className="py-2 pr-4"><div className="flex items-center gap-2"><div className={cn('w-2 h-2 rounded-full flex-shrink-0', c.dot)} /><span className="capitalize font-medium text-white/80">{row.emotion}</span></div></td>
-                  <td className="py-2 px-3 text-right font-mono text-white/50">{row.trades}</td>
+                  <td className="py-2 px-3 text-right font-mono text-white/50">{row.count}</td>
                   <td className={cn('py-2 px-3 text-right font-mono font-semibold', row.winRate >= 50 ? 'text-emerald-400' : row.winRate >= 40 ? 'text-amber-400' : 'text-red-400')}>{(row.winRate || 0).toFixed(0)}%</td>
                   <td className={cn('py-2 px-3 text-right font-mono font-semibold', (row.avgR || 0) >= 1 ? 'text-emerald-400' : (row.avgR || 0) >= 0 ? 'text-amber-400' : 'text-red-400')}>{(row.avgR || 0) >= 0 ? '+' : ''}{(row.avgR || 0).toFixed(1)}R</td>
                   <td className={cn('py-2 px-3 text-right font-mono font-semibold', (row.avgPnL || 0) >= 0 ? 'text-emerald-400' : 'text-red-400')}>{(row.avgPnL || 0) >= 0 ? '+' : ''}${(row.avgPnL || 0).toFixed(0)}</td>
@@ -52,6 +47,16 @@ export default function EmotionMatrix({ trades = [] }) {
               );
             })}
           </tbody>
+          <tfoot>
+            <tr className="border-t border-white/10">
+              <td className="py-2 pr-4 font-semibold text-white/70">Overall</td>
+              <td className="py-2 px-3 text-right font-mono text-white/60">{overall.totalTrades}</td>
+              <td className={cn('py-2 px-3 text-right font-mono font-semibold', overall.winRate >= 50 ? 'text-emerald-400' : overall.winRate >= 40 ? 'text-amber-400' : 'text-red-400')}>{(overall.winRate || 0).toFixed(0)}%</td>
+              <td className={cn('py-2 px-3 text-right font-mono font-semibold', (overall.avgR || 0) >= 1 ? 'text-emerald-400' : (overall.avgR || 0) >= 0 ? 'text-amber-400' : 'text-red-400')}>{(overall.avgR || 0) >= 0 ? '+' : ''}{(overall.avgR || 0).toFixed(1)}R</td>
+              <td className={cn('py-2 px-3 text-right font-mono font-semibold', (overall.avgPnL || 0) >= 0 ? 'text-emerald-400' : 'text-red-400')}>{(overall.avgPnL || 0) >= 0 ? '+' : ''}${(overall.avgPnL || 0).toFixed(0)}</td>
+              <td className={cn('py-2 pl-3 text-right font-mono font-semibold', (overall.totalPnL || 0) >= 0 ? 'text-emerald-400' : 'text-red-400')}>{(overall.totalPnL || 0) >= 0 ? '+' : ''}${(overall.totalPnL || 0).toFixed(0)}</td>
+            </tr>
+          </tfoot>
         </table>
       </div>
       {stats.length >= 2 && best.emotion !== worst.emotion && (

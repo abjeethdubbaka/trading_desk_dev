@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Target, Loader2, Sigma, Plus, RotateCcw, CheckCircle2, BookOpen } from 'lucide-react';
+import { Sigma, Plus, RotateCcw, CheckCircle2, BookOpen, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import MultiImageLightbox from '@/components/ui/MultiImageLightbox';
 
@@ -19,11 +19,12 @@ export default function FloatInputForm({
   setEntryPrice,
   customStopLossPrice,
   setCustomStopLossPrice,
-  loading,
-  fetchShareFloat,
+  exitPrice,
+  setExitPrice,
   onCalculate,
   onAddToJournal,
   canAddToJournal = false,
+  isSavingTrade = false,
   onReset,
   playbookEntries = [],
   selectedSetupId = '',
@@ -223,25 +224,7 @@ export default function FloatInputForm({
       </div>
 
       {/* Action buttons */}
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-        <Button
-          onClick={fetchShareFloat}
-          disabled={!symbol || loading || disabled}
-          className="h-11 bg-blue-600 hover:bg-blue-700"
-        >
-          {loading ? (
-            <>
-              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-              Fetching Float…
-            </>
-          ) : (
-            <>
-              <Target className="w-4 h-4 mr-2" />
-              Get Share Float
-            </>
-          )}
-        </Button>
-
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         {typeof onCalculate === 'function' && (
           <Button
             onClick={onCalculate}
@@ -255,14 +238,23 @@ export default function FloatInputForm({
         )}
 
         <div className="flex gap-2">
+          <Input
+            type="text"
+            value={exitPrice}
+            onChange={(e) => setExitPrice(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') onAddToJournal?.(); }}
+            placeholder="Exit Price"
+            className="h-11 flex-1 bg-white/5 border-white/10 focus-visible:ring-emerald-500/30"
+            disabled={disabled || isSavingTrade}
+          />
           {typeof onAddToJournal === 'function' && (
             <Button
               onClick={onAddToJournal}
-              disabled={!canAddToJournal}
-              className="h-11 flex-1 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 disabled:cursor-not-allowed"
+              disabled={!canAddToJournal || isSavingTrade}
+              className="h-11 px-4 flex-shrink-0 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 disabled:cursor-not-allowed"
+              title="Save trade with this exit price"
             >
-              <Plus className="w-4 h-4 mr-2" />
-              Add to Journal
+              {isSavingTrade ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
             </Button>
           )}
           {typeof onReset === 'function' && (
@@ -270,7 +262,7 @@ export default function FloatInputForm({
               type="button"
               variant="ghost"
               onClick={onReset}
-              className="h-11 px-3 text-white/40 hover:text-white/70"
+              className="h-11 px-3 flex-shrink-0 text-white/40 hover:text-white/70"
             >
               <RotateCcw className="w-4 h-4" />
             </Button>

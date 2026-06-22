@@ -1,11 +1,11 @@
 import React from 'react';
-import { FiSearch, FiFilter, FiChevronDown, FiChevronUp, FiPlus, FiBook, FiAward, FiTarget, FiGrid, FiList, FiX, FiRefreshCw, FiDownload } from 'react-icons/fi';
+import { FiSearch, FiFilter, FiChevronDown, FiChevronUp, FiPlus, FiBook, FiAward, FiGrid, FiList, FiX, FiRefreshCw, FiDownload } from 'react-icons/fi';
 import { CONSTANTS } from '../constants';
 
-export function SearchAndFilters({ 
-  searchQuery, 
-  setSearchQuery, 
-  showFilters, 
+export function SearchAndFilters({
+  searchQuery,
+  setSearchQuery,
+  showFilters,
   setShowFilters,
   viewMode,
   setViewMode,
@@ -27,8 +27,6 @@ export function SearchAndFilters({
   onCreateEntry,
   activeTab,
   setActiveTab,
-  showLearningPath,
-  setShowLearningPath
 }) {
   return (
     <div className="glass-card rounded-xl p-6 mb-6">
@@ -55,17 +53,6 @@ export function SearchAndFilters({
         >
           <FiAward className="inline mr-2" />
           Learning Hub
-        </button>
-        <button
-          onClick={() => setShowLearningPath(!showLearningPath)}
-          className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-            showLearningPath
-              ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
-              : 'text-gray-400 hover:text-white hover:bg-white/5'
-          }`}
-        >
-          <FiTarget className="inline mr-2" />
-          Learning Path
         </button>
       </div>
 

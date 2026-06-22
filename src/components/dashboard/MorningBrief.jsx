@@ -1,16 +1,12 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Sparkles, RefreshCw, Loader2 } from 'lucide-react';
+import { Sparkles, RefreshCw } from 'lucide-react';
 import { calcCoreStats } from '@/lib/calculations/trades';
-import {
-  requestMorningBrief,
-  getDefaultMorningBriefModel,
-} from '@/lib/ai/services/assistantChatService';
-
-const CACHE_KEY = 'morningBrief';
-const todayKey = () => new Date().toISOString().slice(0, 10);
-const MORNING_BRIEF_MODEL =
-  import.meta.env.VITE_OLLAMA_MORNING_BRIEF_MODEL ||
-  getDefaultMorningBriefModel();
+// AI (Ollama) generation flow disabled — no subscription/local model available.
+// Commented out rather than deleted in case it's revived later.
+// import {
+//   requestMorningBrief,
+//   getDefaultMorningBriefModel,
+// } from '@/lib/ai/services/assistantChatService';
 
 const STYLE = {
   positive: {
@@ -111,61 +107,16 @@ function buildFallbackBrief(briefContext = {}) {
 
 export default function MorningBrief({ trades = [] }) {
   const [brief, setBrief] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
 
-  const load = useCallback(
-    async (force = false) => {
-      if (!trades.length) {
-        setBrief(null);
-        setError(null);
-        return;
-      }
+  // AI (Ollama) generation is disabled — always use the local heuristic brief.
+  const load = useCallback(() => {
+    if (!trades.length) {
+      setBrief(null);
+      return;
+    }
 
-      const briefContext = buildBriefContext(trades);
-
-      if (!force) {
-        try {
-          const cached = JSON.parse(localStorage.getItem(CACHE_KEY) || '{}');
-          if (
-            cached?.date === todayKey() &&
-            cached?.model === MORNING_BRIEF_MODEL &&
-            Array.isArray(cached?.items) &&
-            cached.items.length
-          ) {
-            setBrief(cached.items);
-            return;
-          }
-        } catch {}
-      }
-
-      setLoading(true);
-      setError(null);
-
-      try {
-        const result = await requestMorningBrief({
-          briefContext,
-          model: MORNING_BRIEF_MODEL,
-        });
-
-        setBrief(result);
-        localStorage.setItem(
-          CACHE_KEY,
-          JSON.stringify({
-            date: todayKey(),
-            model: MORNING_BRIEF_MODEL,
-            items: result,
-          })
-        );
-      } catch (requestError) {
-        setBrief(buildFallbackBrief(briefContext));
-        setError(requestError?.message || 'AI insights unavailable - showing basic analysis');
-      } finally {
-        setLoading(false);
-      }
-    },
-    [trades]
-  );
+    setBrief(buildFallbackBrief(buildBriefContext(trades)));
+  }, [trades]);
 
   useEffect(() => {
     load();
@@ -177,38 +128,24 @@ export default function MorningBrief({ trades = [] }) {
         <div className="flex items-center gap-2">
           <Sparkles className="w-4 h-4 text-purple-400" />
           <span className="text-sm font-semibold">Morning Brief</span>
-          <span className="text-[10px] text-white/30">Ollama | updates daily</span>
+          <span className="text-[10px] text-white/30">updates daily</span>
         </div>
         <button
-          onClick={() => load(true)}
-          disabled={loading}
-          className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 transition-colors disabled:opacity-40"
-          title="Regenerate"
+          onClick={load}
+          className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 transition-colors"
+          title="Refresh"
         >
-          <RefreshCw className={`w-3.5 h-3.5 text-white/50 ${loading ? 'animate-spin' : ''}`} />
+          <RefreshCw className="w-3.5 h-3.5 text-white/50" />
         </button>
       </div>
 
-      {loading && (
-        <div className="flex flex-col items-center justify-center gap-2 py-6 text-white/40">
-          <Loader2 className="w-5 h-5 animate-spin" />
-          <p className="text-xs">AI is reading your trades...</p>
-        </div>
-      )}
-
-      {error && !loading && (
-        <div className="text-xs text-red-400/80 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">
-          {error}
-        </div>
-      )}
-
-      {!loading && !error && !trades.length && (
+      {!trades.length && (
         <p className="text-xs text-white/30 text-center py-4">
           Log your first trade to unlock the morning brief.
         </p>
       )}
 
-      {!loading && brief && (
+      {brief && (
         <div className="flex flex-col gap-2">
           {brief.map((item, index) => {
             const style = STYLE[item.type] ?? STYLE.focus;

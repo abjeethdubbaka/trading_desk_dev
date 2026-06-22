@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { CalendarDays, CheckCircle2, CircleDashed, RefreshCw } from 'lucide-react';
+import { CalendarDays, CheckCircle2, ChevronDown, ChevronRight, CircleDashed, RefreshCw } from 'lucide-react';
 import { createPageUrl } from '@/utils';
 import { cn } from '@/lib/utils/general';
 import { loadDosAndDontsItems } from '@/components/dosanddonts/storage';
@@ -109,6 +109,7 @@ function RuleList({
 }
 
 export default function DailyImprovements() {
+  const [collapsed, setCollapsed] = useState(true);
   const [rules, setRules] = useState(() => loadDosAndDontsItems());
   const [entriesByDate, setEntriesByDate] = useState(() => loadEntries());
 
@@ -236,75 +237,93 @@ export default function DailyImprovements() {
   return (
     <div className="rounded-2xl border border-white/8 bg-[#13131e] p-5 space-y-4">
       <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <div className="flex items-center gap-2">
-            <CheckCircle2 className="h-4 w-4 text-emerald-300" />
-            <p className="text-sm font-semibold text-white">Daily Improvements</p>
-            <InfoHint text="Capture today's rule execution and what needs work." />
-          </div>
-        </div>
-
         <button
           type="button"
-          onClick={clearToday}
-          className="inline-flex items-center gap-1 rounded-md border border-white/10 bg-white/[0.03] px-2 py-1 text-[11px] text-white/65 hover:bg-white/[0.06] hover:text-white/85"
+          onClick={() => setCollapsed((prev) => !prev)}
+          className="flex min-w-0 items-center gap-2 text-left"
         >
-          <RefreshCw className="h-3 w-3" />
-          Reset
+          {collapsed ? (
+            <ChevronRight className="h-3.5 w-3.5 flex-shrink-0 text-white/40" />
+          ) : (
+            <ChevronDown className="h-3.5 w-3.5 flex-shrink-0 text-white/40" />
+          )}
+          <CheckCircle2 className="h-4 w-4 flex-shrink-0 text-emerald-300" />
+          <p className="text-sm font-semibold text-white">Daily Improvements</p>
+          <InfoHint text="Capture today's rule execution and what needs work." />
+          {collapsed && (todayEntry.followed_rule_ids.length > 0 || todayEntry.needs_work_rule_ids.length > 0) && (
+            <span className="rounded-full border border-white/10 bg-white/[0.04] px-2 py-0.5 text-[10px] text-white/50">
+              {todayEntry.followed_rule_ids.length}✓ / {todayEntry.needs_work_rule_ids.length}!
+            </span>
+          )}
         </button>
+
+        {!collapsed && (
+          <button
+            type="button"
+            onClick={clearToday}
+            className="inline-flex items-center gap-1 rounded-md border border-white/10 bg-white/[0.03] px-2 py-1 text-[11px] text-white/65 hover:bg-white/[0.06] hover:text-white/85"
+          >
+            <RefreshCw className="h-3 w-3" />
+            Reset
+          </button>
+        )}
       </div>
 
-      <div className="grid grid-cols-2 gap-2">
-        <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/8 px-3 py-2">
-          <p className="text-[10px] uppercase tracking-[0.16em] text-emerald-200/85">Followed</p>
-          <p className="mt-1 text-lg font-bold text-emerald-300">{todayEntry.followed_rule_ids.length}</p>
-        </div>
-        <div className="rounded-lg border border-amber-500/20 bg-amber-500/8 px-3 py-2">
-          <p className="text-[10px] uppercase tracking-[0.16em] text-amber-200/85">Needs Work</p>
-          <p className="mt-1 text-lg font-bold text-amber-300">{todayEntry.needs_work_rule_ids.length}</p>
-        </div>
-      </div>
+      {!collapsed && (
+        <>
+          <div className="grid grid-cols-2 gap-2">
+            <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/8 px-3 py-2">
+              <p className="text-[10px] uppercase tracking-[0.16em] text-emerald-200/85">Followed</p>
+              <p className="mt-1 text-lg font-bold text-emerald-300">{todayEntry.followed_rule_ids.length}</p>
+            </div>
+            <div className="rounded-lg border border-amber-500/20 bg-amber-500/8 px-3 py-2">
+              <p className="text-[10px] uppercase tracking-[0.16em] text-amber-200/85">Needs Work</p>
+              <p className="mt-1 text-lg font-bold text-amber-300">{todayEntry.needs_work_rule_ids.length}</p>
+            </div>
+          </div>
 
-      {updatedAtLabel ? (
-        <div className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/[0.03] px-2 py-1 text-[10px] text-white/50">
-          <CalendarDays className="h-3 w-3" />
-          Saved today at {updatedAtLabel}
-        </div>
-      ) : (
-        <div className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/[0.03] px-2 py-1 text-[10px] text-white/40">
-          <CircleDashed className="h-3 w-3" />
-          Not saved yet for today
-        </div>
-      )}
+          {updatedAtLabel ? (
+            <div className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/[0.03] px-2 py-1 text-[10px] text-white/50">
+              <CalendarDays className="h-3 w-3" />
+              Saved today at {updatedAtLabel}
+            </div>
+          ) : (
+            <div className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/[0.03] px-2 py-1 text-[10px] text-white/40">
+              <CircleDashed className="h-3 w-3" />
+              Not saved yet for today
+            </div>
+          )}
 
-      {!hasRules ? (
-        <div className="rounded-lg border border-white/10 bg-white/[0.02] px-3 py-3 text-xs text-white/60">
-          Add rules in{' '}
-          <Link to={createPageUrl('DosAndDonts')} className="text-emerald-300 hover:text-emerald-200 underline underline-offset-2">
-            Do&apos;s &amp; Don&apos;ts
-          </Link>{' '}
-          first, then track daily improvements here.
-        </div>
-      ) : (
-        <div className="space-y-4">
-          <RuleList
-            title="Rules Followed Today"
-            hint="Select Do rules you executed well."
-            items={doRules}
-            selectedIds={todayEntry.followed_rule_ids}
-            onToggle={toggleFollowedRule}
-            selectedClassName="border-emerald-500/35 bg-emerald-500/15"
-          />
+          {!hasRules ? (
+            <div className="rounded-lg border border-white/10 bg-white/[0.02] px-3 py-3 text-xs text-white/60">
+              Add rules in{' '}
+              <Link to={createPageUrl('DosAndDonts')} className="text-emerald-300 hover:text-emerald-200 underline underline-offset-2">
+                Do&apos;s &amp; Don&apos;ts
+              </Link>{' '}
+              first, then track daily improvements here.
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <RuleList
+                title="Rules Followed Today"
+                hint="Select Do rules you executed well."
+                items={doRules}
+                selectedIds={todayEntry.followed_rule_ids}
+                onToggle={toggleFollowedRule}
+                selectedClassName="border-emerald-500/35 bg-emerald-500/15"
+              />
 
-          <RuleList
-            title="Needs Work"
-            hint="Select rules that slipped or need focus tomorrow."
-            items={sortedRules}
-            selectedIds={todayEntry.needs_work_rule_ids}
-            onToggle={toggleNeedsWorkRule}
-            selectedClassName="border-amber-500/35 bg-amber-500/15"
-          />
-        </div>
+              <RuleList
+                title="Needs Work"
+                hint="Select rules that slipped or need focus tomorrow."
+                items={sortedRules}
+                selectedIds={todayEntry.needs_work_rule_ids}
+                onToggle={toggleNeedsWorkRule}
+                selectedClassName="border-amber-500/35 bg-amber-500/15"
+              />
+            </div>
+          )}
+        </>
       )}
     </div>
   );

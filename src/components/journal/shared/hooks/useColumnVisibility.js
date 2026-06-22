@@ -7,6 +7,7 @@ export const OPTIONAL_COLUMNS = [
   { key: 'emotions', label: 'Emotions' },
   { key: 'quality',  label: 'Quality' },
   { key: 'plan',     label: 'Plan' },
+  { key: 'duration', label: 'Duration' },
 ];
 
 const DEFAULT = Object.fromEntries(OPTIONAL_COLUMNS.map((c) => [c.key, true]));

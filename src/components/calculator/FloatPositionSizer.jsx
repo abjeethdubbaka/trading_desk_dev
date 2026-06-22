@@ -75,6 +75,45 @@ export default function FloatPositionSizer({ historyData, onCalculationSaved = (
         </div>
       )}
 
+      {/* Daily loss limit overlay */}
+      {controller.lossLimitInfo && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
+          <div className="relative mx-4 max-w-sm w-full rounded-2xl border border-rose-500/40 bg-[#1a0d0d] shadow-[0_24px_80px_-20px_rgba(239,68,68,0.6)] p-8 text-center">
+            <button
+              type="button"
+              onClick={controller.dismissLossLimitInfo}
+              className="absolute top-3 right-3 p-1.5 rounded-lg text-white/30 hover:text-white/70 hover:bg-white/5 transition-colors"
+            >
+              <X className="w-4 h-4" />
+            </button>
+
+            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full border border-rose-500/40 bg-rose-500/15">
+              <ShieldX className="h-7 w-7 text-rose-400" />
+            </div>
+
+            <h2 className="text-lg font-bold text-white">Daily Loss Limit Reached</h2>
+            <p className="mt-1.5 text-sm text-white/55">
+              You're down{' '}
+              <span className="font-semibold text-rose-300">
+                ${Math.abs(controller.lossLimitInfo.todayPnL).toFixed(0)} of ${controller.lossLimitInfo.maxDailyLoss.toFixed(0)}
+              </span>{' '}
+              max daily loss today.
+            </p>
+            <p className="mt-3 text-xs text-white/35 leading-relaxed">
+              Protect your capital. Step away, review your trades, and come back tomorrow with a clear head.
+            </p>
+
+            <button
+              type="button"
+              onClick={controller.dismissLossLimitInfo}
+              className="mt-6 w-full rounded-lg border border-rose-500/30 bg-rose-500/15 py-2.5 text-sm font-semibold text-rose-300 hover:bg-rose-500/25 transition-colors"
+            >
+              I understand — dismiss
+            </button>
+          </div>
+        </div>
+      )}
+
       <Card className="border-white/10 bg-gradient-to-br from-[#1a1a24] to-[#131c2a] shadow-[0_10px_30px_-18px_rgba(59,130,246,0.5)]">
         <CardContent className="p-6 space-y-6">
           <MemoizedFloatInputForm
@@ -84,11 +123,12 @@ export default function FloatPositionSizer({ historyData, onCalculationSaved = (
             setEntryPrice={controller.updateEntryPrice}
             customStopLossPrice={controller.customStop}
             setCustomStopLossPrice={controller.updateCustomStop}
-            loading={controller.loadingFloat}
-            fetchShareFloat={controller.fetchShareFloat}
+            exitPrice={controller.exitPrice}
+            setExitPrice={controller.updateExitPrice}
             onCalculate={controller.handleCalculate}
             onAddToJournal={controller.handleAddToJournal}
             canAddToJournal={controller.canAddToJournal}
+            isSavingTrade={controller.isSavingTrade}
             onReset={controller.handleReset}
             playbookEntries={controller.playbookEntries}
             selectedSetupId={controller.selectedSetupId}

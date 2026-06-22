@@ -3,6 +3,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from 'recharts';
 import InfoHint from '@/components/ui/InfoHint';
+import { useElementSize } from '@/lib/hooks/useElementSize';
 
 function CustomTooltip({ active, payload, label }) {
   if (!active || !payload?.length) return null;
@@ -23,6 +24,7 @@ function CustomTooltip({ active, payload, label }) {
 }
 
 export function WinRateBySetupChart({ data = [] }) {
+  const { ref: containerRef, isReady } = useElementSize();
   const chartData = useMemo(() =>
     data
       .filter((r) => r.trades > 0)
@@ -56,35 +58,39 @@ export function WinRateBySetupChart({ data = [] }) {
         <InfoHint text="Trade outcomes per setup type. Green = wins, red = losses." />
       </h3>
 
-      <ResponsiveContainer width="100%" height={chartHeight}>
-        <BarChart
-          data={chartData}
-          layout="vertical"
-          margin={{ top: 0, right: 12, bottom: 0, left: 4 }}
-          barSize={13}
-          barGap={2}
-        >
-          <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" horizontal={false} />
-          <XAxis
-            type="number"
-            tick={{ fontSize: 10, fill: 'rgba(255,255,255,0.3)' }}
-            tickLine={false}
-            axisLine={false}
-            allowDecimals={false}
-          />
-          <YAxis
-            type="category"
-            dataKey="setup"
-            tick={{ fontSize: 11, fill: 'rgba(255,255,255,0.6)' }}
-            tickLine={false}
-            axisLine={false}
-            width={90}
-          />
-          <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(255,255,255,0.04)' }} />
-          <Bar dataKey="wins" stackId="wl" fill="#10b981" name="Wins" radius={[2, 0, 0, 2]} />
-          <Bar dataKey="losses" stackId="wl" fill="#f43f5e" name="Losses" radius={[0, 2, 2, 0]} />
-        </BarChart>
-      </ResponsiveContainer>
+      <div ref={containerRef} className="w-full min-w-[100px]" style={{ height: chartHeight }}>
+        {isReady && (
+          <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={chartHeight}>
+            <BarChart
+              data={chartData}
+              layout="vertical"
+              margin={{ top: 0, right: 12, bottom: 0, left: 4 }}
+              barSize={13}
+              barGap={2}
+            >
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" horizontal={false} />
+              <XAxis
+                type="number"
+                tick={{ fontSize: 10, fill: 'rgba(255,255,255,0.3)' }}
+                tickLine={false}
+                axisLine={false}
+                allowDecimals={false}
+              />
+              <YAxis
+                type="category"
+                dataKey="setup"
+                tick={{ fontSize: 11, fill: 'rgba(255,255,255,0.6)' }}
+                tickLine={false}
+                axisLine={false}
+                width={90}
+              />
+              <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(255,255,255,0.04)' }} />
+              <Bar dataKey="wins" stackId="wl" fill="#10b981" name="Wins" radius={[2, 0, 0, 2]} />
+              <Bar dataKey="losses" stackId="wl" fill="#f43f5e" name="Losses" radius={[0, 2, 2, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        )}
+      </div>
     </div>
   );
 }

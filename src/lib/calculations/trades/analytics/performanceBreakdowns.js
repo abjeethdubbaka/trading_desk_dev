@@ -32,19 +32,31 @@ export function perfByDayOfWeek(trades = []) {
     totalPnL: 0,
     trades: 0,
     wins: 0,
+    losses: 0,
+    winPnL: 0,
+    lossPnL: 0,
   }));
 
   for (const trade of trades) {
     if (!trade?.entry_time) continue;
     const dow = new Date(trade.entry_time).getDay();
-    groups[dow].totalPnL += trade?.pnl ?? 0;
+    const pnl = trade?.pnl ?? 0;
+    groups[dow].totalPnL += pnl;
     groups[dow].trades += 1;
-    if ((trade?.pnl ?? 0) > 0) groups[dow].wins += 1;
+    if (pnl > 0) {
+      groups[dow].wins += 1;
+      groups[dow].winPnL += pnl;
+    } else if (pnl < 0) {
+      groups[dow].losses += 1;
+      groups[dow].lossPnL += pnl;
+    }
   }
 
   return groups.map((group) => ({
     ...group,
     totalPnL: round(group.totalPnL, 2),
+    winPnL: round(group.winPnL, 2),
+    lossPnL: round(group.lossPnL, 2),
     winRate: pct(group.wins, group.trades),
     avgPnL: group.trades > 0 ? round(group.totalPnL / group.trades, 2) : 0,
   }));
@@ -57,19 +69,31 @@ export function perfByHourOfDay(trades = []) {
     totalPnL: 0,
     trades: 0,
     wins: 0,
+    losses: 0,
+    winPnL: 0,
+    lossPnL: 0,
   }));
 
   for (const trade of trades) {
     if (!trade?.entry_time) continue;
     const hour24 = new Date(trade.entry_time).getHours();
-    groups[hour24].totalPnL += trade?.pnl ?? 0;
+    const pnl = trade?.pnl ?? 0;
+    groups[hour24].totalPnL += pnl;
     groups[hour24].trades += 1;
-    if ((trade?.pnl ?? 0) > 0) groups[hour24].wins += 1;
+    if (pnl > 0) {
+      groups[hour24].wins += 1;
+      groups[hour24].winPnL += pnl;
+    } else if (pnl < 0) {
+      groups[hour24].losses += 1;
+      groups[hour24].lossPnL += pnl;
+    }
   }
 
   return groups.map((group) => ({
     ...group,
     totalPnL: round(group.totalPnL, 2),
+    winPnL: round(group.winPnL, 2),
+    lossPnL: round(group.lossPnL, 2),
     winRate: pct(group.wins, group.trades),
     avgPnL: group.trades > 0 ? round(group.totalPnL / group.trades, 2) : 0,
   }));
@@ -441,6 +465,8 @@ export function perfByHoldDurationBuckets(trades = [], bucketMinutes = 5) {
         winners: 0,
         losses: 0,
         totalPnL: 0,
+        winPnL: 0,
+        lossPnL: 0,
         pnlValues: [],
         holdValues: [],
       });
@@ -454,8 +480,14 @@ export function perfByHoldDurationBuckets(trades = [], bucketMinutes = 5) {
     bucket.totalPnL += pnl;
     bucket.pnlValues.push(pnl);
     bucket.holdValues.push(holdMinutes);
-    if (pnl > 0) bucket.winners += 1;
-    if (pnl < 0) bucket.losses += 1;
+    if (pnl > 0) {
+      bucket.winners += 1;
+      bucket.winPnL += pnl;
+    }
+    if (pnl < 0) {
+      bucket.losses += 1;
+      bucket.lossPnL += pnl;
+    }
   }
 
   return [...groups.values()]
@@ -469,6 +501,8 @@ export function perfByHoldDurationBuckets(trades = [], bucketMinutes = 5) {
       losses: bucket.losses,
       winRate: pct(bucket.winners, bucket.trades),
       totalPnL: round(bucket.totalPnL, 2),
+      winPnL: round(bucket.winPnL, 2),
+      lossPnL: round(bucket.lossPnL, 2),
       avgPnL: bucket.trades > 0 ? round(bucket.totalPnL / bucket.trades, 2) : 0,
       medianPnL: bucket.pnlValues.length > 0 ? round(median(bucket.pnlValues), 2) : 0,
       avgHoldMinutes: round(average(bucket.holdValues), 1),

@@ -8,6 +8,7 @@ export default function AccountSettingsTab({
   getDisplayValue,
   handleFieldChange,
   commitDraftField,
+  clearAllDrafts,
   isLoading,
   riskMeterSettings,
 }) {
@@ -15,7 +16,7 @@ export default function AccountSettingsTab({
 
   return (
     <div className="space-y-4">
-      <AccountTierSelector />
+      <AccountTierSelector onSettingsReplaced={clearAllDrafts} />
       <div className="grid grid-cols-1 md:grid-cols-[1fr_auto] gap-4 items-start">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Field label="Account size ($)">

@@ -82,6 +82,12 @@ export function useSettingsFieldDrafts({ settings, updateFields }) {
     commitDraftFields([field]);
   }, [commitDraftFields]);
 
+  /** Discard local drafts without persisting them — use when settings change externally
+   * (e.g. applying an account tier/preset), so stale typed values don't shadow the new data. */
+  const clearAllDrafts = useCallback(() => {
+    setDraftValues({});
+  }, []);
+
   const riskMeterSettings = useMemo(() => ({
     ...settings,
     position_sizing_percent: toPersistedValue(
@@ -100,6 +106,7 @@ export function useSettingsFieldDrafts({ settings, updateFields }) {
     handleFieldChange,
     commitDraftField,
     commitDraftFields,
+    clearAllDrafts,
     riskMeterSettings,
   };
 }

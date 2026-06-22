@@ -52,7 +52,7 @@ const toGlobalSetupTypes = (setupTypes) => (
 
 const fmt = (v) => Number.isFinite(Number(v)) ? `$${Number(v).toLocaleString()}` : null;
 
-export default function AccountTierSelector() {
+export default function AccountTierSelector({ onSettingsReplaced }) {
   const [isOpen, setIsOpen] = useState(false);
   const [saveName, setSaveName] = useState('');
   const [isSavingPreset, setIsSavingPreset] = useState(false);
@@ -93,11 +93,12 @@ export default function AccountTierSelector() {
 
       updateFields(nextSettings);
       await saveImmediately(nextSettings);
+      onSettingsReplaced?.();
       setIsOpen(false);
     } catch {
       // silent
     }
-  }, [currentTierId, settings, updateFields, saveImmediately]);
+  }, [currentTierId, settings, updateFields, saveImmediately, onSettingsReplaced]);
 
   const handleApplyPreset = useCallback(async (preset) => {
     const snapshot = preset.snapshot || preset;
@@ -105,12 +106,13 @@ export default function AccountTierSelector() {
     try {
       updateFields(fields);
       await saveImmediately(fields);
+      onSettingsReplaced?.();
       setIsOpen(false);
       toast.success(`Applied "${preset.name}"`);
     } catch {
       toast.error('Failed to apply account');
     }
-  }, [updateFields, saveImmediately]);
+  }, [updateFields, saveImmediately, onSettingsReplaced]);
 
   const handleDeletePreset = useCallback(async (e, id, name) => {
     e.stopPropagation();

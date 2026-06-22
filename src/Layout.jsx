@@ -26,7 +26,8 @@ import { formatAnalysisTimer, useAnalysisTimer } from '@/lib/context/AnalysisTim
 import { useTrades } from '@/lib/hooks/useTrades';
 import { useExpenses } from '@/lib/hooks/useFinance';
 
-const ChatDock = lazy(() => import('@/components/chat/ChatDock'));
+// AI assistant not in use — flow commented out, not deleted, in case it's revived later.
+// const ChatDock = lazy(() => import('@/components/chat/ChatDock'));
 
 const navItems = [
   {
@@ -105,14 +106,6 @@ const navItems = [
 
 export default function Layout({ children, currentPageName }) {
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [isChatOpen, setIsChatOpen] = useState(() => {
-    try {
-      const raw = localStorage.getItem('aiChat.dockOpen.v1');
-      return raw == null ? true : JSON.parse(raw) === true;
-    } catch {
-      return true;
-    }
-  });
 
   const { isElectron, closeApp } = useElectron();
 
@@ -149,14 +142,6 @@ export default function Layout({ children, currentPageName }) {
   const handleNavMouseLeave = useCallback(() => {
     clearTimeout(preloadTimer.current);
   }, []);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem('aiChat.dockOpen.v1', JSON.stringify(isChatOpen));
-    } catch {
-      // Best effort persistence only.
-    }
-  }, [isChatOpen]);
 
   return (
     <div className="app-shell relative isolate min-h-screen text-white">
@@ -332,20 +317,17 @@ export default function Layout({ children, currentPageName }) {
         )}
       </aside>
 
-      <main
-        className={cn(
-          'min-h-screen pt-16 lg:pt-0 lg:pl-[72px]',
-          isChatOpen ? 'lg:pr-[380px]' : 'lg:pr-[24px]'
-        )}
-      >
+      <main className="min-h-screen pt-16 lg:pt-0 lg:pl-[72px] lg:pr-[24px]">
         <div className="px-4 pb-8 pt-4 lg:px-8 lg:pt-7">
           <div className="animate-fade-up">{children}</div>
         </div>
       </main>
 
+      {/* AI assistant not in use — flow commented out, not deleted, in case it's revived later.
       <Suspense fallback={null}>
         <ChatDock isOpen={isChatOpen} onToggle={() => setIsChatOpen((prev) => !prev)} />
       </Suspense>
+      */}
     </div>
   );
 }

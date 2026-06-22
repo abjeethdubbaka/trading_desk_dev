@@ -101,10 +101,13 @@ export function CompactHeader({
       <div className={cn('w-[120px] flex-shrink-0', columns?.plan ? 'hidden xl:block' : 'hidden')}>
         <ColLabel>Plan</ColLabel>
       </div>
+      <div className={cn('w-[80px] flex-shrink-0', columns?.duration ? 'hidden xl:block' : 'hidden')}>
+        <ColLabel>Duration</ColLabel>
+      </div>
 
       <div className="w-20 flex-shrink-0 flex items-center gap-2">
-        <ColLabel>Img</ColLabel>
         <ColLabel>Tags</ColLabel>
+        <ColLabel>Img</ColLabel>
       </div>
       <div className="hidden lg:block w-[60px] flex-shrink-0">
         <ColLabel>Done</ColLabel>

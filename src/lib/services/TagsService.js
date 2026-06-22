@@ -19,13 +19,23 @@ function hashColor(name) {
   return PALETTE[h % PALETTE.length];
 }
 
+/**
+ * Normalizes a tag name for display/storage — preserves the case the user typed,
+ * only trimming whitespace and collapsing invalid characters into dashes.
+ * Use `tagNameKey` for case-insensitive comparisons/dedup.
+ */
 export function normalizeTagName(raw) {
   return String(raw ?? '')
-    .toLowerCase()
     .trim()
-    .replace(/[^a-z0-9\-_]+/g, '-')
+    .replace(/[^a-zA-Z0-9\-_ ]+/g, '-')
+    .replace(/\s+/g, '-')
     .replace(/^-+|-+$/g, '')
     .slice(0, 20);
+}
+
+/** Case-insensitive key for comparing/deduplicating tag names. */
+export function tagNameKey(raw) {
+  return normalizeTagName(raw).toLowerCase();
 }
 
 function load() {
@@ -52,8 +62,9 @@ export const TagsService = {
     const name = normalizeTagName(rawName);
     if (!name) return null;
 
+    const key = tagNameKey(name);
     const tags = load();
-    const existing = tags.find((t) => t.name === name);
+    const existing = tags.find((t) => tagNameKey(t.name) === key);
     if (existing) return existing;
 
     const tag = {
@@ -75,8 +86,9 @@ export const TagsService = {
     const name = normalizeTagName(rawName);
     if (!name) throw new Error('Tag name cannot be empty');
 
+    const key = tagNameKey(name);
     const tags = load();
-    const conflict = tags.find((t) => t.name === name && t.id !== id);
+    const conflict = tags.find((t) => tagNameKey(t.name) === key && t.id !== id);
     if (conflict) throw new Error(`Tag "${name}" already exists`);
 
     const next = tags.map((t) => (t.id === id ? { ...t, name } : t));

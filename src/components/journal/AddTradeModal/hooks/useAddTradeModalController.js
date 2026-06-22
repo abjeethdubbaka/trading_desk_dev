@@ -7,11 +7,7 @@ import { useSettings } from '@/lib/context/SettingsContext';
 import { buildDisciplineSnapshot } from '@/lib/calculations/discipline';
 import { imageFileToDataUrl } from '@/components/journal/shared/media/imageUtils';
 import { syncRuleUsageCounts } from '@/components/dosanddonts/storage';
-import { buildTradeNotes } from '@/components/journal/utils/notes';
-import {
-  buildStrategyEngineSnapshot,
-  computeTradeSetupQuality,
-} from '@/lib/calculations/trades';
+import { computeTradeSetupQuality } from '@/lib/calculations/trades';
 import {
   getPlaybookEntryBySetupName,
   normalizePlaybookEntries,
@@ -22,7 +18,6 @@ import { calculatePnL } from '../utils/calculationUtils';
 
 import { PLACEHOLDER_USER_ID as USER_ID } from '@/lib/constants';
 const SYMBOL_PATTERN = /^[A-Z]{1,5}$/;
-const ALERT_PRIORITIES = ['warning', 'focus'];
 const normalizeStrategyStepGrade = (value) => String(value ?? '').trim().toUpperCase();
 const deriveFollowedFromGrade = (grade) => {
   const normalized = normalizeStrategyStepGrade(grade);
@@ -137,18 +132,19 @@ export function useAddTradeModalController({ open, onSave, initialData }) {
     [tierTrades, settings]
   );
 
-  const preTradeAlert = useMemo(
-    () => disciplineSnapshot?.alerts?.find((alert) => ALERT_PRIORITIES.includes(alert.type)) || null,
-    [disciplineSnapshot]
-  );
-
   const { data: presets = [] } = useQuery({
     queryKey: ['strategy-presets', USER_ID],
     queryFn: () => db.strategyPresets.list({ userId: USER_ID }),
     enabled: open,
   });
 
-  const { formData, updateField, prepareForSubmission } = useTradeForm(initialData, USER_ID);
+  const defaultTags = useMemo(
+    () => (Array.isArray(settings?.default_tags) ? settings.default_tags : []),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [JSON.stringify(settings?.default_tags)]
+  );
+
+  const { formData, updateField, prepareForSubmission } = useTradeForm(initialData, USER_ID, defaultTags);
   const screenshotIds = formData.screenshots || [];
   const [uploading, setUploading] = useState(false);
 
@@ -327,33 +323,6 @@ export function useAddTradeModalController({ open, onSave, initialData }) {
     updateField,
   ]);
 
-  const suggestionTrade = useMemo(() => {
-    const noteText = buildTradeNotes({
-      reflectionAnswers: formData.reflection_answers,
-      notes: formData.notes,
-    });
-
-    return {
-      ...formData,
-      setup_type: formData.setup_type,
-      notes: noteText,
-      pnl: pnlValue,
-      emotions: formData.emotions ? [formData.emotions] : [],
-    };
-  }, [formData, pnlValue]);
-
-  const strategySnapshot = useMemo(
-    () => buildStrategyEngineSnapshot(tierTrades, settings, {
-      candidateSetup: formData.setup_type,
-      candidateEntryTime: formData.entry_time,
-    }),
-    [formData.entry_time, formData.setup_type, settings, tierTrades]
-  );
-  const strategyRecommendation = strategySnapshot?.candidate || null;
-  const strategyRecommendedNow = Array.isArray(strategySnapshot?.recommendedNow)
-    ? strategySnapshot.recommendedNow
-    : [];
-
   const handleReflectionChange = useCallback((key, value) => {
     updateField('reflection_answers', {
       ...(formData.reflection_answers || {}),
@@ -434,12 +403,28 @@ export function useAddTradeModalController({ open, onSave, initialData }) {
       if (!usageSync?.ok) {
         toast.warning('Trade was saved, but rule usage count could not be updated.');
       }
+
+      const newTradePnl = Number(submissionData.pnl) || 0;
+      const isLoggedToday = new Date(submissionData.entry_time).toDateString() === new Date().toDateString();
+
+      if (newTradePnl < 0 && isLoggedToday) {
+        const maxDailyLoss = Math.abs(Number(disciplineSnapshot?.metrics?.maxDailyLoss) || 0);
+        const todayPnL = Number(disciplineSnapshot?.metrics?.todayPnL) || 0;
+        const projectedTodayPnL = todayPnL + newTradePnl;
+
+        if (maxDailyLoss > 0 && Math.abs(projectedTodayPnL) >= maxDailyLoss) {
+          toast.error(
+            `Daily loss limit reached: $${Math.abs(projectedTodayPnL).toFixed(0)} of $${maxDailyLoss.toFixed(0)} max daily loss. Consider stepping away.`,
+            { duration: 8000 }
+          );
+        }
+      }
     } catch {
       // Parent handler (Journal) surfaces save errors via toast.
     } finally {
       setLoading(false);
     }
-  }, [formData, initialData?.dos_donts_rule_ids, onSave, prepareForSubmission, screenshotIds]);
+  }, [formData, initialData?.dos_donts_rule_ids, onSave, prepareForSubmission, screenshotIds, disciplineSnapshot]);
 
   const symbolError = useMemo(() => {
     const symbol = String(formData.symbol || '').trim();
@@ -453,14 +438,10 @@ export function useAddTradeModalController({ open, onSave, initialData }) {
     loading,
     uploading,
     presets,
-    preTradeAlert,
     formData,
     screenshotIds,
     pnlValue,
     selectedRuleIds,
-    suggestionTrade,
-    strategyRecommendation,
-    strategyRecommendedNow,
     setupTypeOptions,
     selectedPlaybookEntry,
     strategyStepsForSetup,

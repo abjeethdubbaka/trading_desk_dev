@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { TagsService } from '@/lib/services/TagsService';
+import { TagsService, tagNameKey } from '@/lib/services/TagsService';
 
 export function useTags() {
   const [tags, setTags] = useState(() => TagsService.getAll());
@@ -18,8 +18,8 @@ export function useTags() {
   }, [refresh]);
 
   const getByName = useCallback((name) => {
-    const normalized = name?.toLowerCase().trim();
-    return tags.find((t) => t.name === normalized) ?? null;
+    const key = tagNameKey(name);
+    return tags.find((t) => tagNameKey(t.name) === key) ?? null;
   }, [tags]);
 
   return { tags, findOrCreate, deleteTag, getByName, refresh };

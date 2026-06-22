@@ -169,14 +169,20 @@ const toIntegerSet = (values = []) => {
   return result;
 };
 
-const resolveMissingYear = (dayOfMonth, options = {}) => {
+const JANUARY_NAMES = new Set(['jan', 'january']);
+
+// Rollover only makes sense for early-January dates: a base year of "this year's
+// December" paired with a stray "Jan 1-3" row means that row is actually next year.
+// Without the month check this incorrectly bumped the 1st-3rd of every month.
+const resolveMissingYear = (monthText, dayOfMonth, options = {}) => {
   const parsedBaseYear = Number(options?.missingYearBase);
   if (!Number.isFinite(parsedBaseYear)) {
     return new Date().getFullYear();
   }
 
+  const isJanuary = JANUARY_NAMES.has(String(monthText || '').trim().toLowerCase());
   const rolloverDays = toIntegerSet(options?.missingYearRolloverDays);
-  if (rolloverDays.has(dayOfMonth)) {
+  if (isJanuary && rolloverDays.has(dayOfMonth)) {
     return parsedBaseYear + 1;
   }
 
@@ -211,12 +217,12 @@ const parseDateToIso = (value, options = {}) => {
   if (monthDayWithTimeMatch) {
     const [, monthText, dayText, timeText] = monthDayWithTimeMatch;
     const parsedDay = Number(dayText);
-    const resolvedYear = resolveMissingYear(parsedDay, options);
+    const resolvedYear = resolveMissingYear(monthText, parsedDay, options);
     normalized = `${monthText} ${parsedDay} ${resolvedYear} ${timeText}`;
   } else if (monthDayOnlyMatch) {
     const [, monthText, dayText] = monthDayOnlyMatch;
     const parsedDay = Number(dayText);
-    const resolvedYear = resolveMissingYear(parsedDay, options);
+    const resolvedYear = resolveMissingYear(monthText, parsedDay, options);
     normalized = `${monthText} ${parsedDay} ${resolvedYear}`;
   }
 

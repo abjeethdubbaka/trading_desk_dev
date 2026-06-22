@@ -46,7 +46,7 @@ export default function PasteTradesCard({
       return;
     }
 
-    const year = toYearValue(missingYearBase, 2025);
+    const year = toYearValue(missingYearBase, new Date().getFullYear());
     const result = parseTradesPastedText(pasteValue, {
       defaultAccountTier: accountTier,
       missingYearBase: year,

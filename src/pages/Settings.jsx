@@ -24,7 +24,7 @@ import { useConfirm } from '@/components/ui/ConfirmDialog';
 import { toast } from 'sonner';
 
 export default function SettingsPage() {
-  const { settings, isLoading, isSaving, hasPendingChanges, updateFields, savePending, refetch } = useSettings();
+  const { settings, isLoading, isSaving, hasPendingChanges, updateFields, savePending, saveImmediately, refetch } = useSettings();
   const currentTier = settings?.account_tier || 'custom';
   const { user, signOut } = useAuth();
   const { bulkCreateTrades, isBulkCreating } = useTradesMutation();
@@ -68,6 +68,7 @@ export default function SettingsPage() {
             getDisplayValue={fieldDrafts.getDisplayValue}
             handleFieldChange={fieldDrafts.handleFieldChange}
             commitDraftField={fieldDrafts.commitDraftField}
+            clearAllDrafts={fieldDrafts.clearAllDrafts}
             isLoading={isLoading}
             riskMeterSettings={fieldDrafts.riskMeterSettings}
           />
@@ -77,6 +78,7 @@ export default function SettingsPage() {
           <RiskSettingsTab
             settings={settings}
             updateFields={updateFields}
+            saveImmediately={saveImmediately}
             getDisplayValue={fieldDrafts.getDisplayValue}
             handleFieldChange={fieldDrafts.handleFieldChange}
             commitDraftField={fieldDrafts.commitDraftField}

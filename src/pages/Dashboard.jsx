@@ -12,7 +12,6 @@ import { useTradeEvents }   from '@/components/journal';
 import {
   calcCoreStats,
   calcTodayStats,
-  buildEquityCurve,
 } from '@/lib/calculations/trades';
 import { buildDisciplineSnapshot } from '@/lib/calculations/discipline';
 import { ACCOUNT_TIERS } from '@/lib/config/accountTypes';
@@ -27,7 +26,6 @@ import DisciplineCoachCard from '@/components/dashboard/DisciplineCoachCard';
 
 const MorningBrief = lazy(() => import('@/components/dashboard/MorningBrief'));
 const AIModelScorecard = lazy(() => import('@/components/dashboard/AIModelScorecard'));
-const PerformanceBreakdown = lazy(() => import('@/components/dashboard/PerformanceBreakdown'));
 
 
 export default function Dashboard() {
@@ -47,7 +45,6 @@ export default function Dashboard() {
   // ── Analytics (pure functions, no extra queries) ──────────────────────────
   const allStats   = useMemo(() => calcCoreStats(trades),          [trades]);
   const todayStats = useMemo(() => calcTodayStats(trades),         [trades]);
-  const curve      = useMemo(() => buildEquityCurve(trades, accountSize), [trades, accountSize]);
   const disciplineSnapshot = useMemo(
     () => buildDisciplineSnapshot(trades, settings),
     [trades, settings]
@@ -174,31 +171,6 @@ export default function Dashboard() {
           </div>
         )}
       </div>
-
-      <Suspense
-        fallback={
-          <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-4 space-y-4" style={{ height: 300 }}>
-            <div className="flex items-center justify-between">
-              <Skeleton className="h-3 w-36 rounded-full" />
-              <div className="flex gap-1.5">
-                {[1, 2, 3].map((i) => <Skeleton key={i} className="h-5 w-12 rounded-full" />)}
-              </div>
-            </div>
-            {/* Chart area */}
-            <div className="flex items-end gap-1 pt-2" style={{ height: 180 }}>
-              {Array.from({ length: 18 }).map((_, i) => (
-                <Skeleton
-                  key={i}
-                  className="flex-1 rounded-t"
-                  style={{ height: `${25 + Math.abs(Math.sin(i * 0.7)) * 75}%` }}
-                />
-              ))}
-            </div>
-          </div>
-        }
-      >
-        <PerformanceBreakdown data={curve} />
-      </Suspense>
     </div>
   );
 }

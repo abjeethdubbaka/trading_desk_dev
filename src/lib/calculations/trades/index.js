@@ -10,7 +10,7 @@ export {
   calcMaxDrawdown,
   calcSharpeRatio,
 } from './analytics/equity.js';
-export { calcStreaks, getDailySequence } from './analytics/streaks.js';
+export { calcStreaks, getDailySequence, calcMonthlyExpectedReturn } from './analytics/streaks.js';
 export {
   perfByDayOfWeek,
   perfByHoldDurationBuckets,

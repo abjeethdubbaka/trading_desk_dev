@@ -9,6 +9,8 @@ function calcDerived(data) {
   data.avgLoss = data.losses > 0 ? Math.abs(data._lossSum)    / data.losses : 0;
   const lossAbs = Math.abs(data._lossSum);
   data.profitFactor = lossAbs > 0 ? data._winSum / lossAbs : data._winSum > 0 ? Infinity : 0;
+  data.winPnL = data._winSum;
+  data.lossPnL = data._lossSum;
   delete data._winSum;
   delete data._lossSum;
 }
@@ -30,6 +32,7 @@ function emptyBucket(extra = {}) {
   return {
     trades: 0, wins: 0, losses: 0,
     totalPnL: 0, winRate: 0, avgPnL: 0, avgWin: 0, avgLoss: 0, profitFactor: 0,
+    winPnL: 0, lossPnL: 0,
     _winSum: 0, _lossSum: 0,
     ...extra,
   };
