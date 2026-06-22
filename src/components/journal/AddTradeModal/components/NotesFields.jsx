@@ -200,6 +200,24 @@ const ChecklistStep = ({
   );
 };
 
+const IMPROVEMENT_OPTIONS = [
+  { value: 'risk_management', label: 'Risk Management' },
+  { value: 'entry_timing', label: 'Entry Timing' },
+  { value: 'exit_timing', label: 'Exit Timing' },
+  { value: 'patience_discipline', label: 'Patience / Discipline' },
+  { value: 'position_sizing', label: 'Position Sizing' },
+  { value: 'plan_adherence', label: 'Plan Adherence' },
+  { value: 'emotional_control', label: 'Emotional Control' },
+  { value: 'other', label: 'Other' },
+];
+
+const EXECUTION_OPTIONS = [
+  { value: 'excellent', label: 'Excellent' },
+  { value: 'good', label: 'Good' },
+  { value: 'average', label: 'Average' },
+  { value: 'poor', label: 'Poor' },
+];
+
 const NotesFields = ({
   setupType,
   setupGrade,
@@ -208,6 +226,8 @@ const NotesFields = ({
   reflectionAnswers,
   strategySteps,
   strategyStepResults,
+  followedPlan,
+  onFollowedPlanChange,
   onReflectionChange,
   onStrategyStepResultChange,
   onBreakoutChecklistChange,
@@ -227,25 +247,76 @@ const NotesFields = ({
         <p className="text-sm font-semibold text-white">Reflection</p>
 
         <div className="space-y-2">
-          <Label htmlFor="what-went-wrong" className="text-xs text-white/80">What went wrong?</Label>
+          <Label htmlFor="mistakes" className="text-xs text-white/80">Mistakes</Label>
           <Textarea
-            id="what-went-wrong"
+            id="mistakes"
             value={reflectionAnswers?.what_went_wrong || ''}
             onChange={(e) => onReflectionChange('what_went_wrong', e.target.value)}
             placeholder="Example: Entered too early before confirmation, ignored stop discipline..."
             className="bg-white/5 border-white/10 min-h-[72px] resize-y"
           />
         </div>
-        
+
         <div className="space-y-2">
-          <Label htmlFor="what-learned" className="text-xs text-white/80">What did you learn?</Label>
+          <Label htmlFor="learning" className="text-xs text-white/80">Learning</Label>
           <Textarea
-            id="what-learned"
+            id="learning"
             value={reflectionAnswers?.what_learned || ''}
             onChange={(e) => onReflectionChange('what_learned', e.target.value)}
             placeholder="Example: Wait for full setup confirmation and keep risk fixed."
             className="bg-white/5 border-white/10 min-h-[72px] resize-y"
           />
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="improvements" className="text-xs text-white/80">Improvements</Label>
+          <Select
+            value={reflectionAnswers?.improvements || ''}
+            onValueChange={(value) => onReflectionChange('improvements', value)}
+          >
+            <SelectTrigger id="improvements" className="bg-white/5 border-white/10">
+              <SelectValue placeholder="Select an area to improve" />
+            </SelectTrigger>
+            <SelectContent className="bg-[#1a1a24] border-white/10">
+              {IMPROVEMENT_OPTIONS.map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="space-y-2">
+            <Label className="text-xs text-white/80">Plan</Label>
+            <label className="flex h-10 items-center gap-2 rounded-md border border-white/10 bg-white/5 px-3">
+              <Checkbox
+                checked={Boolean(followedPlan)}
+                onCheckedChange={(checked) => onFollowedPlanChange?.(checked)}
+              />
+              <span className="text-sm text-white/80">Followed plan</span>
+            </label>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="execution" className="text-xs text-white/80">Execution</Label>
+            <Select
+              value={reflectionAnswers?.execution || ''}
+              onValueChange={(value) => onReflectionChange('execution', value)}
+            >
+              <SelectTrigger id="execution" className="bg-white/5 border-white/10">
+                <SelectValue placeholder="Rate your execution" />
+              </SelectTrigger>
+              <SelectContent className="bg-[#1a1a24] border-white/10">
+                {EXECUTION_OPTIONS.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         </div>
 
         <div className="rounded-md border border-cyan-500/20 bg-cyan-500/10 px-3 py-2">

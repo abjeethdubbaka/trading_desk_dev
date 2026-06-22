@@ -6,9 +6,6 @@ import { DetailedTradeCard } from './detailed/DetailedTradeCard';
 export default function DetailedView({
   trades,
   onEdit,
-  onDuplicateTrade,
-  onCopyNotes,
-  onInlineUpdateTrade,
 }) {
   const [lightboxImage, setLightboxImage] = React.useState(null);
   const { urlsById: screenshotUrls, statusById: screenshotStatuses } = useTradeScreenshotUrls(trades);
@@ -21,9 +18,6 @@ export default function DetailedView({
             key={trade.id}
             trade={trade}
             onEdit={onEdit}
-            onDuplicateTrade={onDuplicateTrade}
-            onCopyNotes={onCopyNotes}
-            onInlineUpdateTrade={onInlineUpdateTrade}
             screenshotUrls={screenshotUrls}
             screenshotStatuses={screenshotStatuses}
             onOpenImage={setLightboxImage}

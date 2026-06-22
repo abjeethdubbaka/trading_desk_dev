@@ -1,13 +1,12 @@
 import React, { useMemo, useState } from 'react';
-import { PlusCircle, Trash2 } from 'lucide-react';
+import { Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useExpenses } from '@/lib/hooks/useFinance';
 import { useBudget, useBudgetMutations } from '@/lib/hooks/useFinance';
-import { EXPENSE_CATEGORIES, CATEGORY_MAP, fmt, currentMonth } from './constants';
+import { EXPENSE_CATEGORIES, CATEGORY_MAP, fmt } from './constants';
 
 export default function BudgetTab({ year, month }) {
   const { data: budgets = [], isLoading: budgetLoading } = useBudget();

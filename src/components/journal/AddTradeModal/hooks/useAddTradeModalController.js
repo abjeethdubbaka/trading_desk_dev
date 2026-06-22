@@ -140,7 +140,7 @@ export function useAddTradeModalController({ open, onSave, initialData }) {
 
   const defaultTags = useMemo(
     () => (Array.isArray(settings?.default_tags) ? settings.default_tags : []),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
     [JSON.stringify(settings?.default_tags)]
   );
 

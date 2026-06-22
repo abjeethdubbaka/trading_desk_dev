@@ -129,8 +129,6 @@ export default function SpendingTab({ year, month }) {
 
         <div className="space-y-1.5">
           {sorted.map(exp => {
-            const cat = CATEGORY_MAP[exp.category] ?? CATEGORY_MAP['other'];
-
             if (editId === exp.id) {
               const evCat = CATEGORY_MAP[editValues.category] ?? CATEGORY_MAP['other'];
               return (

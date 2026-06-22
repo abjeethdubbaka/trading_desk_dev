@@ -2,9 +2,7 @@ import React, { useState } from 'react';
 import { cn } from '@/lib/utils/general';
 import { formatDate, formatCurrency } from '../../utils/formatters';
 import { getTradeNotesText } from '../../utils/notes';
-import { AlertCircle, Copy, CopyPlus, Pencil, Check, X } from 'lucide-react';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
+import { AlertCircle } from 'lucide-react';
 import { TagChip } from '../../components/TagChip';
 
 const isVWAPPullback = (setupType) => (setupType || '').toLowerCase().trim() === 'vwap pullback';
@@ -13,21 +11,12 @@ const getStepStatus = (step, keys) => keys.every((key) => !!step?.[key]);
 export function DetailedTradeCard({
   trade,
   onEdit,
-  onDuplicateTrade,
-  onCopyNotes,
-  onInlineUpdateTrade,
   screenshotUrls,
   screenshotStatuses,
   onOpenImage,
 }) {
   const [imageStates, setImageStates] = useState({});
-  const [isInlineEditing, setIsInlineEditing] = useState(false);
-  const [isInlineSaving, setIsInlineSaving] = useState(false);
   const cleanedTradeNotes = getTradeNotesText(trade);
-  const [inlineDraft, setInlineDraft] = useState({
-    setup_type: String(trade?.setup_type || ''),
-    notes: cleanedTradeNotes,
-  });
 
   const setupQualityScore = Number(trade?.setup_quality_score);
   const hasSetupQualityScore = Number.isFinite(setupQualityScore);
@@ -48,37 +37,6 @@ export function DetailedTradeCard({
       ...prev,
       [index]: 'error',
     }));
-  };
-
-  const startInlineEdit = () => {
-    setInlineDraft({
-      setup_type: String(trade?.setup_type || ''),
-      notes: getTradeNotesText(trade),
-    });
-    setIsInlineEditing(true);
-  };
-
-  const cancelInlineEdit = () => {
-    setInlineDraft({
-      setup_type: String(trade?.setup_type || ''),
-      notes: getTradeNotesText(trade),
-    });
-    setIsInlineEditing(false);
-  };
-
-  const saveInlineEdit = async () => {
-    if (!onInlineUpdateTrade) return;
-
-    setIsInlineSaving(true);
-    try {
-      await onInlineUpdateTrade(trade, {
-        setup_type: String(inlineDraft.setup_type || '').trim(),
-        notes: String(inlineDraft.notes || ''),
-      });
-      setIsInlineEditing(false);
-    } finally {
-      setIsInlineSaving(false);
-    }
   };
 
   return (
@@ -103,39 +61,11 @@ export function DetailedTradeCard({
             {formatDate(trade.entry_time || trade.created_date)}
           </div>
         </div>
-        <div className="flex items-start gap-2">
-          <div className={cn(
-            "text-sm font-semibold",
-            (trade.pnl || 0) >= 0 ? "text-emerald-400" : "text-red-400"
-          )}>
-            {formatCurrency(trade.pnl)}
-          </div>
-          <div
-            className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
-            onClick={(event) => event.stopPropagation()}
-          >
-            <button
-              onClick={startInlineEdit}
-              className="p-1.5 rounded text-white/35 hover:text-cyan-300 hover:bg-cyan-500/10 transition-colors"
-              title="Inline edit"
-            >
-              <Pencil className="w-3 h-3" />
-            </button>
-            <button
-              onClick={() => onDuplicateTrade?.(trade)}
-              className="p-1.5 rounded text-white/35 hover:text-sky-300 hover:bg-sky-500/10 transition-colors"
-              title="Duplicate trade"
-            >
-              <CopyPlus className="w-3 h-3" />
-            </button>
-            <button
-              onClick={() => onCopyNotes?.(trade)}
-              className="p-1.5 rounded text-white/35 hover:text-emerald-300 hover:bg-emerald-500/10 transition-colors"
-              title="Copy notes"
-            >
-              <Copy className="w-3 h-3" />
-            </button>
-          </div>
+        <div className={cn(
+          "text-sm font-semibold",
+          (trade.pnl || 0) >= 0 ? "text-emerald-400" : "text-red-400"
+        )}>
+          {formatCurrency(trade.pnl)}
         </div>
       </div>
 
@@ -183,70 +113,22 @@ export function DetailedTradeCard({
         </div>
       </div>
 
-      {isInlineEditing ? (
-        <div
-          className="mb-2 space-y-2 rounded-lg border border-cyan-500/20 bg-cyan-500/[0.06] p-2"
-          onClick={(event) => event.stopPropagation()}
-        >
-          <div>
-            <p className="mb-1 text-[10px] uppercase tracking-[0.16em] text-white/50">Setup Type</p>
-            <Input
-              value={inlineDraft.setup_type}
-              onChange={(event) => setInlineDraft((prev) => ({ ...prev, setup_type: event.target.value }))}
-              placeholder="Setup type"
-              className="h-9 text-xs"
-            />
-          </div>
-          <div>
-            <p className="mb-1 text-[10px] uppercase tracking-[0.16em] text-white/50">Notes</p>
-            <Textarea
-              value={inlineDraft.notes}
-              onChange={(event) => setInlineDraft((prev) => ({ ...prev, notes: event.target.value }))}
-              placeholder="Quick notes"
-              className="min-h-[84px] text-xs leading-relaxed"
-            />
-          </div>
-          <div className="flex justify-end gap-2">
-            <button
-              type="button"
-              onClick={cancelInlineEdit}
-              disabled={isInlineSaving}
-              className="inline-flex items-center gap-1 rounded-md border border-white/15 bg-white/[0.03] px-2 py-1 text-[11px] text-white/75 hover:bg-white/[0.07] disabled:opacity-50"
-            >
-              <X className="w-3 h-3" />
-              Cancel
-            </button>
-            <button
-              type="button"
-              onClick={saveInlineEdit}
-              disabled={isInlineSaving}
-              className="inline-flex items-center gap-1 rounded-md border border-emerald-400/25 bg-emerald-500/15 px-2 py-1 text-[11px] text-emerald-200 hover:bg-emerald-500/25 disabled:opacity-50"
-            >
-              <Check className="w-3 h-3" />
-              Save
-            </button>
-          </div>
+      {trade.setup_type && (
+        <div className="flex items-center gap-2 mb-2">
+          <span className="text-xs px-2 py-1 bg-white/10 rounded text-white/80">
+            {trade.setup_type}
+          </span>
+          <span
+            className={cn(
+              'text-xs px-2 py-1 rounded',
+              hasSetupQualityScore || normalizedSetupGrade
+                ? 'bg-blue-500/20 text-blue-300'
+                : 'bg-white/10 text-white/60'
+            )}
+          >
+            Setup Quality: {setupQualityLabel}
+          </span>
         </div>
-      ) : (
-        <>
-          {trade.setup_type && (
-            <div className="flex items-center gap-2 mb-2">
-              <span className="text-xs px-2 py-1 bg-white/10 rounded text-white/80">
-                {trade.setup_type}
-              </span>
-              <span
-                className={cn(
-                  'text-xs px-2 py-1 rounded',
-                  hasSetupQualityScore || normalizedSetupGrade
-                    ? 'bg-blue-500/20 text-blue-300'
-                    : 'bg-white/10 text-white/60'
-                )}
-              >
-                Setup Quality: {setupQualityLabel}
-              </span>
-            </div>
-          )}
-        </>
       )}
 
       {isVWAPPullback(trade.setup_type) && trade.breakout_checklist && (
@@ -310,11 +192,9 @@ export function DetailedTradeCard({
         </div>
       )}
 
-      {!isInlineEditing && (
-        <div className="text-xs text-white/60 border-t border-white/10 pt-2 mt-1 whitespace-pre-wrap break-words">
-          {cleanedTradeNotes || 'No notes added.'}
-        </div>
-      )}
+      <div className="text-xs text-white/60 border-t border-white/10 pt-2 mt-1 whitespace-pre-wrap break-words">
+        {cleanedTradeNotes || 'No notes added.'}
+      </div>
 
       {trade.screenshots && trade.screenshots.length > 0 && (
         <div className="mt-2 pt-2 border-t border-white/10">

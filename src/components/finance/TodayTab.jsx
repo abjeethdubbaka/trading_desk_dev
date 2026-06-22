@@ -258,8 +258,6 @@ export default function TodayTab() {
 
         <div className="space-y-2">
           {todayExpenses.map(exp => {
-            const cat = CATEGORY_MAP[exp.category] ?? CATEGORY_MAP['other'];
-
             if (editId === exp.id) {
               const evCat = CATEGORY_MAP[editValues.category] ?? CATEGORY_MAP['other'];
               return (

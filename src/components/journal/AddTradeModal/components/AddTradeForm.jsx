@@ -2,7 +2,6 @@ import React from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select,
   SelectContent,
@@ -188,22 +187,11 @@ export default function AddTradeForm({
         </div>
       )}
 
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <EmotionsSelect
           value={formData.emotions}
           onChange={(value) => updateField('emotions', value)}
         />
-        <div className="space-y-2">
-          <Label>Followed Plan?</Label>
-          <div className="flex items-center h-10">
-            <Checkbox
-              id="followed-plan"
-              checked={formData.followed_plan}
-              onCheckedChange={(checked) => updateField('followed_plan', checked)}
-              className="border-white/20 data-[state=checked]:bg-emerald-600 data-[state=checked]:border-emerald-600"
-            />
-          </div>
-        </div>
 
         <div className="space-y-2">
           <Label>Tags</Label>
@@ -223,6 +211,8 @@ export default function AddTradeForm({
         reflectionAnswers={formData.reflection_answers}
         strategySteps={strategyStepsForSetup}
         strategyStepResults={strategyStepResults}
+        followedPlan={formData.followed_plan}
+        onFollowedPlanChange={(checked) => updateField('followed_plan', checked)}
         onReflectionChange={handleReflectionChange}
         onStrategyStepResultChange={handleStrategyStepResultChange}
         onBreakoutChecklistChange={handleBreakoutChecklistChange}

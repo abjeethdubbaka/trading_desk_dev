@@ -86,7 +86,7 @@ export default function Journal() {
   useEffect(() => {
     const def = getDefaultPreset();
     if (def?.filters) applyFilterState(def.filters);
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []);  
 
   const handleApplyPreset = useCallback((id) => {
     applyPreset(id, (filters) => {
@@ -145,8 +145,6 @@ export default function Journal() {
     handleClose,
     handleSave,
     handleDelete,
-    handleDuplicateTrade,
-    handleCopyNotes,
     handleInlineUpdateTrade,
     handleBulkDelete,
     handleBulkTag,
@@ -262,8 +260,6 @@ export default function Journal() {
               trades={paginatedItems}
               onEdit={handleEdit}
               onDelete={handleDelete}
-              onDuplicateTrade={handleDuplicateTrade}
-              onCopyNotes={handleCopyNotes}
               onInlineUpdateTrade={handleInlineUpdateTrade}
               onViewDetails={(trade) => openDrawer(trade.id)}
               onTagClick={handleTagClick}
@@ -288,9 +284,6 @@ export default function Journal() {
             <DetailedView
               trades={paginatedItems}
               onEdit={handleEdit}
-              onDuplicateTrade={handleDuplicateTrade}
-              onCopyNotes={handleCopyNotes}
-              onInlineUpdateTrade={handleInlineUpdateTrade}
             />
           )}
         </div>

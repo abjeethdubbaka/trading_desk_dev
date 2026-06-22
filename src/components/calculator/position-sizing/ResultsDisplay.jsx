@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { Target, ShieldAlert, Pause, Play, RotateCcw } from 'lucide-react';
+import { Target, Pause, Play, RotateCcw } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { formatAnalysisTimer, useAnalysisTimer } from '@/lib/context/AnalysisTimerContext';
 import { DEFAULT_EXIT_LEVELS, normalizeExitStrategyLevels } from '@/components/settings/exitStrategy';
@@ -41,6 +41,8 @@ const formatR = (value) => {
 
 const formatElapsedLabel = (seconds) => `T+${formatAnalysisTimer(seconds)}`;
 
+const SWEET_MID = 2.00;
+
 function StatBlock({ label, value, color = 'text-white', sub = null }) {
   return (
     <div>
@@ -51,49 +53,9 @@ function StatBlock({ label, value, color = 'text-white', sub = null }) {
   );
 }
 
-const SWEET_MID = 2.00;
-
-function SuggestedStops({ entryPrice, stopLossPrice, direction, onApply }) {
-  const entry = Number(entryPrice);
-  const stop  = Number(stopLossPrice);
-
-  if (!Number.isFinite(entry) || entry <= 0 || !Number.isFinite(stop) || stop <= 0 || entry === stop) {
-    return null;
-  }
-
-  const isLong       = direction !== 'short';
-  const multiplier   = isLong ? -1 : 1;
-  const riskPct      = (Math.abs(entry - stop) / entry) * 100;
-  const sweetPrice   = entry + multiplier * entry * (SWEET_MID / 100);
-  const isAlreadyAt  = Math.abs(riskPct - SWEET_MID) < 0.15;
-
-  if (isAlreadyAt) return null;
-
-  return (
-    <div className="border-t border-white/8 px-4 py-2.5 flex items-center justify-between gap-3">
-      <div className="flex items-center gap-1.5">
-        <ShieldAlert className="h-3 w-3 text-white/30 flex-shrink-0" />
-        <span className="text-[10px] text-white/40">Suggested stop</span>
-        <span className="font-mono text-[11px] font-semibold text-white/70">${sweetPrice.toFixed(2)}</span>
-        <span className="text-[9px] text-white/30">{SWEET_MID}% risk · sweet spot</span>
-      </div>
-      {onApply && (
-        <button
-          type="button"
-          onClick={() => onApply(sweetPrice.toFixed(2))}
-          className="flex-shrink-0 rounded border border-white/12 bg-white/[0.04] px-2 py-0.5 text-[10px] text-white/55 hover:bg-white/10 hover:text-white/80 transition-colors"
-        >
-          Apply
-        </button>
-      )}
-    </div>
-  );
-}
-
 export default function ResultsDisplay({
   entryPrice,
   stopLossPrice,
-  targetPrice,
   targetProfit,
   shares,
   positionValue,

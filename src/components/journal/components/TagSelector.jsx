@@ -38,7 +38,7 @@ export function TagSelector({ value = [], onChange, placeholder = 'Add tag…', 
     } else {
       setSuggestions(matches);
     }
-  }, [input, value]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [input, value]);  
 
   const addTag = (name) => {
     const normalized = normalizeTagName(name);

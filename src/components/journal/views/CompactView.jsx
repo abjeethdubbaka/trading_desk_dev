@@ -8,8 +8,6 @@ export default function CompactView({
   trades,
   onEdit,
   onDelete,
-  onDuplicateTrade,
-  onCopyNotes,
   onInlineUpdateTrade,
   onViewDetails,
   onTagClick,
@@ -67,8 +65,6 @@ export default function CompactView({
             index={index}
             onEdit={onEdit}
             onDelete={onDelete}
-            onDuplicateTrade={onDuplicateTrade}
-            onCopyNotes={onCopyNotes}
             onInlineUpdateTrade={onInlineUpdateTrade}
             onViewDetails={onViewDetails}
             onTagClick={onTagClick}

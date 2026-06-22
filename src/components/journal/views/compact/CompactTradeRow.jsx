@@ -1,11 +1,9 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import { cn } from '@/lib/utils/general';
 import { formatDate, formatTime, formatCurrency } from '../../utils/formatters';
 import { getTradeNotesText } from '../../utils/notes';
-import { Image, AlertCircle, ChevronDown, Edit2, Trash2, Copy, CopyPlus, Pencil, Check, X } from 'lucide-react';
+import { Image, AlertCircle, ChevronDown, Edit2, Trash2 } from 'lucide-react';
 import { PnlBadge, DirectionBadge, RMultipleBadge, EmotionBadge, SetupBadge } from '@/components/ui/TradeBadge';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
 import TradeReviewPanel from '../../analysis/TradeReviewPanel';
 import { TradeThumbnail } from './TradeThumbnail';
 import { TagChip } from '../../components/TagChip';
@@ -27,12 +25,24 @@ const PLAN_OPTIONS = [
   { value: 'false', label: 'Violated' },
 ];
 
+const EXECUTION_LABELS = {
+  excellent: 'Excellent',
+  good: 'Good',
+  average: 'Average',
+  poor: 'Poor',
+};
+
+const EXECUTION_COLOR_CLASSES = {
+  excellent: 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300',
+  good: 'border-cyan-500/30 bg-cyan-500/10 text-cyan-300',
+  average: 'border-amber-500/30 bg-amber-500/10 text-amber-300',
+  poor: 'border-rose-500/30 bg-rose-500/10 text-rose-300',
+};
+
 export function CompactTradeRow({
   trade,
   onEdit,
   onDelete,
-  onDuplicateTrade,
-  onCopyNotes,
   onInlineUpdateTrade,
   onViewDetails,
   onTagClick,
@@ -52,13 +62,7 @@ export function CompactTradeRow({
 }) {
   const [expanded, setExpanded] = useState(false);
   const [reviewOpen, setReviewOpen] = useState(false);
-  const [isInlineEditing, setIsInlineEditing] = useState(false);
-  const [isInlineSaving, setIsInlineSaving] = useState(false);
   const cleanedTradeNotes = getTradeNotesText(trade);
-  const [inlineDraft, setInlineDraft] = useState({
-    setup_type: String(trade?.setup_type || ''),
-    notes: cleanedTradeNotes,
-  });
 
   const { savingField, editField } = useInlineTradeEdit({ trade, onInlineUpdateTrade });
 
@@ -95,49 +99,13 @@ export function CompactTradeRow({
       ? 'Plan deviation'
       : null;
 
+  const executionValue = String(trade?.reflection_answers?.execution || '').trim().toLowerCase();
+  const executionLabel = EXECUTION_LABELS[executionValue] || null;
+  const executionColorClass = EXECUTION_COLOR_CLASSES[executionValue] || 'border-white/10 text-white/40';
+
   const pnlPct = entryPrice && positionSize
     ? ((pnl / (entryPrice * positionSize)) * 100).toFixed(1)
     : null;
-
-  useEffect(() => {
-    setInlineDraft({
-      setup_type: String(trade?.setup_type || ''),
-      notes: getTradeNotesText(trade),
-    });
-    setIsInlineEditing(false);
-    setIsInlineSaving(false);
-  }, [trade?.id, trade?.setup_type, trade?.notes]);
-
-  const startInlineEdit = () => {
-    setInlineDraft({
-      setup_type: String(trade?.setup_type || ''),
-      notes: getTradeNotesText(trade),
-    });
-    setExpanded(true);
-    setIsInlineEditing(true);
-  };
-
-  const cancelInlineEdit = () => {
-    setInlineDraft({
-      setup_type: String(trade?.setup_type || ''),
-      notes: getTradeNotesText(trade),
-    });
-    setIsInlineEditing(false);
-  };
-
-  const saveInlineEdit = async () => {
-    if (!onInlineUpdateTrade) return;
-    setIsInlineSaving(true);
-    try {
-      await onInlineUpdateTrade(trade, {
-        setup_type: String(inlineDraft.setup_type || '').trim(),
-        notes: String(inlineDraft.notes || ''),
-      });
-      setIsInlineEditing(false);
-    } finally {
-      setIsInlineSaving(false);
-    }
-  };
 
   return (
     <div
@@ -310,6 +278,17 @@ export function CompactTradeRow({
           </span>
         </div>
 
+        {/* Execution */}
+        <div className={cn('w-[80px] flex-shrink-0', columns?.execution ? 'hidden xl:block' : 'hidden')}>
+          {executionLabel ? (
+            <span className={cn('text-[10px] px-1.5 py-0.5 rounded border whitespace-nowrap', executionColorClass)}>
+              {executionLabel}
+            </span>
+          ) : (
+            <span className="text-[10px] text-white/25">-</span>
+          )}
+        </div>
+
         {/* Tags + Screenshots */}
         <div className="flex items-center gap-1.5 mx-2 flex-shrink-0 min-w-0" onClick={(e) => e.stopPropagation()}>
           {tags.length > 0 && (
@@ -346,15 +325,6 @@ export function CompactTradeRow({
           className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity duration-150 flex-shrink-0"
           onClick={(event) => event.stopPropagation()}
         >
-          <button onClick={startInlineEdit} className="p-1.5 rounded text-white/30 hover:text-cyan-300 hover:bg-cyan-500/10 transition-colors" title="Inline edit">
-            <Pencil className="w-3 h-3" />
-          </button>
-          <button onClick={() => onDuplicateTrade?.(trade)} className="p-1.5 rounded text-white/30 hover:text-sky-300 hover:bg-sky-500/10 transition-colors" title="Duplicate">
-            <CopyPlus className="w-3 h-3" />
-          </button>
-          <button onClick={() => onCopyNotes?.(trade)} className="p-1.5 rounded text-white/30 hover:text-emerald-300 hover:bg-emerald-500/10 transition-colors" title="Copy notes">
-            <Copy className="w-3 h-3" />
-          </button>
           <button onClick={() => onEdit(trade)} className="p-1.5 rounded text-white/30 hover:text-white/70 hover:bg-white/8 transition-colors" title="Edit">
             <Edit2 className="w-3 h-3" />
           </button>
@@ -369,55 +339,9 @@ export function CompactTradeRow({
           className="px-8 pb-3 space-y-2 animate-fade-in border-t border-white/[0.03]"
           onClick={(event) => event.stopPropagation()}
         >
-          {isInlineEditing ? (
-            <div className="space-y-2.5 rounded-lg border border-cyan-500/20 bg-cyan-500/[0.06] p-2.5">
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 items-end">
-                <div className="sm:col-span-2">
-                  <p className="text-[10px] uppercase tracking-[0.16em] text-white/50 mb-1">Setup Type</p>
-                  <Input
-                    value={inlineDraft.setup_type}
-                    onChange={(event) => setInlineDraft((prev) => ({ ...prev, setup_type: event.target.value }))}
-                    placeholder="Setup type"
-                    className="h-9 text-xs"
-                  />
-                </div>
-                <div className="flex gap-2 justify-end sm:justify-start">
-                  <button
-                    type="button"
-                    onClick={cancelInlineEdit}
-                    disabled={isInlineSaving}
-                    className="inline-flex items-center gap-1 rounded-md border border-white/15 bg-white/[0.02] px-2 py-1 text-[11px] text-white/75 hover:bg-white/[0.06] disabled:opacity-50"
-                  >
-                    <X className="w-3 h-3" />
-                    Cancel
-                  </button>
-                  <button
-                    type="button"
-                    onClick={saveInlineEdit}
-                    disabled={isInlineSaving}
-                    className="inline-flex items-center gap-1 rounded-md border border-emerald-400/25 bg-emerald-500/15 px-2 py-1 text-[11px] text-emerald-200 hover:bg-emerald-500/25 disabled:opacity-50"
-                  >
-                    <Check className="w-3 h-3" />
-                    Save
-                  </button>
-                </div>
-              </div>
-
-              <div>
-                <p className="text-[10px] uppercase tracking-[0.16em] text-white/50 mb-1">Notes</p>
-                <Textarea
-                  value={inlineDraft.notes}
-                  onChange={(event) => setInlineDraft((prev) => ({ ...prev, notes: event.target.value }))}
-                  placeholder="Quick notes"
-                  className="min-h-[84px] text-xs leading-relaxed"
-                />
-              </div>
-            </div>
-          ) : (
-            <p className="text-[11px] text-white/40 leading-relaxed max-w-xl whitespace-pre-wrap break-words">
-              {cleanedTradeNotes || 'No notes added.'}
-            </p>
-          )}
+          <p className="text-[11px] text-white/40 leading-relaxed max-w-xl whitespace-pre-wrap break-words">
+            {cleanedTradeNotes || 'No notes added.'}
+          </p>
 
           {trade.mistakes?.length > 0 && (
             <div className="flex items-center gap-1.5 flex-wrap">

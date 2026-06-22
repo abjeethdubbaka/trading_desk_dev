@@ -104,6 +104,9 @@ export function CompactHeader({
       <div className={cn('w-[80px] flex-shrink-0', columns?.duration ? 'hidden xl:block' : 'hidden')}>
         <ColLabel>Duration</ColLabel>
       </div>
+      <div className={cn('w-[80px] flex-shrink-0', columns?.execution ? 'hidden xl:block' : 'hidden')}>
+        <ColLabel>Execution</ColLabel>
+      </div>
 
       <div className="w-20 flex-shrink-0 flex items-center gap-2">
         <ColLabel>Tags</ColLabel>

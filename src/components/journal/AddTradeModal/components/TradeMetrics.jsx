@@ -1,6 +1,6 @@
 import React from 'react';
 import { cn } from "@/lib/utils";
-import { TrendingUp, TrendingDown, ShieldAlert, Target } from 'lucide-react';
+import { TrendingUp, TrendingDown, ShieldAlert } from 'lucide-react';
 import { calculatePnL } from '../utils/calculationUtils';
 
 const TradeMetrics = ({ entry_price, exit_price, stop_loss, position_size, direction, fee }) => {

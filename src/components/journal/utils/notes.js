@@ -24,24 +24,32 @@ const firstNonEmptyText = (...values) => {
 };
 
 export function buildReflectionSummary(reflectionAnswers) {
-  const whatWentWrong = firstNonEmptyText(
+  const mistakes = firstNonEmptyText(
     reflectionAnswers?.what_went_wrong,
     reflectionAnswers?.whatWentWrong,
     reflectionAnswers?.what_wrong
   );
-  const whatLearned = firstNonEmptyText(
+  const learning = firstNonEmptyText(
     reflectionAnswers?.what_learned,
     reflectionAnswers?.whatLearned,
     reflectionAnswers?.what_we_learn,
     reflectionAnswers?.what_did_you_learn
   );
+  const improvements = firstNonEmptyText(reflectionAnswers?.improvements);
+  const execution = firstNonEmptyText(reflectionAnswers?.execution);
 
   const lines = [];
-  if (whatWentWrong) {
-    lines.push(`What went wrong: ${whatWentWrong}`);
+  if (mistakes) {
+    lines.push(`Mistakes: ${mistakes}`);
   }
-  if (whatLearned) {
-    lines.push(`What did you learn: ${whatLearned}`);
+  if (learning) {
+    lines.push(`Learning: ${learning}`);
+  }
+  if (improvements) {
+    lines.push(`Improvements: ${improvements}`);
+  }
+  if (execution) {
+    lines.push(`Execution: ${execution}`);
   }
 
   return lines.join('\n');

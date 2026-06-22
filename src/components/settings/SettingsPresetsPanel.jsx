@@ -85,7 +85,7 @@ export default function SettingsPresetsPanel() {
 
   const handleApply = async (preset) => {
     const snapshot = preset.snapshot || preset;
-    const { id, name: _n, created_date, updated_date, ...fields } = snapshot;
+    const { id: _id, name: _n, created_date: _cd, updated_date: _ud, ...fields } = snapshot;
     try {
       updateFields(fields);
       await saveImmediately(fields);

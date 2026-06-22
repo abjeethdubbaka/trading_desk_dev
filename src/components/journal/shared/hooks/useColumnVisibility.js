@@ -3,11 +3,12 @@ import { useCallback, useState } from 'react';
 const STORAGE_KEY = 'journal.columns.v1';
 
 export const OPTIONAL_COLUMNS = [
-  { key: 'setup',    label: 'Setup' },
-  { key: 'emotions', label: 'Emotions' },
-  { key: 'quality',  label: 'Quality' },
-  { key: 'plan',     label: 'Plan' },
-  { key: 'duration', label: 'Duration' },
+  { key: 'setup',     label: 'Setup' },
+  { key: 'emotions',  label: 'Emotions' },
+  { key: 'quality',   label: 'Quality' },
+  { key: 'plan',      label: 'Plan' },
+  { key: 'duration',  label: 'Duration' },
+  { key: 'execution', label: 'Execution' },
 ];
 
 const DEFAULT = Object.fromEntries(OPTIONAL_COLUMNS.map((c) => [c.key, true]));

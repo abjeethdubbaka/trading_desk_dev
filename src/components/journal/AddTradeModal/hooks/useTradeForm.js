@@ -49,7 +49,9 @@ export const useTradeForm = (initialData, userId = PLACEHOLDER_USER_ID, defaultT
   const normalizedDefaultTags = Array.isArray(defaultTags) ? defaultTags : [];
   const getDefaultReflectionAnswers = () => ({
     what_went_wrong: '',
-    what_learned: ''
+    what_learned: '',
+    improvements: '',
+    execution: ''
   });
 
   const defaultBreakoutChecklist = {
@@ -299,6 +301,8 @@ export const useTradeForm = (initialData, userId = PLACEHOLDER_USER_ID, defaultT
     const normalizedReflectionAnswers = {
       what_went_wrong: String(reflectionAnswers.what_went_wrong || '').trim(),
       what_learned: String(reflectionAnswers.what_learned || '').trim(),
+      improvements: String(reflectionAnswers.improvements || '').trim(),
+      execution: String(reflectionAnswers.execution || '').trim(),
       outcome:
         pnl < 0 ? 'loss' :
         pnl > 0 ? 'profit' :
