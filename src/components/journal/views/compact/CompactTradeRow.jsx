@@ -2,7 +2,7 @@ import React, { useCallback, useRef, useState } from 'react';
 import { cn } from '@/lib/utils/general';
 import { formatDate, formatTime, formatCurrency } from '../../utils/formatters';
 import { getTradeNotesText } from '../../utils/notes';
-import { Image, AlertCircle, ChevronDown, Edit2, Trash2 } from 'lucide-react';
+import { Image, AlertCircle, ChevronDown, Edit2, Star, Trash2 } from 'lucide-react';
 import { PnlBadge, DirectionBadge, RMultipleBadge, EmotionBadge, SetupBadge } from '@/components/ui/TradeBadge';
 import TradeReviewPanel from '../../analysis/TradeReviewPanel';
 import { TradeThumbnail } from './TradeThumbnail';
@@ -19,25 +19,6 @@ const DIRECTION_OPTIONS = [
   { value: 'long', label: 'Long' },
   { value: 'short', label: 'Short' },
 ];
-
-const PLAN_OPTIONS = [
-  { value: 'true', label: 'Followed' },
-  { value: 'false', label: 'Violated' },
-];
-
-const EXECUTION_LABELS = {
-  excellent: 'Excellent',
-  good: 'Good',
-  average: 'Average',
-  poor: 'Poor',
-};
-
-const EXECUTION_COLOR_CLASSES = {
-  excellent: 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300',
-  good: 'border-cyan-500/30 bg-cyan-500/10 text-cyan-300',
-  average: 'border-amber-500/30 bg-amber-500/10 text-amber-300',
-  poor: 'border-rose-500/30 bg-rose-500/10 text-rose-300',
-};
 
 export function CompactTradeRow({
   trade,
@@ -90,19 +71,6 @@ export function CompactTradeRow({
   const primaryEmotion = emotionList[0] || null;
   const entryTimeLabel = trade.entry_time ? formatTime(trade.entry_time) : '--';
   const exitTimeLabel = trade.exit_time ? formatTime(trade.exit_time) : '--';
-  const setupQualityScore = Number(trade?.setup_quality_score);
-  const hasSetupQualityScore = Number.isFinite(setupQualityScore);
-  const normalizedSetupGrade = String(trade?.setup_grade || '').trim();
-  const followedPlanLabel = trade.followed_plan === true
-    ? 'Followed plan'
-    : trade.followed_plan === false
-      ? 'Plan deviation'
-      : null;
-
-  const executionValue = String(trade?.reflection_answers?.execution || '').trim().toLowerCase();
-  const executionLabel = EXECUTION_LABELS[executionValue] || null;
-  const executionColorClass = EXECUTION_COLOR_CLASSES[executionValue] || 'border-white/10 text-white/40';
-
   const pnlPct = entryPrice && positionSize
     ? ((pnl / (entryPrice * positionSize)) * 100).toFixed(1)
     : null;
@@ -144,7 +112,7 @@ export function CompactTradeRow({
           <ChevronDown className={cn('w-3 h-3 transition-transform duration-200', expanded && 'rotate-180')} />
         </button>
 
-        {/* Date */}
+        {/* Date / Time / Duration */}
         <div className="w-[82px] flex-shrink-0">
           <div className="leading-tight">
             <span className="block text-[11px] text-white/40 font-mono">
@@ -152,6 +120,9 @@ export function CompactTradeRow({
             </span>
             <span className="block text-[9px] text-white/30 font-mono">
               {entryTimeLabel} | {exitTimeLabel}
+            </span>
+            <span className="block text-[9px] text-white/25 font-mono">
+              {formatHoldDuration(getTradeHoldDurationMinutes(trade))}
             </span>
           </div>
         </div>
@@ -223,6 +194,32 @@ export function CompactTradeRow({
           />
         </div>
 
+        {/* Tags */}
+        <div className="flex items-center gap-1 flex-wrap mx-2 flex-shrink-0 min-w-0" onClick={(e) => e.stopPropagation()}>
+          {tags.length > 0 ? (
+            tags.map((name) => (
+              <TagChip key={name} name={name} size="xs" onClick={onTagClick} />
+            ))
+          ) : (
+            <span className="text-[10px] text-white/25">-</span>
+          )}
+        </div>
+
+        {/* Exit Reason */}
+        <div className={cn('w-[110px] flex-shrink-0', columns?.exitReason ? 'hidden xl:block' : 'hidden')}>
+          <span className="text-[10px] text-white/40 truncate">{trade.exit_reason || '-'}</span>
+        </div>
+
+        {/* Stop Loss Reason */}
+        <div className={cn('w-[120px] flex-shrink-0', columns?.stopLossReason ? 'hidden xl:block' : 'hidden')}>
+          <span className="text-[10px] text-white/40 truncate">{trade.stop_loss_reason || '-'}</span>
+        </div>
+
+        {/* Market Environment */}
+        <div className={cn('w-[120px] flex-shrink-0', columns?.marketEnvironment ? 'hidden xl:block' : 'hidden')}>
+          <span className="text-[10px] text-white/40 truncate">{trade.market_condition || '-'}</span>
+        </div>
+
         {/* Emotions */}
         <div className={cn('w-[120px] flex-shrink-0', columns?.emotions ? 'hidden xl:block' : 'hidden')}>
           <div className="flex items-center gap-1">
@@ -237,67 +234,27 @@ export function CompactTradeRow({
           </div>
         </div>
 
-        {/* Quality */}
-        <div className={cn('w-[90px] flex-shrink-0', columns?.quality ? 'hidden xl:block' : 'hidden')}>
-          {hasSetupQualityScore || normalizedSetupGrade ? (
-            <span className="text-[10px] px-1.5 py-0.5 rounded border border-blue-500/20 bg-blue-500/10 text-blue-300/70 whitespace-nowrap">
-              {hasSetupQualityScore
-                ? `${Math.round(setupQualityScore)}${normalizedSetupGrade ? ` ${normalizedSetupGrade}` : ''}`
-                : `Grade ${normalizedSetupGrade}`}
-            </span>
-          ) : (
-            <span className="text-[10px] text-white/25">-</span>
-          )}
-        </div>
-
-        {/* Followed plan (editable) */}
-        <div className={cn('w-[120px] flex-shrink-0', columns?.plan ? 'hidden xl:block' : 'hidden')} onClick={(e) => e.stopPropagation()}>
-          <EditableCell
-            value={trade.followed_plan}
-            displayNode={followedPlanLabel ? (
-              <span className={cn(
-                'text-[10px] px-1.5 py-0.5 rounded border whitespace-nowrap',
-                trade.followed_plan
-                  ? 'border-emerald-500/15 bg-emerald-500/8 text-emerald-300/60'
-                  : 'border-rose-500/20 bg-rose-500/10 text-rose-300/70'
-              )}>
-                {followedPlanLabel}
-              </span>
-            ) : <span className="text-[10px] text-white/25">-</span>}
-            type="boolean"
-            options={PLAN_OPTIONS}
-            onSave={(v) => editField('followed_plan', v)}
-            loading={savingField === 'followed_plan'}
-          />
-        </div>
-
-        {/* Duration (entry → exit, total hold time) */}
-        <div className={cn('w-[80px] flex-shrink-0', columns?.duration ? 'hidden xl:block' : 'hidden')}>
-          <span className="text-[11px] font-mono text-white/40">
-            {formatHoldDuration(getTradeHoldDurationMinutes(trade))}
-          </span>
-        </div>
-
-        {/* Execution */}
-        <div className={cn('w-[80px] flex-shrink-0', columns?.execution ? 'hidden xl:block' : 'hidden')}>
-          {executionLabel ? (
-            <span className={cn('text-[10px] px-1.5 py-0.5 rounded border whitespace-nowrap', executionColorClass)}>
-              {executionLabel}
-            </span>
-          ) : (
-            <span className="text-[10px] text-white/25">-</span>
-          )}
-        </div>
-
-        {/* Tags + Screenshots */}
-        <div className="flex items-center gap-1.5 mx-2 flex-shrink-0 min-w-0" onClick={(e) => e.stopPropagation()}>
-          {tags.length > 0 && (
-            <div className="flex items-center gap-1 flex-wrap">
-              {tags.map((name) => (
-                <TagChip key={name} name={name} size="xs" onClick={onTagClick} />
+        {/* Overall Rating */}
+        <div className={cn('w-[90px] flex-shrink-0', columns?.overallRating ? 'hidden xl:block' : 'hidden')}>
+          {trade.overall_rating ? (
+            <div className="flex items-center gap-0.5">
+              {[1, 2, 3, 4, 5].map((star) => (
+                <Star
+                  key={star}
+                  className={cn(
+                    'w-2.5 h-2.5',
+                    Number(trade.overall_rating) >= star ? 'fill-amber-400 text-amber-400' : 'text-white/15'
+                  )}
+                />
               ))}
             </div>
+          ) : (
+            <span className="text-[10px] text-white/25">-</span>
           )}
+        </div>
+
+        {/* Screenshots */}
+        <div className="flex items-center gap-1.5 mx-2 flex-shrink-0 min-w-0" onClick={(e) => e.stopPropagation()}>
           {screenshots.slice(0, 2).map((id, i) => (
             <TradeThumbnail
               key={id ?? i}

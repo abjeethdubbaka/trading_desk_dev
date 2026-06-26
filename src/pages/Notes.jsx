@@ -22,11 +22,17 @@ const fmtDate = (d) => {
   return new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 };
 
+const toDisplayText = (value) => (
+  Array.isArray(value)
+    ? value.map((item) => String(item ?? '').trim()).filter(Boolean).join(', ')
+    : String(value ?? '').trim()
+);
+
 function getNoteContent(trade) {
   const rawNotes      = stripCalculatorAutoNote(trade?.notes) || '';
   const ref           = trade?.reflection_answers || {};
-  const whatWentWrong = String(ref.what_went_wrong  || ref.whatWentWrong  || '').trim();
-  const whatLearned   = String(ref.what_learned     || ref.whatLearned    || ref.what_did_you_learn || '').trim();
+  const whatWentWrong = toDisplayText(ref.what_went_wrong || ref.whatWentWrong);
+  const whatLearned   = toDisplayText(ref.what_learned || ref.whatLearned || ref.what_did_you_learn);
 
   return {
     notes: rawNotes,

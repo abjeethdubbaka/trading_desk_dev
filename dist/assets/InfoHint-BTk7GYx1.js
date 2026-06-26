@@ -1,1 +1,0 @@
-import{j as n,c as t}from"./index-BGF4BYCJ.js";function l({text:e,className:r=""}){return e?n.jsx("span",{className:t("inline-flex h-4 w-4 cursor-help items-center justify-center rounded-full border border-white/25 text-[10px] text-white/65",r),title:e,"aria-label":e,children:"?"}):null}export{l as I};

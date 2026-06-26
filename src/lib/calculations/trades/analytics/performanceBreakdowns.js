@@ -508,3 +508,60 @@ export function perfByHoldDurationBuckets(trades = [], bucketMinutes = 5) {
       avgHoldMinutes: round(average(bucket.holdValues), 1),
     }));
 }
+
+/**
+ * Generic breakdown by any categorical field on a trade (exit reason, stop loss
+ * reason, market environment, overall rating, improvement area, etc). Used to
+ * answer "why am I winning/losing" — which values of this field correlate with
+ * better or worse outcomes.
+ *
+ * @param {Array} trades
+ * @param {(trade: object) => string|null} getCategory - resolves the category label for a trade; return null/empty to exclude.
+ */
+export function perfByCategory(trades = [], getCategory) {
+  const groups = new Map();
+
+  for (const trade of trades) {
+    const rawCategory = typeof getCategory === 'function' ? getCategory(trade) : null;
+    const category = String(rawCategory ?? '').trim();
+    if (!category) continue;
+
+    if (!groups.has(category)) {
+      groups.set(category, {
+        category,
+        trades: 0,
+        winners: 0,
+        losses: 0,
+        totalPnL: 0,
+        winPnL: 0,
+        lossPnL: 0,
+      });
+    }
+
+    const bucket = groups.get(category);
+    const pnl = Number(trade?.pnl ?? 0);
+    bucket.trades += 1;
+    bucket.totalPnL += pnl;
+    if (pnl > 0) {
+      bucket.winners += 1;
+      bucket.winPnL += pnl;
+    } else if (pnl < 0) {
+      bucket.losses += 1;
+      bucket.lossPnL += pnl;
+    }
+  }
+
+  return [...groups.values()]
+    .map((bucket) => ({
+      category: bucket.category,
+      trades: bucket.trades,
+      winners: bucket.winners,
+      losses: bucket.losses,
+      winRate: pct(bucket.winners, bucket.trades),
+      totalPnL: round(bucket.totalPnL, 2),
+      winPnL: round(bucket.winPnL, 2),
+      lossPnL: round(bucket.lossPnL, 2),
+      avgPnL: bucket.trades > 0 ? round(bucket.totalPnL / bucket.trades, 2) : 0,
+    }))
+    .sort((a, b) => b.totalPnL - a.totalPnL);
+}

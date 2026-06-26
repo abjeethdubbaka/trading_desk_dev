@@ -327,6 +327,22 @@ const normalizeInsightText = (value) => String(value ?? '')
 
 const toSentenceText = (value) => String(value ?? '').replace(/\s+/g, ' ').trim();
 
+const toSentenceList = (value) => {
+  if (Array.isArray(value)) {
+    return value.map((item) => toSentenceText(item)).filter(Boolean);
+  }
+  const text = toSentenceText(value);
+  return text ? [text] : [];
+};
+
+const pickReflectionList = (candidates) => {
+  for (const candidate of candidates) {
+    const list = toSentenceList(candidate);
+    if (list.length) return list;
+  }
+  return [];
+};
+
 const extractLineFromNotes = (notes, prefix) => {
   if (!notes) return '';
   const lines = String(notes).split('\n');
@@ -339,20 +355,20 @@ const extractLineFromNotes = (notes, prefix) => {
 const extractReflection = (trade) => {
   const reflection = trade?.reflection_answers || {};
 
-  const wrong = toSentenceText(
-    reflection?.what_went_wrong
-    || reflection?.whatWentWrong
-    || reflection?.what_wrong
-    || extractLineFromNotes(trade?.notes, 'What went wrong:')
-  );
+  const wrong = pickReflectionList([
+    reflection?.what_went_wrong,
+    reflection?.whatWentWrong,
+    reflection?.what_wrong,
+    extractLineFromNotes(trade?.notes, 'What went wrong:'),
+  ]);
 
-  const learned = toSentenceText(
-    reflection?.what_learned
-    || reflection?.whatLearned
-    || reflection?.what_we_learn
-    || reflection?.what_did_you_learn
-    || extractLineFromNotes(trade?.notes, 'What did you learn:')
-  );
+  const learned = pickReflectionList([
+    reflection?.what_learned,
+    reflection?.whatLearned,
+    reflection?.what_we_learn,
+    reflection?.what_did_you_learn,
+    extractLineFromNotes(trade?.notes, 'What did you learn:'),
+  ]);
 
   return { wrong, learned };
 };
@@ -394,8 +410,8 @@ export function analyzeMistakePatterns(trades = [], limit = 5) {
     const { wrong, learned } = extractReflection(trade);
     const date = toTradeDate(trade);
 
-    if (wrong) mistakes.push({ text: wrong, date });
-    if (learned) fixes.push({ text: learned, date });
+    wrong.forEach((text) => mistakes.push({ text, date }));
+    learned.forEach((text) => fixes.push({ text, date }));
   }
 
   const topMistakes = collectPatternCounts(mistakes).slice(0, limit);

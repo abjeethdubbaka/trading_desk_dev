@@ -58,7 +58,8 @@ const CalcHistory = lazy(() => import('./pages/CalcHistory'));
 const KnowledgeBase = lazy(() => import('./pages/KnowledgeBase'));
 const DosAndDonts = lazy(() => import('./pages/DosAndDonts'));
 const Performance = lazy(() => import('./pages/Performance'));
-const ScreenshotAnalysis = lazy(() => import('./pages/ScreenshotAnalysis'));
+const Reports = lazy(() => import('./pages/Reports'));
+// const ScreenshotAnalysis = lazy(() => import('./pages/ScreenshotAnalysis')); // not in use — commented out, not deleted
 const Playbook = lazy(() => import('./pages/Playbook'));
 const Notes = lazy(() => import('./pages/Notes'));
 const Finance = lazy(() => import('./pages/Finance'));
@@ -70,12 +71,13 @@ export const PAGE_PRELOADERS = {
   Journal:            () => import('./pages/Journal'),
   Notes:              () => import('./pages/Notes'),
   Performance:        () => import('./pages/Performance'),
+  Reports:            () => import('./pages/Reports'),
   Calculator:         () => import('./pages/Calculator'),
   CalcHistory:        () => import('./pages/CalcHistory'),
   Settings:           () => import('./pages/Settings'),
   Knowledge:          () => import('./pages/KnowledgeBase'),
   DosAndDonts:        () => import('./pages/DosAndDonts'),
-  ScreenshotAnalysis: () => import('./pages/ScreenshotAnalysis'),
+  // ScreenshotAnalysis: () => import('./pages/ScreenshotAnalysis'), // not in use — commented out, not deleted
   Playbook:           () => import('./pages/Playbook'),
   Finance:            () => import('./pages/Finance'),
 };
@@ -89,7 +91,8 @@ export const PAGES = {
     "Knowledge": KnowledgeBase,
     "DosAndDonts": DosAndDonts,
     "Performance": Performance,
-    "ScreenshotAnalysis": ScreenshotAnalysis,
+    "Reports": Reports,
+    // "ScreenshotAnalysis": ScreenshotAnalysis, // not in use — commented out, not deleted
     "Playbook": Playbook,
     "Notes": Notes,
     "Finance": Finance,

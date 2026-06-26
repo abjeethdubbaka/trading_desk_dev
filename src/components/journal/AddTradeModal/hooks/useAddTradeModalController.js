@@ -6,7 +6,6 @@ import { useTrades } from '@/lib/hooks/useTrades';
 import { useSettings } from '@/lib/context/SettingsContext';
 import { buildDisciplineSnapshot } from '@/lib/calculations/discipline';
 import { imageFileToDataUrl } from '@/components/journal/shared/media/imageUtils';
-import { syncRuleUsageCounts } from '@/components/dosanddonts/storage';
 import { computeTradeSetupQuality } from '@/lib/calculations/trades';
 import {
   getPlaybookEntryBySetupName,
@@ -17,6 +16,11 @@ import { localToUTCISO, isValidExitTime } from '../utils/dateUtils';
 import { calculatePnL } from '../utils/calculationUtils';
 
 import { PLACEHOLDER_USER_ID as USER_ID } from '@/lib/constants';
+import { DEFAULT_EXIT_REASONS } from '@/lib/constants/exitReasons';
+import { DEFAULT_MARKET_ENVIRONMENTS } from '@/lib/constants/marketEnvironments';
+import { DEFAULT_STOP_LOSS_REASONS } from '@/lib/constants/stopLossReasons';
+import { DEFAULT_MISTAKES } from '@/lib/constants/mistakes';
+import { DEFAULT_LEARNINGS } from '@/lib/constants/learnings';
 const SYMBOL_PATTERN = /^[A-Z]{1,5}$/;
 const normalizeStrategyStepGrade = (value) => String(value ?? '').trim().toUpperCase();
 const deriveFollowedFromGrade = (grade) => {
@@ -121,6 +125,21 @@ export function useAddTradeModalController({ open, onSave, initialData }) {
 
   const { settings } = useSettings();
   const currentTier = settings?.account_tier || 'custom';
+  const exitReasonOptions = Array.isArray(settings?.exit_reasons) && settings.exit_reasons.length > 0
+    ? settings.exit_reasons
+    : DEFAULT_EXIT_REASONS;
+  const marketEnvironmentOptions = Array.isArray(settings?.market_environments) && settings.market_environments.length > 0
+    ? settings.market_environments
+    : DEFAULT_MARKET_ENVIRONMENTS;
+  const stopLossReasonOptions = Array.isArray(settings?.stop_loss_reasons) && settings.stop_loss_reasons.length > 0
+    ? settings.stop_loss_reasons
+    : DEFAULT_STOP_LOSS_REASONS;
+  const mistakeOptions = Array.isArray(settings?.mistakes) && settings.mistakes.length > 0
+    ? settings.mistakes
+    : DEFAULT_MISTAKES;
+  const learningOptions = Array.isArray(settings?.learnings) && settings.learnings.length > 0
+    ? settings.learnings
+    : DEFAULT_LEARNINGS;
 
   const { data: tierTrades = [] } = useTrades({
     filters: { account_tier: currentTier },
@@ -144,7 +163,7 @@ export function useAddTradeModalController({ open, onSave, initialData }) {
     [JSON.stringify(settings?.default_tags)]
   );
 
-  const { formData, updateField, prepareForSubmission } = useTradeForm(initialData, USER_ID, defaultTags);
+  const { formData, updateField, prepareForSubmission } = useTradeForm(initialData, USER_ID, defaultTags, open);
   const screenshotIds = formData.screenshots || [];
   const [uploading, setUploading] = useState(false);
 
@@ -195,10 +214,6 @@ export function useAddTradeModalController({ open, onSave, initialData }) {
   }), [formData.direction, formData.entry_price, formData.exit_price, formData.fee, formData.position_size]);
 
   const pnlValue = Number(calculatedPnl) || 0;
-
-  const selectedRuleIds = Array.isArray(formData.dos_donts_rule_ids)
-    ? formData.dos_donts_rule_ids
-    : [];
 
   const playbookEntries = useMemo(
     () => normalizePlaybookEntries(settings?.strategy_playbook),
@@ -386,23 +401,7 @@ export function useAddTradeModalController({ open, onSave, initialData }) {
       submissionData.entry_time = localToUTCISO(formData.entry_time);
       submissionData.exit_time = formData.exit_time ? localToUTCISO(formData.exit_time) : null;
 
-      const previousRuleIds = Array.isArray(initialData?.dos_donts_rule_ids)
-        ? initialData.dos_donts_rule_ids
-        : [];
-      const nextRuleIds = Array.isArray(submissionData.dos_donts_rule_ids)
-        ? submissionData.dos_donts_rule_ids
-        : [];
-
       await onSave(submissionData);
-
-      const usageSync = syncRuleUsageCounts({
-        previousRuleIds,
-        nextRuleIds,
-      });
-
-      if (!usageSync?.ok) {
-        toast.warning('Trade was saved, but rule usage count could not be updated.');
-      }
 
       const newTradePnl = Number(submissionData.pnl) || 0;
       const isLoggedToday = new Date(submissionData.entry_time).toDateString() === new Date().toDateString();
@@ -424,7 +423,7 @@ export function useAddTradeModalController({ open, onSave, initialData }) {
     } finally {
       setLoading(false);
     }
-  }, [formData, initialData?.dos_donts_rule_ids, onSave, prepareForSubmission, screenshotIds, disciplineSnapshot]);
+  }, [formData, onSave, prepareForSubmission, screenshotIds, disciplineSnapshot]);
 
   const symbolError = useMemo(() => {
     const symbol = String(formData.symbol || '').trim();
@@ -441,8 +440,12 @@ export function useAddTradeModalController({ open, onSave, initialData }) {
     formData,
     screenshotIds,
     pnlValue,
-    selectedRuleIds,
     setupTypeOptions,
+    exitReasonOptions,
+    marketEnvironmentOptions,
+    stopLossReasonOptions,
+    mistakeOptions,
+    learningOptions,
     selectedPlaybookEntry,
     strategyStepsForSetup,
     strategyStepResults,

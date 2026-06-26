@@ -7,7 +7,7 @@
 
 import React, { useDeferredValue, useMemo, useState } from 'react';
 import { startOfWeek, startOfMonth, startOfYear, subMonths } from 'date-fns';
-import { Clock3, Layers3, Radar, Sparkles } from 'lucide-react';
+import { Brain, Clock3, Compass, Layers3, Radar, Sparkles } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import EmotionMatrix from '@/components/performance/EmotionMatrix';
 import PerformanceByDayOfWeek from '@/components/performance/PerformanceByDayOfWeek';
@@ -18,13 +18,11 @@ import { calculatePerformanceByMonthOfYear } from '@/components/performance/util
 import PerformanceByPrice from '@/components/performance/PerformanceByPrice';
 import PerformanceBySetupType from '@/components/performance/PerformanceBySetupType';
 import PerformanceByShareFloatRange from '@/components/performance/PerformanceByShareFloatRange';
-import PlanAdherenceCard from '@/components/performance/PlanAdherenceCard';
 import WeeklyReviewCard from '@/components/performance/WeeklyReviewCard';
-import MistakePatternInsights from '@/components/performance/MistakePatternInsights';
 import StrategyEngineCard from '@/components/performance/StrategyEngineCard';
 import PnLCalendarHeatmap from '@/components/performance/PnLCalendarHeatmap';
 import EquityCurveChart from '@/components/performance/EquityCurveChart';
-import WinRateBySetupChart from '@/components/performance/WinRateBySetupChart';
+import CategoricalBreakdownCard from '@/components/performance/CategoricalBreakdownCard';
 import AnalysisPanel from '@/components/journal/analysis/AnalysisPanel';
 import InfoHint from '@/components/ui/InfoHint';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -41,8 +39,10 @@ import {
   calcMaxDrawdown,
   calcMonthlyExpectedReturn,
   calcSharpeRatio,
+  computeEmotionStats,
   computeTradeSetupQuality,
   formatHoldDuration,
+  perfByCategory,
   perfByDayOfWeek,
   perfByHoldDurationBuckets,
   perfByHourOfDay,
@@ -196,8 +196,29 @@ export default function PerformancePage() {
     [deferredSettings, deferredTrades]
   );
   const byHoldBucket = useMemo(() => perfByHoldDurationBuckets(deferredTrades, 5), [deferredTrades]);
+  const byExitReason = useMemo(
+    () => perfByCategory(deferredTrades, (trade) => trade?.exit_reason),
+    [deferredTrades]
+  );
+  const byStopLossReason = useMemo(
+    () => perfByCategory(deferredTrades, (trade) => trade?.stop_loss_reason),
+    [deferredTrades]
+  );
+  const byMarketEnvironment = useMemo(
+    () => perfByCategory(deferredTrades, (trade) => trade?.market_condition),
+    [deferredTrades]
+  );
+  const byOverallRating = useMemo(
+    () => perfByCategory(deferredTrades, (trade) => (trade?.overall_rating ? `${trade.overall_rating}★` : null)),
+    [deferredTrades]
+  );
+  const byImprovementArea = useMemo(
+    () => perfByCategory(deferredTrades, (trade) => trade?.reflection_answers?.improvements),
+    [deferredTrades]
+  );
   const weeklyReview = useMemo(() => buildWeeklyReview(deferredTrades, [7, 14]), [deferredTrades]);
   const mistakeInsights = useMemo(() => analyzeMistakePatterns(deferredTrades, 4), [deferredTrades]);
+  const emotionStats = useMemo(() => computeEmotionStats(deferredTrades), [deferredTrades]);
   const isStale = deferredTrades !== periodTrades;
 
   const timingTopHour = useMemo(
@@ -226,6 +247,23 @@ export default function PerformancePage() {
     () => [...byPrice].filter((row) => row.trades > 0).sort((a, b) => b.totalPnL - a.totalPnL)[0] ?? null,
     [byPrice]
   );
+  const driversBestExitReason = byExitReason[0] ?? null;
+  const driversWorstExitReason = byExitReason[byExitReason.length - 1] ?? null;
+  const driversBestMarketEnvironment = byMarketEnvironment[0] ?? null;
+  const driversTopImprovementArea = useMemo(
+    () => [...byImprovementArea].sort((a, b) => b.trades - a.trades)[0] ?? null,
+    [byImprovementArea]
+  );
+  const behaviorBestEmotion = useMemo(
+    () => (emotionStats.length ? [...emotionStats].sort((a, b) => b.avgPnL - a.avgPnL)[0] : null),
+    [emotionStats]
+  );
+  const behaviorWorstEmotion = useMemo(
+    () => (emotionStats.length ? [...emotionStats].sort((a, b) => a.avgPnL - b.avgPnL)[0] : null),
+    [emotionStats]
+  );
+  const behaviorTopMistake = mistakeInsights?.topMistakes?.[0] ?? null;
+  const behaviorTopLearning = mistakeInsights?.topFixes?.[0] ?? null;
   if (isLoading) {
     return (
       <div className="space-y-5">
@@ -363,7 +401,7 @@ export default function PerformancePage() {
       </div>
 
       <Tabs defaultValue="behavior" className={isStale ? 'opacity-60 transition-opacity' : 'opacity-100 transition-opacity'}>
-        <TabsList className="grid w-full grid-cols-3 gap-1.5 rounded-2xl border border-white/10 bg-[#13131e]/90 p-1.5 sm:grid-cols-5">
+        <TabsList className="grid w-full grid-cols-2 gap-1.5 rounded-2xl border border-white/10 bg-[#13131e]/90 p-1.5 sm:grid-cols-4">
           <TabsTrigger
             value="behavior"
             className="rounded-xl text-xs font-semibold tracking-wide text-white/60 data-[state=active]:border data-[state=active]:border-emerald-400/30 data-[state=active]:bg-gradient-to-r data-[state=active]:from-emerald-500/25 data-[state=active]:to-blue-500/20 data-[state=active]:text-white"
@@ -380,7 +418,7 @@ export default function PerformancePage() {
             value="setups"
             className="rounded-xl text-xs font-semibold tracking-wide text-white/60 data-[state=active]:border data-[state=active]:border-violet-400/30 data-[state=active]:bg-gradient-to-r data-[state=active]:from-violet-500/25 data-[state=active]:to-indigo-500/20 data-[state=active]:text-white"
           >
-            Setups
+            Setups &amp; Drivers
           </TabsTrigger>
           <TabsTrigger
             value="analysis"
@@ -388,19 +426,42 @@ export default function PerformancePage() {
           >
             Analysis
           </TabsTrigger>
-          <TabsTrigger
-            value="charts"
-            className="rounded-xl text-xs font-semibold tracking-wide text-white/60 data-[state=active]:border data-[state=active]:border-cyan-400/35 data-[state=active]:bg-gradient-to-r data-[state=active]:from-cyan-500/25 data-[state=active]:to-blue-500/20 data-[state=active]:text-white"
-          >
-            Charts
-          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="behavior" className="mt-4 space-y-4">
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-            <EmotionMatrix trades={periodTrades} />
-            <PlanAdherenceCard trades={periodTrades} />
-          </div>
+          <TabHero
+            icon={Brain}
+            title="Behavior & Psychology"
+            hint="How your emotional state and self-identified mistakes/fixes actually line up with outcomes."
+            toneClasses="bg-emerald-500/25"
+          >
+            <InsightChip
+              label="Best Emotion"
+              value={behaviorBestEmotion ? `${behaviorBestEmotion.emotion} (${formatCompactCurrency(behaviorBestEmotion.avgPnL)} avg)` : '--'}
+              tone="text-emerald-200"
+            />
+            <InsightChip
+              label="Worst Emotion"
+              value={
+                behaviorWorstEmotion && behaviorWorstEmotion.emotion !== behaviorBestEmotion?.emotion
+                  ? `${behaviorWorstEmotion.emotion} (${formatCompactCurrency(behaviorWorstEmotion.avgPnL)} avg)`
+                  : '--'
+              }
+              tone="text-red-300"
+            />
+            <InsightChip
+              label="Top Mistake"
+              value={behaviorTopMistake ? `${behaviorTopMistake.text} (${behaviorTopMistake.count}x)` : '--'}
+              tone="text-rose-200"
+            />
+            <InsightChip
+              label="Top Learning"
+              value={behaviorTopLearning ? `${behaviorTopLearning.text} (${behaviorTopLearning.count}x)` : '--'}
+              tone="text-cyan-200"
+            />
+          </TabHero>
+
+          <EmotionMatrix trades={periodTrades} />
         </TabsContent>
 
         <TabsContent value="timing" className="mt-4 space-y-4">
@@ -478,6 +539,83 @@ export default function PerformancePage() {
             <PerformanceByPrice data={byPrice} />
             <PerformanceByShareFloatRange data={byFloat} />
           </div>
+
+          <TabHero
+            icon={Compass}
+            title="Win/Loss Drivers"
+            hint="See which exit reasons, stop conditions, market environments, and ratings correlate with your best and worst outcomes."
+            toneClasses="bg-rose-500/25"
+          >
+            <InsightChip
+              label="Best Exit Reason"
+              value={
+                driversBestExitReason
+                  ? `${driversBestExitReason.category} (${formatCompactCurrency(driversBestExitReason.totalPnL)})`
+                  : '--'
+              }
+              tone="text-emerald-200"
+            />
+            <InsightChip
+              label="Worst Exit Reason"
+              value={
+                driversWorstExitReason && driversWorstExitReason !== driversBestExitReason
+                  ? `${driversWorstExitReason.category} (${formatCompactCurrency(driversWorstExitReason.totalPnL)})`
+                  : '--'
+              }
+              tone="text-red-300"
+            />
+            <InsightChip
+              label="Best Market"
+              value={
+                driversBestMarketEnvironment
+                  ? `${driversBestMarketEnvironment.category} (${formatCompactCurrency(driversBestMarketEnvironment.totalPnL)})`
+                  : '--'
+              }
+              tone="text-rose-200"
+            />
+            <InsightChip
+              label="Top Improvement Area"
+              value={
+                driversTopImprovementArea
+                  ? `${driversTopImprovementArea.category} (${driversTopImprovementArea.trades})`
+                  : '--'
+              }
+              tone="text-pink-200"
+            />
+          </TabHero>
+
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+            <CategoricalBreakdownCard
+              title="By Exit Reason"
+              hint="Which exit triggers make and lose you money."
+              data={byExitReason}
+              emptyMessage="Log an exit reason on your trades to see this breakdown."
+            />
+            <CategoricalBreakdownCard
+              title="By Stop Loss Reason"
+              hint="Why your stops get hit, and how costly each reason is."
+              data={byStopLossReason}
+              emptyMessage="Log a stop loss reason on your trades to see this breakdown."
+            />
+            <CategoricalBreakdownCard
+              title="By Market Environment"
+              hint="Which market conditions you trade best and worst in."
+              data={byMarketEnvironment}
+              emptyMessage="Log a market environment on your trades to see this breakdown."
+            />
+            <CategoricalBreakdownCard
+              title="By Overall Rating"
+              hint="Does how you rated the trade actually line up with the result?"
+              data={byOverallRating}
+              emptyMessage="Rate your trades to see this breakdown."
+            />
+            <CategoricalBreakdownCard
+              title="By Improvement Area"
+              hint="The weaknesses you flag most often, and what they cost you."
+              data={byImprovementArea}
+              emptyMessage="Log an improvement area on your trades to see this breakdown."
+            />
+          </div>
         </TabsContent>
 
         <TabsContent value="analysis" className="mt-4 space-y-4">
@@ -488,13 +626,6 @@ export default function PerformancePage() {
             toneClasses="bg-amber-400/25"
           >
             <InsightChip label="Expectancy" value={formatCompactCurrency(stats.expectancy)} tone="text-amber-200" />
-            <InsightChip
-              label="Profit Factor"
-              value={stats.profitFactor === Infinity ? 'inf' : stats.profitFactor.toFixed(2)}
-              tone="text-emerald-200"
-            />
-            <InsightChip label="Sharpe" value={sharpe.toFixed(2)} tone="text-sky-200" />
-            <InsightChip label="Max Drawdown" value={`-$${Math.abs(maxDD).toFixed(0)}`} tone="text-red-300" />
             <InsightChip
               label="Monthly Expected Return"
               value={
@@ -511,19 +642,12 @@ export default function PerformancePage() {
             />
           </TabHero>
 
-          <MistakePatternInsights insights={mistakeInsights} />
-
           <div className="rounded-2xl border border-white/10 bg-gradient-to-br from-[#141423] to-[#101016] p-1">
             <AnalysisPanel trades={periodTrades} isCollapsed={false} />
           </div>
-        </TabsContent>
 
-        <TabsContent value="charts" className="mt-4 space-y-4">
           <PnLCalendarHeatmap trades={periodTrades} />
-          <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
-            <EquityCurveChart curve={curve} initialBalance={accountSize} />
-            <WinRateBySetupChart data={bySetup} />
-          </div>
+          <EquityCurveChart curve={curve} initialBalance={accountSize} />
         </TabsContent>
       </Tabs>
     </div>

@@ -18,13 +18,6 @@ export function DetailedTradeCard({
   const [imageStates, setImageStates] = useState({});
   const cleanedTradeNotes = getTradeNotesText(trade);
 
-  const setupQualityScore = Number(trade?.setup_quality_score);
-  const hasSetupQualityScore = Number.isFinite(setupQualityScore);
-  const normalizedSetupGrade = String(trade?.setup_grade || '').trim();
-  const setupQualityLabel = hasSetupQualityScore
-    ? `${Math.round(setupQualityScore)}/100${normalizedSetupGrade ? ` (${normalizedSetupGrade})` : ''}`
-    : (normalizedSetupGrade || 'No Grade');
-
   const handleImageLoad = (index) => {
     setImageStates((prev) => ({
       ...prev,
@@ -117,16 +110,6 @@ export function DetailedTradeCard({
         <div className="flex items-center gap-2 mb-2">
           <span className="text-xs px-2 py-1 bg-white/10 rounded text-white/80">
             {trade.setup_type}
-          </span>
-          <span
-            className={cn(
-              'text-xs px-2 py-1 rounded',
-              hasSetupQualityScore || normalizedSetupGrade
-                ? 'bg-blue-500/20 text-blue-300'
-                : 'bg-white/10 text-white/60'
-            )}
-          >
-            Setup Quality: {setupQualityLabel}
           </span>
         </div>
       )}

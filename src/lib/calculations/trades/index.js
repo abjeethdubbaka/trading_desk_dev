@@ -12,6 +12,7 @@ export {
 } from './analytics/equity.js';
 export { calcStreaks, getDailySequence, calcMonthlyExpectedReturn } from './analytics/streaks.js';
 export {
+  perfByCategory,
   perfByDayOfWeek,
   perfByHoldDurationBuckets,
   perfByHourOfDay,

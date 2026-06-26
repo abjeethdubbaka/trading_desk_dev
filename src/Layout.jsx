@@ -16,7 +16,8 @@ import {
   Book,
   CheckCircle,
   BarChart3,
-  ScanSearch,
+  FileBarChart,
+  // ScanSearch, // only used by the commented-out Screenshot Analysis nav item
   NotebookPen,
   Wallet,
 } from 'lucide-react';
@@ -85,11 +86,18 @@ const navItems = [
     page: 'Performance',
   },
   {
-    name: 'Screenshot Analysis',
-    description: 'Inspect chart captures and summarize missed edge.',
-    icon: ScanSearch,
-    page: 'ScreenshotAnalysis',
+    name: 'Reports',
+    description: 'Monthly breakdowns of P&L, setups, and behavior with month-over-month comparison.',
+    icon: FileBarChart,
+    page: 'Reports',
   },
+  // Screenshot Analysis nav item — not in use, commented out, not deleted.
+  // {
+  //   name: 'Screenshot Analysis',
+  //   description: 'Inspect chart captures and summarize missed edge.',
+  //   icon: ScanSearch,
+  //   page: 'ScreenshotAnalysis',
+  // },
   {
     name: 'Finance',
     description: 'Daily spending, net worth, portfolio, and budget tracking.',

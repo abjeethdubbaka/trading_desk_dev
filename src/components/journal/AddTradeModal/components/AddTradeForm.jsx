@@ -9,7 +9,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Loader2 } from 'lucide-react';
+import { Loader2, Star } from 'lucide-react';
 import { cn } from "@/lib/utils";
 import DirectionToggle from './DirectionToggle';
 import PriceFields from './PriceFields';
@@ -18,7 +18,6 @@ import TradeMetrics from './TradeMetrics';
 import EmotionsSelect from './EmotionsSelect';
 import NotesFields from './NotesFields';
 import ScreenshotUpload from './ScreenshotUpload';
-import DosAndDontsSelector from './DosAndDontsSelector';
 import { SETUP_TYPE_OPTIONS as DEFAULT_SETUP_TYPE_OPTIONS } from '../constants/tradeConstants';
 import { TagSelector } from '../../components/TagSelector';
 
@@ -41,17 +40,18 @@ export default function AddTradeForm({
     presets,
     screenshotIds,
     uploading,
-    selectedRuleIds,
     setupTypeOptions = DEFAULT_SETUP_TYPE_OPTIONS,
-    strategyStepsForSetup = [],
-    strategyStepResults = [],
+    exitReasonOptions = [],
+    marketEnvironmentOptions = [],
+    stopLossReasonOptions = [],
+    mistakeOptions = [],
+    learningOptions = [],
     loading,
     handleSubmit,
     updateField,
     handleUploadFiles,
     handleRemoveById,
     handleReflectionChange,
-    handleStrategyStepResultChange = () => {},
     handleBreakoutChecklistChange,
     handleBreakoutMetaChange,
   } = controller;
@@ -112,7 +112,7 @@ export default function AddTradeForm({
         onExitChange={(value) => updateField('exit_time', value)}
       />
 
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
         <div className="space-y-2">
           <Label>Setup Type</Label>
           <Select
@@ -132,6 +132,66 @@ export default function AddTradeForm({
           </Select>
         </div>
 
+        <div className="space-y-2">
+          <Label>S/L Reason</Label>
+          <Select
+            value={formData.stop_loss_reason || ''}
+            onValueChange={(value) => updateField('stop_loss_reason', value)}
+          >
+            <SelectTrigger className="bg-white/5 border-white/10">
+              <SelectValue placeholder="Why this stop loss?" />
+            </SelectTrigger>
+            <SelectContent className="bg-[#1a1a24] border-white/10">
+              {stopLossReasonOptions.map((reason) => (
+                <SelectItem key={reason} value={reason}>
+                  {reason}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="space-y-2">
+          <Label>Exit Reason</Label>
+          <Select
+            value={formData.exit_reason || ''}
+            onValueChange={(value) => updateField('exit_reason', value)}
+          >
+            <SelectTrigger className="bg-white/5 border-white/10">
+              <SelectValue placeholder="Why did you exit?" />
+            </SelectTrigger>
+            <SelectContent className="bg-[#1a1a24] border-white/10">
+              {exitReasonOptions.map((reason) => (
+                <SelectItem key={reason} value={reason}>
+                  {reason}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="space-y-2">
+          <Label>Market Env</Label>
+          <Select
+            value={formData.market_condition || ''}
+            onValueChange={(value) => updateField('market_condition', value)}
+          >
+            <SelectTrigger className="bg-white/5 border-white/10">
+              <SelectValue placeholder="What was the market like?" />
+            </SelectTrigger>
+            <SelectContent className="bg-[#1a1a24] border-white/10">
+              {marketEnvironmentOptions.map((env) => (
+                <SelectItem key={env} value={env}>
+                  {env}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <div className="space-y-2">
           <Label>Cap</Label>
           <Select
@@ -206,23 +266,39 @@ export default function AddTradeForm({
       <NotesFields
         setupType={formData.setup_type}
         setupGrade={formData.setup_grade}
-        setupQualityScore={formData.setup_quality_score}
         breakoutChecklist={formData.breakout_checklist}
         reflectionAnswers={formData.reflection_answers}
-        strategySteps={strategyStepsForSetup}
-        strategyStepResults={strategyStepResults}
-        followedPlan={formData.followed_plan}
-        onFollowedPlanChange={(checked) => updateField('followed_plan', checked)}
+        mistakeOptions={mistakeOptions}
+        learningOptions={learningOptions}
         onReflectionChange={handleReflectionChange}
-        onStrategyStepResultChange={handleStrategyStepResultChange}
         onBreakoutChecklistChange={handleBreakoutChecklistChange}
         onBreakoutMetaChange={handleBreakoutMetaChange}
       />
 
-      <DosAndDontsSelector
-        selectedRuleIds={selectedRuleIds}
-        onSelectionChange={(ids) => updateField('dos_donts_rule_ids', ids)}
-      />
+      <div className="space-y-2">
+        <Label>O/R</Label>
+        <div className="flex h-10 items-center gap-1 rounded-md border border-white/10 bg-white/5 px-3">
+          {[1, 2, 3, 4, 5].map((star) => {
+            const filled = Number(formData.overall_rating) >= star;
+            return (
+              <button
+                key={star}
+                type="button"
+                onClick={() => updateField('overall_rating', formData.overall_rating === star ? null : star)}
+                className="p-0.5"
+                title={`${star} star${star === 1 ? '' : 's'}`}
+              >
+                <Star
+                  className={cn(
+                    'w-4 h-4 transition-colors',
+                    filled ? 'fill-amber-400 text-amber-400' : 'text-white/25'
+                  )}
+                />
+              </button>
+            );
+          })}
+        </div>
+      </div>
 
       <div className="flex justify-end gap-3 pt-4 border-t border-white/10">
         <Button

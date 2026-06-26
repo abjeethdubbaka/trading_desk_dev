@@ -14,7 +14,12 @@ export function stripCalculatorAutoNote(value) {
   return isCalculatorAutoNote(text) ? '' : text;
 }
 
-const toCleanText = (value) => String(value ?? '').trim();
+const toCleanText = (value) => {
+  if (Array.isArray(value)) {
+    return value.map((item) => String(item ?? '').trim()).filter(Boolean).join(', ');
+  }
+  return String(value ?? '').trim();
+};
 const firstNonEmptyText = (...values) => {
   for (const value of values) {
     const cleaned = toCleanText(value);

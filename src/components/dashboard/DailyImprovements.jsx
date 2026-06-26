@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { CalendarDays, CheckCircle2, ChevronDown, ChevronRight, CircleDashed, RefreshCw } from 'lucide-react';
 import { createPageUrl } from '@/utils';
 import { cn } from '@/lib/utils/general';
-import { loadDosAndDontsItems } from '@/components/dosanddonts/storage';
+import { useDosAndDonts } from '@/lib/hooks/useDosAndDonts';
 import InfoHint from '@/components/ui/InfoHint';
 
 const STORAGE_KEY = 'dashboard.dailyImprovements.v1';
@@ -110,7 +110,7 @@ function RuleList({
 
 export default function DailyImprovements() {
   const [collapsed, setCollapsed] = useState(true);
-  const [rules, setRules] = useState(() => loadDosAndDontsItems());
+  const { items: rules } = useDosAndDonts();
   const [entriesByDate, setEntriesByDate] = useState(() => loadEntries());
 
   const dayKey = todayKey();
@@ -118,19 +118,6 @@ export default function DailyImprovements() {
   useEffect(() => {
     saveEntries(entriesByDate);
   }, [entriesByDate]);
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return undefined;
-
-    const syncRules = () => setRules(loadDosAndDontsItems());
-    window.addEventListener('dosanddonts-updated', syncRules);
-    window.addEventListener('storage', syncRules);
-
-    return () => {
-      window.removeEventListener('dosanddonts-updated', syncRules);
-      window.removeEventListener('storage', syncRules);
-    };
-  }, []);
 
   const sortedRules = useMemo(
     () => [...(Array.isArray(rules) ? rules : [])].sort(sortByUsageThenTitle),

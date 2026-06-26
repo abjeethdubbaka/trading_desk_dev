@@ -10,6 +10,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import KeywordToggleGroup from './KeywordToggleGroup';
+import { DEFAULT_MISTAKES } from '@/lib/constants/mistakes';
+import { DEFAULT_LEARNINGS } from '@/lib/constants/learnings';
 
 const STEP_1_ITEMS = [
   { key: 'smoothVWAPPullback', label: 'Price pulls into VWAP smoothly' },
@@ -40,98 +43,6 @@ const SETUP_GRADES = [
   { value: 'D', label: 'D (Forced trade - skipped steps)' },
   { value: 'F', label: 'F (Revenge/tilt trade)' }
 ];
-
-const normalizeStepGrade = (value) => String(value ?? '').trim().toUpperCase();
-
-const buildStepGradeOptions = ({ stepLabel, stepGrade, relativeGrades, selectedStepGrade }) => {
-  const options = [];
-  const usedGrades = new Set();
-
-  const addOption = (grade, label) => {
-    const normalizedGrade = normalizeStepGrade(grade);
-    if (!normalizedGrade) return;
-    if (usedGrades.has(normalizedGrade)) return;
-    usedGrades.add(normalizedGrade);
-    options.push({
-      value: normalizedGrade,
-      label: String(label || normalizedGrade).trim(),
-    });
-  };
-
-  if (stepGrade) {
-    addOption(stepGrade, `${stepGrade}: ${stepLabel || 'Target execution'}`);
-  }
-
-  relativeGrades.forEach((mapping) => {
-    const mappingGrade = normalizeStepGrade(mapping?.grade);
-    const mappingLabel = String(mapping?.label ?? '').trim();
-    if (!mappingGrade) return;
-    addOption(mappingGrade, mappingLabel ? `${mappingGrade}: ${mappingLabel}` : mappingGrade);
-  });
-
-  SETUP_GRADES.forEach((grade) => {
-    addOption(grade.value, grade.label);
-  });
-
-  if (selectedStepGrade && !usedGrades.has(selectedStepGrade)) {
-    addOption(selectedStepGrade, selectedStepGrade);
-  }
-
-  return options;
-};
-
-const normalizeRelativeGradeMappings = (mappings) => (
-  Array.isArray(mappings)
-    ? mappings.map((mapping) => {
-      if (mapping && typeof mapping === 'object' && !Array.isArray(mapping)) {
-        const label = String(mapping.label ?? mapping.step ?? '').trim();
-        const grade = String(mapping.grade ?? '').trim().toUpperCase();
-        if (!label && !grade) return null;
-        return {
-          label,
-          grade,
-        };
-      }
-
-      const label = String(mapping ?? '').trim();
-      if (!label) return null;
-      return {
-        label,
-        grade: '',
-      };
-    }).filter(Boolean)
-    : []
-);
-
-const normalizeStrategySteps = (steps) => (
-  Array.isArray(steps)
-    ? steps.map((step) => {
-      if (step && typeof step === 'object' && !Array.isArray(step)) {
-        const label = String(step.label ?? step.step ?? '').trim();
-        if (!label) return null;
-        return {
-          label,
-          grade: String(step.grade ?? '').trim().toUpperCase(),
-          relativeGrades: normalizeRelativeGradeMappings(
-            step.relativeGrades
-            ?? step.relative_grades
-            ?? step.relatedGrades
-            ?? step.related_grades
-            ?? []
-          ),
-        };
-      }
-
-      const label = String(step ?? '').trim();
-      if (!label) return null;
-      return {
-        label,
-        grade: '',
-        relativeGrades: [],
-      };
-    }).filter(Boolean)
-    : []
-);
 
 const ChecklistStep = ({
   title,
@@ -211,34 +122,19 @@ const IMPROVEMENT_OPTIONS = [
   { value: 'other', label: 'Other' },
 ];
 
-const EXECUTION_OPTIONS = [
-  { value: 'excellent', label: 'Excellent' },
-  { value: 'good', label: 'Good' },
-  { value: 'average', label: 'Average' },
-  { value: 'poor', label: 'Poor' },
-];
-
 const NotesFields = ({
   setupType,
   setupGrade,
-  setupQualityScore,
   breakoutChecklist,
   reflectionAnswers,
-  strategySteps,
-  strategyStepResults,
-  followedPlan,
-  onFollowedPlanChange,
+  mistakeOptions = DEFAULT_MISTAKES,
+  learningOptions = DEFAULT_LEARNINGS,
   onReflectionChange,
-  onStrategyStepResultChange,
   onBreakoutChecklistChange,
   onBreakoutMetaChange
 }) => {
   const isVWAPPullback = (setupType || '').toLowerCase().trim() === 'vwap pullback';
-  const normalizedStrategySteps = normalizeStrategySteps(strategySteps);
-  const numericQualityScore = Number(setupQualityScore);
-  const hasQualityScore = Number.isFinite(numericQualityScore);
-  const showGenericStrategyChecklist = normalizedStrategySteps.length > 0;
-  const showLegacyVWAPChecklist = isVWAPPullback && normalizedStrategySteps.length === 0;
+  const showLegacyVWAPChecklist = isVWAPPullback;
 
   return (
     <>
@@ -247,24 +143,22 @@ const NotesFields = ({
         <p className="text-sm font-semibold text-white">Reflection</p>
 
         <div className="space-y-2">
-          <Label htmlFor="mistakes" className="text-xs text-white/80">Mistakes</Label>
-          <Textarea
-            id="mistakes"
-            value={reflectionAnswers?.what_went_wrong || ''}
-            onChange={(e) => onReflectionChange('what_went_wrong', e.target.value)}
-            placeholder="Example: Entered too early before confirmation, ignored stop discipline..."
-            className="bg-white/5 border-white/10 min-h-[72px] resize-y"
+          <Label className="text-xs text-white/80">Mistakes</Label>
+          <KeywordToggleGroup
+            options={mistakeOptions}
+            value={reflectionAnswers?.what_went_wrong}
+            onChange={(next) => onReflectionChange('what_went_wrong', next)}
+            emptyHint="No mistake keywords configured yet — add some in Settings."
           />
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="learning" className="text-xs text-white/80">Learning</Label>
-          <Textarea
-            id="learning"
-            value={reflectionAnswers?.what_learned || ''}
-            onChange={(e) => onReflectionChange('what_learned', e.target.value)}
-            placeholder="Example: Wait for full setup confirmation and keep risk fixed."
-            className="bg-white/5 border-white/10 min-h-[72px] resize-y"
+          <Label className="text-xs text-white/80">Learning</Label>
+          <KeywordToggleGroup
+            options={learningOptions}
+            value={reflectionAnswers?.what_learned}
+            onChange={(next) => onReflectionChange('what_learned', next)}
+            emptyHint="No learning keywords configured yet — add some in Settings."
           />
         </div>
 
@@ -286,124 +180,7 @@ const NotesFields = ({
             </SelectContent>
           </Select>
         </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <div className="space-y-2">
-            <Label className="text-xs text-white/80">Plan</Label>
-            <label className="flex h-10 items-center gap-2 rounded-md border border-white/10 bg-white/5 px-3">
-              <Checkbox
-                checked={Boolean(followedPlan)}
-                onCheckedChange={(checked) => onFollowedPlanChange?.(checked)}
-              />
-              <span className="text-sm text-white/80">Followed plan</span>
-            </label>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="execution" className="text-xs text-white/80">Execution</Label>
-            <Select
-              value={reflectionAnswers?.execution || ''}
-              onValueChange={(value) => onReflectionChange('execution', value)}
-            >
-              <SelectTrigger id="execution" className="bg-white/5 border-white/10">
-                <SelectValue placeholder="Rate your execution" />
-              </SelectTrigger>
-              <SelectContent className="bg-[#1a1a24] border-white/10">
-                {EXECUTION_OPTIONS.map((option) => (
-                  <SelectItem key={option.value} value={option.value}>
-                    {option.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-
-        <div className="rounded-md border border-cyan-500/20 bg-cyan-500/10 px-3 py-2">
-          <p className="text-[10px] uppercase tracking-[0.16em] text-cyan-200/80">Setup Quality</p>
-          <p className="mt-1 text-sm font-mono font-semibold text-cyan-200">
-            {hasQualityScore ? `${Math.round(numericQualityScore)}/100` : '--'}
-            {setupGrade ? <span className="ml-1.5 text-cyan-100/90">({setupGrade})</span> : null}
-          </p>
-          <p className="mt-1 text-[10px] text-cyan-100/70">
-            Auto-score from step grades, plan adherence, and risk compliance.
-          </p>
-        </div>
       </div>
-
-      {showGenericStrategyChecklist && (
-        <div className="space-y-3 border border-cyan-500/20 rounded-lg p-4 bg-cyan-500/5">
-          <p className="text-sm font-semibold text-cyan-300">STRATEGY CHECKLIST</p>
-          <p className="text-xs text-white/60">
-            Mark each step for <span className="text-white/80">{setupType || 'selected strategy'}</span>.
-          </p>
-
-          <div className="space-y-2.5">
-            {normalizedStrategySteps.map((step, index) => {
-              const currentValue = Array.isArray(strategyStepResults)
-                ? strategyStepResults[index]
-                : null;
-              const stepLabel = String(step?.label ?? '').trim();
-              const stepGrade = String(step?.grade ?? '').trim();
-              const selectedStepGrade = String(currentValue?.grade ?? '').trim().toUpperCase();
-              const relativeGrades = Array.isArray(step?.relativeGrades) ? step.relativeGrades : [];
-              const stepGradeOptions = buildStepGradeOptions({
-                stepLabel,
-                stepGrade,
-                relativeGrades,
-                selectedStepGrade,
-              });
-
-              return (
-                <div key={`strategy-step-${index}`} className="grid grid-cols-[1fr_220px] items-center gap-3 rounded-md border border-white/10 bg-white/5 px-2.5 py-2">
-                  <p className="text-xs text-white/85">
-                    <span className="text-white/55 mr-1.5">Step {index + 1}:</span>
-                    {stepLabel}
-                    {stepGrade ? (
-                      <span className="ml-2 inline-flex items-center rounded border border-cyan-400/30 bg-cyan-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-cyan-200">
-                        Target {stepGrade}
-                      </span>
-                    ) : null}
-                    {relativeGrades.length > 0 ? (
-                      <span className="mt-1 block text-[10px] text-cyan-100/70">
-                        {relativeGrades.map((mapping, mappingIndex) => {
-                          const mappingLabel = String(mapping?.label ?? '').trim();
-                          const mappingGrade = String(mapping?.grade ?? '').trim();
-                          if (!mappingLabel && !mappingGrade) return null;
-                          const summaryText = mappingGrade
-                            ? `${mappingGrade}: ${mappingLabel}`
-                            : mappingLabel;
-                          const suffix = mappingIndex < relativeGrades.length - 1 ? ' · ' : '';
-                          return `${summaryText}${suffix}`;
-                        }).filter(Boolean)}
-                      </span>
-                    ) : null}
-                  </p>
-                  <Select
-                    value={selectedStepGrade || 'none'}
-                    onValueChange={(value) => onStrategyStepResultChange(index, { grade: value === 'none' ? '' : value })}
-                  >
-                    <SelectTrigger className="h-8 bg-white/5 border-white/10 text-[11px]">
-                      <SelectValue placeholder="Actual grade" />
-                    </SelectTrigger>
-                    <SelectContent className="bg-[#1a1a24] border-white/10">
-                      <SelectItem value="none">No grade</SelectItem>
-                      {stepGradeOptions.map((gradeOption) => (
-                        <SelectItem
-                          key={`strategy-step-result-grade-${index}-${gradeOption.value}`}
-                          value={gradeOption.value}
-                        >
-                          {gradeOption.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
 
       {showLegacyVWAPChecklist && (
         <>

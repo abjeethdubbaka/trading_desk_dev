@@ -21,6 +21,7 @@ export const TradeSchema = {
     
     // Risk Management
     'stop_loss',
+    'stop_loss_reason',
     'target_price',
     'risk_amount',
     'position_size_percent',
@@ -28,6 +29,7 @@ export const TradeSchema = {
     
     // Timing
     'exit_time',
+    'exit_reason',
     'hold_duration_minutes',
     
     // Financials
@@ -57,6 +59,7 @@ export const TradeSchema = {
     'plan_rating',
     'entry_quality',
     'exit_quality',
+    'overall_rating',
     
     // Media & Screenshots
     'screenshot_url',

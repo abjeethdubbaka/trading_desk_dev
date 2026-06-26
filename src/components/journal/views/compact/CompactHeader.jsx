@@ -71,7 +71,7 @@ export function CompactHeader({
       <div className="mr-2 w-5 flex-shrink-0" />
 
       <div className="w-[82px] flex-shrink-0">
-        <SortableHeader label="Date/Time" sortKey="date" {...sortProps} />
+        <SortableHeader label="Date/Time/Duration" sortKey="date" {...sortProps} />
       </div>
       <div className="w-[110px] flex-shrink-0">
         <SortableHeader label="Symbol" sortKey="symbol" {...sortProps} />
@@ -92,24 +92,26 @@ export function CompactHeader({
       <div className={cn('w-[110px] flex-shrink-0', columns?.setup ? 'hidden xl:block' : 'hidden')}>
         <SortableHeader label="Setup" sortKey="setup" {...sortProps} />
       </div>
+      <div className="w-16 flex-shrink-0">
+        <ColLabel>Tags</ColLabel>
+      </div>
+      <div className={cn('w-[110px] flex-shrink-0', columns?.exitReason ? 'hidden xl:block' : 'hidden')}>
+        <ColLabel>Exit Reason</ColLabel>
+      </div>
+      <div className={cn('w-[120px] flex-shrink-0', columns?.stopLossReason ? 'hidden xl:block' : 'hidden')}>
+        <ColLabel>S/L Reason</ColLabel>
+      </div>
+      <div className={cn('w-[120px] flex-shrink-0', columns?.marketEnvironment ? 'hidden xl:block' : 'hidden')}>
+        <ColLabel>M/E</ColLabel>
+      </div>
+
       <div className={cn('w-[120px] flex-shrink-0', columns?.emotions ? 'hidden xl:block' : 'hidden')}>
         <ColLabel>Emotions</ColLabel>
       </div>
-      <div className={cn('w-[90px] flex-shrink-0', columns?.quality ? 'hidden xl:block' : 'hidden')}>
-        <ColLabel>Quality</ColLabel>
+      <div className={cn('w-[90px] flex-shrink-0', columns?.overallRating ? 'hidden xl:block' : 'hidden')}>
+        <ColLabel>Rating</ColLabel>
       </div>
-      <div className={cn('w-[120px] flex-shrink-0', columns?.plan ? 'hidden xl:block' : 'hidden')}>
-        <ColLabel>Plan</ColLabel>
-      </div>
-      <div className={cn('w-[80px] flex-shrink-0', columns?.duration ? 'hidden xl:block' : 'hidden')}>
-        <ColLabel>Duration</ColLabel>
-      </div>
-      <div className={cn('w-[80px] flex-shrink-0', columns?.execution ? 'hidden xl:block' : 'hidden')}>
-        <ColLabel>Execution</ColLabel>
-      </div>
-
-      <div className="w-20 flex-shrink-0 flex items-center gap-2">
-        <ColLabel>Tags</ColLabel>
+      <div className="w-10 flex-shrink-0">
         <ColLabel>Img</ColLabel>
       </div>
       <div className="hidden lg:block w-[60px] flex-shrink-0">

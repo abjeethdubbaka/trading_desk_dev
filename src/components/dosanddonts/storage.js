@@ -1,24 +1,13 @@
-import { getDefaultItems } from './utils';
+import { db } from '@/lib/db';
+import { createDosAndDontsService } from '@/lib/services/DosAndDontsService';
 
-export const DOS_AND_DONTS_STORAGE_KEY = 'dosAndDonts';
+const dosAndDontsService = createDosAndDontsService(db);
 
 const normalizeText = (value) => String(value || '').trim().replace(/\s+/g, ' ');
 const normalizeUsageCount = (value) => {
   const numeric = Number(value);
   if (!Number.isFinite(numeric) || numeric <= 0) return 0;
   return Math.floor(numeric);
-};
-const normalizeRuleItem = (item) => ({
-  ...item,
-  usage_count: normalizeUsageCount(item?.usage_count),
-  last_used_at: item?.last_used_at || null,
-});
-const normalizeRuleItems = (items) => (
-  Array.isArray(items) ? items.map((item) => normalizeRuleItem(item)) : []
-);
-const dispatchDosAndDontsUpdated = (detail = {}) => {
-  if (typeof window === 'undefined') return;
-  window.dispatchEvent(new CustomEvent('dosanddonts-updated', { detail }));
 };
 const appendUnique = (list, text) => {
   const normalized = normalizeText(text);
@@ -45,33 +34,14 @@ const buildRuleTitle = (note, type) => {
 };
 
 export function loadDosAndDontsItems() {
-  if (typeof window === 'undefined' || !window.localStorage) {
-    return normalizeRuleItems(getDefaultItems());
-  }
-
-  try {
-    const stored = localStorage.getItem(DOS_AND_DONTS_STORAGE_KEY);
-    const parsed = stored ? JSON.parse(stored) : null;
-    return normalizeRuleItems(Array.isArray(parsed) ? parsed : getDefaultItems());
-  } catch {
-    return normalizeRuleItems(getDefaultItems());
-  }
+  return dosAndDontsService.getItems();
 }
 
 export function saveDosAndDontsItems(items) {
-  if (typeof window === 'undefined' || !window.localStorage) {
-    return false;
-  }
-
-  try {
-    localStorage.setItem(DOS_AND_DONTS_STORAGE_KEY, JSON.stringify(items));
-    return true;
-  } catch {
-    return false;
-  }
+  return dosAndDontsService.saveItems(items);
 }
 
-export function addRuleFromTradeNote({ trade, type = 'do', note } = {}) {
+export async function addRuleFromTradeNote({ trade, type = 'do', note } = {}) {
   try {
     const normalizedType = type === 'dont' ? 'dont' : 'do';
     const noteText = normalizeText(note ?? trade?.notes);
@@ -80,7 +50,7 @@ export function addRuleFromTradeNote({ trade, type = 'do', note } = {}) {
       return { ok: false, reason: 'empty_note' };
     }
 
-    const items = loadDosAndDontsItems();
+    const items = await loadDosAndDontsItems();
     const descriptionKey = noteText.toLowerCase();
     const duplicateItem = items.find((item) => (
       item?.type === normalizedType
@@ -120,12 +90,7 @@ export function addRuleFromTradeNote({ trade, type = 'do', note } = {}) {
     };
 
     const nextItems = [...items, newItem];
-    const saved = saveDosAndDontsItems(nextItems);
-    if (!saved) {
-      return { ok: false, reason: 'storage_error' };
-    }
-
-    dispatchDosAndDontsUpdated({ action: 'create', item: newItem });
+    await saveDosAndDontsItems(nextItems);
 
     return { ok: true, item: newItem };
   } catch {
@@ -133,7 +98,7 @@ export function addRuleFromTradeNote({ trade, type = 'do', note } = {}) {
   }
 }
 
-export function syncRuleUsageCounts({ previousRuleIds = [], nextRuleIds = [] } = {}) {
+export async function syncRuleUsageCounts({ previousRuleIds = [], nextRuleIds = [] } = {}) {
   const previousUnique = [...new Set(
     (Array.isArray(previousRuleIds) ? previousRuleIds : [])
       .map((id) => String(id || '').trim())
@@ -151,55 +116,50 @@ export function syncRuleUsageCounts({ previousRuleIds = [], nextRuleIds = [] } =
     return { ok: true, changed: false, addedIds: [], removedIds: [] };
   }
 
-  const items = loadDosAndDontsItems();
-  const nowISO = new Date().toISOString();
-  let touched = 0;
+  try {
+    const items = await loadDosAndDontsItems();
+    const nowISO = new Date().toISOString();
+    let touched = 0;
 
-  const nextItems = items.map((item) => {
-    const ruleId = String(item?.id || '');
-    if (!ruleId) return item;
+    const nextItems = items.map((item) => {
+      const ruleId = String(item?.id || '');
+      if (!ruleId) return item;
 
-    if (addedIds.includes(ruleId)) {
-      touched += 1;
-      return {
-        ...item,
-        usage_count: normalizeUsageCount(item?.usage_count) + 1,
-        last_used_at: nowISO,
-      };
+      if (addedIds.includes(ruleId)) {
+        touched += 1;
+        return {
+          ...item,
+          usage_count: normalizeUsageCount(item?.usage_count) + 1,
+          last_used_at: nowISO,
+        };
+      }
+
+      if (removedIds.includes(ruleId)) {
+        touched += 1;
+        return {
+          ...item,
+          usage_count: Math.max(0, normalizeUsageCount(item?.usage_count) - 1),
+        };
+      }
+
+      return item;
+    });
+
+    if (touched === 0) {
+      return { ok: true, changed: false, addedIds: [], removedIds: [] };
     }
 
-    if (removedIds.includes(ruleId)) {
-      touched += 1;
-      return {
-        ...item,
-        usage_count: Math.max(0, normalizeUsageCount(item?.usage_count) - 1),
-      };
-    }
+    await saveDosAndDontsItems(nextItems);
 
-    return item;
-  });
-
-  if (touched === 0) {
-    return { ok: true, changed: false, addedIds: [], removedIds: [] };
-  }
-
-  const saved = saveDosAndDontsItems(nextItems);
-  if (!saved) {
+    return {
+      ok: true,
+      changed: true,
+      addedIds,
+      removedIds,
+    };
+  } catch {
     return { ok: false, reason: 'storage_error', addedIds, removedIds };
   }
-
-  dispatchDosAndDontsUpdated({
-    action: 'usage-sync',
-    addedIds,
-    removedIds,
-  });
-
-  return {
-    ok: true,
-    changed: true,
-    addedIds,
-    removedIds,
-  };
 }
 
 export function getRuleSuggestionsFromTrade(trade = {}) {

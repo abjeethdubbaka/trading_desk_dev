@@ -11,6 +11,7 @@ import { firebaseConfig } from '@/config/firebaseEnv.js';
 import { createTradesAdapter } from './trades.js';
 import { createSettingsAdapter, createSettingsPresetsAdapter } from './settings.js';
 import { createCalcHistoryAdapter, createWatchlistAdapter, createMediaAdapter, createMinimalAdapters } from './collections.js';
+import { createDosAndDontsAdapter } from './dosAndDonts.js';
 import { createFinanceAdapter } from './finance.js';
 
 // Initialize Firebase
@@ -26,6 +27,7 @@ const watchlist = createWatchlistAdapter(db);
 const media = createMediaAdapter(db);
 const minimalAdapters = createMinimalAdapters();
 const finance = createFinanceAdapter(db);
+const dosAndDonts = createDosAndDontsAdapter(db);
 
 // ─── Export ───────────────────────────────────────────────────────────────────
 
@@ -38,6 +40,7 @@ export const firebaseSimpleAdapter = {
   watchlist,
   media,
   finance,
+  dosAndDonts,
   ...minimalAdapters
 };
 

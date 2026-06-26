@@ -8,9 +8,7 @@ import {
   ExternalLink,
   Eye,
   Image,
-  ListOrdered,
   Pencil,
-  Plus,
   RefreshCw,
   Search,
   Shield,
@@ -90,7 +88,6 @@ function toFormState(entry) {
         }))
       : [{ title: '', url: '', note: '' }],
     images: Array.isArray(normalized.images) ? normalized.images : [],
-    steps: Array.isArray(normalized.steps) ? normalized.steps : [],
     risk_level: normalized.risk_level || 'normal',
     is_active: normalized.is_active !== false,
   };
@@ -147,9 +144,6 @@ function toEntryPayload(formState, sourceEntry = null) {
         note: String(example?.note || '').trim(),
       })),
     images: Array.isArray(formState.images) ? formState.images : [],
-    steps: (Array.isArray(formState.steps) ? formState.steps : [])
-      .map((s) => ({ label: String(s?.label ?? '').trim(), grade: String(s?.grade ?? '') }))
-      .filter((s) => s.label),
     risk_level: formState.risk_level || 'normal',
     is_active: formState.is_active !== false,
     updated_at: now,
@@ -388,30 +382,6 @@ function PlaybookCard({
           toneClassName="text-rose-200/90"
         />
       </div>
-
-      {Array.isArray(entry.steps) && entry.steps.length > 0 && (
-        <div className="mt-3 rounded-xl border border-white/10 bg-black/25 px-3 py-2.5">
-          <p className="flex items-center gap-1.5 text-[10px] uppercase tracking-[0.13em] text-indigo-200/90 mb-2">
-            <ListOrdered className="h-3.5 w-3.5" />
-            Strategy Steps
-          </p>
-          <div className="space-y-1.5">
-            {entry.steps.map((step, i) => (
-              <div key={i} className="flex items-start gap-2.5">
-                <span className="mt-0.5 flex h-4.5 w-4.5 flex-shrink-0 items-center justify-center rounded-full bg-indigo-500/20 text-[9px] font-bold text-indigo-300 leading-none pt-px" style={{ minWidth: '18px', minHeight: '18px' }}>
-                  {i + 1}
-                </span>
-                <span className="flex-1 text-xs text-white/85">{step.label}</span>
-                {step.grade && (
-                  <span className="flex-shrink-0 rounded px-1.5 py-0.5 text-[9px] font-semibold bg-indigo-500/15 text-indigo-300 border border-indigo-500/20">
-                    {step.grade}
-                  </span>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
 
       {Array.isArray(entry.examples) && entry.examples.length > 0 ? (
         <div className="mt-3 rounded-xl border border-white/10 bg-black/25 p-2.5">
@@ -716,75 +686,6 @@ function EntryEditorDialog({
                 placeholder="One line per invalidation"
                 className="min-h-[120px] w-full rounded-xl border border-white/12 bg-white/[0.03] px-3 py-2 text-sm text-white outline-none placeholder:text-white/35 focus:border-rose-300/40"
               />
-            </div>
-          </div>
-
-          {/* Strategy Steps */}
-          <div className="space-y-2 rounded-xl border border-white/10 bg-black/20 p-3">
-            <div className="flex items-center justify-between gap-2">
-              <Label className="flex items-center gap-1.5">
-                <ListOrdered className="w-3.5 h-3.5 opacity-60" />
-                Strategy Steps
-              </Label>
-              <Button
-                type="button"
-                size="sm"
-                variant="ghost"
-                className="h-7 text-xs"
-                onClick={() => setFormState((prev) => ({
-                  ...prev,
-                  steps: [...(prev.steps || []), { label: '', grade: '' }],
-                }))}
-              >
-                <Plus className="w-3 h-3 mr-1" />
-                Add Step
-              </Button>
-            </div>
-            {(formState.steps || []).length === 0 && (
-              <p className="text-[11px] text-white/30 py-1">No steps yet. Add execution steps that define this setup's process.</p>
-            )}
-            <div className="space-y-2">
-              {(formState.steps || []).map((step, index) => (
-                <div key={index} className="flex items-center gap-2">
-                  <span className="flex-shrink-0 w-5 h-5 flex items-center justify-center rounded-full bg-indigo-500/20 text-[9px] font-bold text-indigo-300">
-                    {index + 1}
-                  </span>
-                  <Input
-                    value={step.label}
-                    onChange={(e) => setFormState((prev) => {
-                      const next = [...(prev.steps || [])];
-                      next[index] = { ...next[index], label: e.target.value };
-                      return { ...prev, steps: next };
-                    })}
-                    placeholder={`Step ${index + 1} description`}
-                    className="flex-1 h-8 bg-white/[0.03] border-white/12 text-sm"
-                  />
-                  <select
-                    value={step.grade || ''}
-                    onChange={(e) => setFormState((prev) => {
-                      const next = [...(prev.steps || [])];
-                      next[index] = { ...next[index], grade: e.target.value };
-                      return { ...prev, steps: next };
-                    })}
-                    className="h-8 rounded-lg border border-white/12 bg-[#0d1520] text-xs text-white/80 px-2 flex-shrink-0 w-24"
-                  >
-                    <option value="">No grade</option>
-                    {['A++', 'A+', 'A', 'B', 'C', 'D', 'F'].map((g) => (
-                      <option key={g} value={g}>{g}</option>
-                    ))}
-                  </select>
-                  <button
-                    type="button"
-                    onClick={() => setFormState((prev) => ({
-                      ...prev,
-                      steps: (prev.steps || []).filter((_, i) => i !== index),
-                    }))}
-                    className="flex-shrink-0 h-8 w-8 flex items-center justify-center rounded-lg border border-white/10 text-white/30 hover:border-rose-500/30 hover:text-rose-400 transition-colors"
-                  >
-                    <X className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              ))}
             </div>
           </div>
 

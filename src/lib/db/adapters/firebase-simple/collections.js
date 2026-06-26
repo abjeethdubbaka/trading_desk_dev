@@ -122,10 +122,6 @@ export function createMediaAdapter(db) {
 // Minimal implementations for other collections
 export function createMinimalAdapters() {
   return {
-    dosAndDonts: {
-      async get() { return { items: [] }; },
-      async save(data) { return data; }
-    },
     knowledgeBase: {
       async get() { return { items: [] }; },
       async save(data) { return data; }

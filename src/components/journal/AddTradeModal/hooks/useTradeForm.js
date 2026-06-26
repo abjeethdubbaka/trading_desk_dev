@@ -23,6 +23,14 @@ const normalizeEmotionValue = (value) => {
   return DEFAULT_EMOTION;
 };
 
+const normalizeKeywordList = (value) => {
+  if (Array.isArray(value)) {
+    return [...new Set(value.map((item) => String(item ?? '').trim()).filter(Boolean))];
+  }
+  const text = String(value ?? '').trim();
+  return text ? [text] : [];
+};
+
 const normalizeStrategyStepFollowed = (value) => {
   if (value?.followed === true || value === true) return true;
   if (value?.followed === false || value === false) return false;
@@ -45,13 +53,12 @@ const normalizeStrategyStepResults = (results) => (
     : []
 );
 
-export const useTradeForm = (initialData, userId = PLACEHOLDER_USER_ID, defaultTags = []) => {
+export const useTradeForm = (initialData, userId = PLACEHOLDER_USER_ID, defaultTags = [], open = true) => {
   const normalizedDefaultTags = Array.isArray(defaultTags) ? defaultTags : [];
   const getDefaultReflectionAnswers = () => ({
-    what_went_wrong: '',
-    what_learned: '',
+    what_went_wrong: [],
+    what_learned: [],
     improvements: '',
-    execution: ''
   });
 
   const defaultBreakoutChecklist = {
@@ -85,13 +92,17 @@ export const useTradeForm = (initialData, userId = PLACEHOLDER_USER_ID, defaultT
     direction: 'long',
     entry_price: '',
     exit_price: '',
+    exit_reason: '',
     stop_loss: '',
+    stop_loss_reason: '',
     position_size: '',
     entry_time: getCurrentLocalDateTime(),
     exit_time: '',
     fee: '',
     setup_type: '',
     custom_setup_type: '',
+    market_condition: '',
+    overall_rating: null,
     notes: '',
     emotions: DEFAULT_EMOTION,
     followed_plan: true,
@@ -137,13 +148,19 @@ export const useTradeForm = (initialData, userId = PLACEHOLDER_USER_ID, defaultT
         const parsed = parseOptionalPositiveNumber(initialData.exit_price);
         return parsed == null ? '' : parsed.toString();
       })(),
+      exit_reason: initialData.exit_reason || '',
       stop_loss: initialData.stop_loss?.toString() || '',
+      stop_loss_reason: initialData.stop_loss_reason || '',
       position_size: (initialData.position_size ?? initialData.quantity)?.toString() || '',
       entry_time: entryTimeLocal || getCurrentLocalDateTime(),
       exit_time: exitTimeLocal || '',
       fee: (initialData.fee ?? initialData.commission)?.toString() || '',
       setup_type: initialData.setup_type || '',
       custom_setup_type: initialData.custom_setup_type || '',
+      market_condition: initialData.market_condition || '',
+      overall_rating: Number.isFinite(Number(initialData.overall_rating))
+        ? Number(initialData.overall_rating)
+        : null,
       notes: stripCalculatorAutoNote(initialData.notes),
       emotions: normalizeEmotionValue(initialData.emotions),
       followed_plan: initialData.followed_plan ?? true,
@@ -151,7 +168,9 @@ export const useTradeForm = (initialData, userId = PLACEHOLDER_USER_ID, defaultT
       lessons: initialData.lessons || '',
       reflection_answers: {
         ...getDefaultReflectionAnswers(),
-        ...(initialData.reflection_answers || {})
+        ...(initialData.reflection_answers || {}),
+        what_went_wrong: normalizeKeywordList(initialData.reflection_answers?.what_went_wrong),
+        what_learned: normalizeKeywordList(initialData.reflection_answers?.what_learned),
       },
       setup_grade: initialData.setup_grade || '',
       setup_quality_score: Number.isFinite(Number(initialData.setup_quality_score))
@@ -198,8 +217,12 @@ export const useTradeForm = (initialData, userId = PLACEHOLDER_USER_ID, defaultT
     };
   }, [initialData?.id]); // Only depend on the ID, not the whole object
 
-  // Apply initial form data when it changes
+  // Apply initial form data whenever the modal opens — guarantees a fresh
+  // blank form (with current default tags) for every new "Add Trade" session,
+  // instead of leaking the previous trade's leftover state.
   useEffect(() => {
+    if (!open) return;
+
     if (initialFormData) {
       setFormData(initialFormData);
       return;
@@ -210,13 +233,17 @@ export const useTradeForm = (initialData, userId = PLACEHOLDER_USER_ID, defaultT
       direction: 'long',
       entry_price: '',
       exit_price: '',
+      exit_reason: '',
       stop_loss: '',
+      stop_loss_reason: '',
       position_size: '',
       entry_time: getCurrentLocalDateTime(),
       exit_time: '',
       fee: '',
       setup_type: '',
       custom_setup_type: '',
+      market_condition: '',
+      overall_rating: null,
       notes: '',
       emotions: DEFAULT_EMOTION,
       followed_plan: true,
@@ -239,7 +266,7 @@ export const useTradeForm = (initialData, userId = PLACEHOLDER_USER_ID, defaultT
       share_float_range: null,
       tags: [...normalizedDefaultTags],
     });
-  }, [initialFormData, normalizedDefaultTags]);
+  }, [open, initialFormData, normalizedDefaultTags]);
 
   const updateField = useCallback((field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -251,13 +278,17 @@ export const useTradeForm = (initialData, userId = PLACEHOLDER_USER_ID, defaultT
       direction: 'long',
       entry_price: '',
       exit_price: '',
+      exit_reason: '',
       stop_loss: '',
+      stop_loss_reason: '',
       position_size: '',
       entry_time: getCurrentLocalDateTime(),
       exit_time: '',
       fee: '',
       setup_type: '',
       custom_setup_type: '',
+      market_condition: '',
+      overall_rating: null,
       notes: '',
       emotions: DEFAULT_EMOTION,
       followed_plan: true,
@@ -299,10 +330,9 @@ export const useTradeForm = (initialData, userId = PLACEHOLDER_USER_ID, defaultT
 
     const reflectionAnswers = formData.reflection_answers || {};
     const normalizedReflectionAnswers = {
-      what_went_wrong: String(reflectionAnswers.what_went_wrong || '').trim(),
-      what_learned: String(reflectionAnswers.what_learned || '').trim(),
+      what_went_wrong: normalizeKeywordList(reflectionAnswers.what_went_wrong),
+      what_learned: normalizeKeywordList(reflectionAnswers.what_learned),
       improvements: String(reflectionAnswers.improvements || '').trim(),
-      execution: String(reflectionAnswers.execution || '').trim(),
       outcome:
         pnl < 0 ? 'loss' :
         pnl > 0 ? 'profit' :
@@ -323,7 +353,13 @@ export const useTradeForm = (initialData, userId = PLACEHOLDER_USER_ID, defaultT
       symbol: formData.symbol.toUpperCase().trim(),
       entry_price: parseFloat(formData.entry_price) || 0,
       exit_price: normalizedExitPrice,
+      exit_reason: formData.exit_reason ? String(formData.exit_reason).trim() : null,
+      market_condition: formData.market_condition ? String(formData.market_condition).trim() : null,
+      overall_rating: Number.isFinite(Number(formData.overall_rating))
+        ? Number(formData.overall_rating)
+        : null,
       stop_loss: formData.stop_loss ? parseFloat(formData.stop_loss) : null,
+      stop_loss_reason: formData.stop_loss_reason ? String(formData.stop_loss_reason).trim() : null,
       position_size: parseInt(formData.position_size, 10) || 0,
       quantity: parseInt(formData.position_size, 10) || 0, // Map position_size to quantity
       pnl,

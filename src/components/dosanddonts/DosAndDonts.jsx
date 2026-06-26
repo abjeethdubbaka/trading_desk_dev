@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { SearchAndFilters } from './components/SearchAndFilters';
 import { RuleCard } from './components/RuleCard';
 import { EmptyState } from './components/EmptyState';
@@ -6,7 +6,7 @@ import { RuleModal } from './components/RuleModal';
 import { Stats } from './components/Stats';
 import { CATEGORIES } from './constants';
 import { getDefaultItems } from './utils';
-import { loadDosAndDontsItems, saveDosAndDontsItems } from './storage';
+import { useDosAndDonts } from '@/lib/hooks/useDosAndDonts';
 
 const PRIORITY_WEIGHT = { high: 3, medium: 2, low: 1 };
 
@@ -19,38 +19,9 @@ export default function DosAndDonts() {
   const [showFilters, setShowFilters] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
-  const [items, setItems] = useState([]);
-  const [isHydrated, setIsHydrated] = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);
 
-  // Load items from localStorage
-  useEffect(() => {
-    setItems(loadDosAndDontsItems());
-    setIsHydrated(true);
-  }, []);
-
-  // Save items to localStorage
-  useEffect(() => {
-    if (!isHydrated) return;
-    saveDosAndDontsItems(items);
-  }, [items, isHydrated]);
-
-  // Sync rules saved from other screens (e.g., Journal note -> Dos/Don't).
-  useEffect(() => {
-    if (typeof window === 'undefined') return undefined;
-
-    const syncFromStorage = () => {
-      setItems(loadDosAndDontsItems());
-    };
-
-    window.addEventListener('dosanddonts-updated', syncFromStorage);
-    window.addEventListener('storage', syncFromStorage);
-
-    return () => {
-      window.removeEventListener('dosanddonts-updated', syncFromStorage);
-      window.removeEventListener('storage', syncFromStorage);
-    };
-  }, []);
+  const { items, setItems } = useDosAndDonts();
 
   const filteredItems = useMemo(() => {
     const normalizedQuery = searchQuery.trim().toLowerCase();

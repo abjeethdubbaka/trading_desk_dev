@@ -46,7 +46,7 @@ export default function SettingsPage() {
   }, [fieldDrafts, savePending]);
 
   return (
-    <div className="space-y-6 max-w-[1040px]">
+    <div className="space-y-6 w-full">
       <SettingsHeader
         handleSave={handleSave}
         isSaving={isSaving}
@@ -74,7 +74,7 @@ export default function SettingsPage() {
           />
         </TabsContent>
 
-        <TabsContent value="risk" className="mt-5 max-w-[980px]">
+        <TabsContent value="risk" className="mt-5">
           <RiskSettingsTab
             settings={settings}
             updateFields={updateFields}
