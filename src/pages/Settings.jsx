@@ -8,8 +8,6 @@ import React, { useCallback } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useSettings } from '@/lib/context/SettingsContext';
 import { useAuth } from '@/lib/context/AuthContext';
-import FloatCategoriesSettings from '@/components/settings/FloatCategoriesSettings';
-import FloatTargetSettings from '@/components/settings/FloatTargetSettings';
 import SettingsHeader from '@/components/settings/SettingsHeader';
 import AccountSettingsTab from '@/components/settings/AccountSettingsTab';
 import RiskSettingsTab from '@/components/settings/RiskSettingsTab';
@@ -59,7 +57,6 @@ export default function SettingsPage() {
         <TabsList className="bg-white/5 border border-white/10">
           <TabsTrigger value="account">Account</TabsTrigger>
           <TabsTrigger value="risk">Defaults</TabsTrigger>
-          <TabsTrigger value="float">Float</TabsTrigger>
           <TabsTrigger value="data">Data</TabsTrigger>
         </TabsList>
 
@@ -84,11 +81,6 @@ export default function SettingsPage() {
             commitDraftField={fieldDrafts.commitDraftField}
             isLoading={isLoading}
           />
-        </TabsContent>
-
-        <TabsContent value="float" className="mt-5 space-y-5 max-w-[980px]">
-          <FloatTargetSettings />
-          <FloatCategoriesSettings />
         </TabsContent>
 
         <TabsContent value="data" className="mt-5 max-w-[860px]">

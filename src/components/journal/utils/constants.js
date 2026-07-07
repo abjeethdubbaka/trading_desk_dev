@@ -14,11 +14,6 @@ export const DATE_RANGE_OPTIONS = [
   { value: 'lastMonth', label: 'Last Month' }
 ];
 
-export const VIEW_MODES = {
-  COMPACT: 'compact',
-  DETAILED: 'detailed'
-};
-
 export const TRADE_DIRECTIONS = {
   LONG: 'long',
   SHORT: 'short'

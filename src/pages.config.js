@@ -55,11 +55,12 @@ const Dashboard = lazy(() => import('./pages/Dashboard'));
 const Journal = lazy(() => import('./pages/Journal'));
 const Settings = lazy(() => import('./pages/Settings'));
 const CalcHistory = lazy(() => import('./pages/CalcHistory'));
-const KnowledgeBase = lazy(() => import('./pages/KnowledgeBase'));
+// const KnowledgeBase = lazy(() => import('./pages/KnowledgeBase')); // retired — replaced by Informative Images, commented out, not deleted
 const DosAndDonts = lazy(() => import('./pages/DosAndDonts'));
 const Performance = lazy(() => import('./pages/Performance'));
 const Reports = lazy(() => import('./pages/Reports'));
 // const ScreenshotAnalysis = lazy(() => import('./pages/ScreenshotAnalysis')); // not in use — commented out, not deleted
+const InformativeImages = lazy(() => import('./pages/InformativeImages'));
 const Playbook = lazy(() => import('./pages/Playbook'));
 const Notes = lazy(() => import('./pages/Notes'));
 const Finance = lazy(() => import('./pages/Finance'));
@@ -75,9 +76,10 @@ export const PAGE_PRELOADERS = {
   Calculator:         () => import('./pages/Calculator'),
   CalcHistory:        () => import('./pages/CalcHistory'),
   Settings:           () => import('./pages/Settings'),
-  Knowledge:          () => import('./pages/KnowledgeBase'),
+  // Knowledge: () => import('./pages/KnowledgeBase'), // retired — replaced by Informative Images, commented out, not deleted
   DosAndDonts:        () => import('./pages/DosAndDonts'),
   // ScreenshotAnalysis: () => import('./pages/ScreenshotAnalysis'), // not in use — commented out, not deleted
+  InformativeImages:  () => import('./pages/InformativeImages'),
   Playbook:           () => import('./pages/Playbook'),
   Finance:            () => import('./pages/Finance'),
 };
@@ -88,11 +90,12 @@ export const PAGES = {
     "Calculator": Calculator,
     "Settings": Settings,
     "CalcHistory": CalcHistory,
-    "Knowledge": KnowledgeBase,
+    // "Knowledge": KnowledgeBase, // retired — replaced by Informative Images, commented out, not deleted
     "DosAndDonts": DosAndDonts,
     "Performance": Performance,
     "Reports": Reports,
     // "ScreenshotAnalysis": ScreenshotAnalysis, // not in use — commented out, not deleted
+    "InformativeImages": InformativeImages,
     "Playbook": Playbook,
     "Notes": Notes,
     "Finance": Finance,

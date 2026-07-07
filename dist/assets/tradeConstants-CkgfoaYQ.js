@@ -1,0 +1,6 @@
+import{b as c}from"./index-eUnLejaQ.js";/**
+ * @license lucide-react v0.475.0 - ISC
+ *
+ * This source code is licensed under the ISC license.
+ * See the LICENSE file in the root directory of this source tree.
+ */const u=[["polyline",{points:"15 3 21 3 21 9",key:"mznyad"}],["polyline",{points:"9 21 3 21 3 15",key:"1avn1i"}],["line",{x1:"21",x2:"14",y1:"3",y2:"10",key:"ota7mn"}],["line",{x1:"3",x2:"10",y1:"21",y2:"14",key:"1atl0r"}]],T=c("Maximize2",u),m={LONG:"long",SHORT:"short"},v=[{value:"confident",label:"Confident",color:"emerald"},{value:"disciplined",label:"Disciplined",color:"blue"},{value:"neutral",label:"Neutral",color:"gray"},{value:"nervous",label:"Nervous",color:"amber"},{value:"fomo",label:"FOMO",color:"orange"},{value:"revenge",label:"Revenge",color:"red"}],t=["VWAP Pullback","Breakout","Pullback","Trend Continuation","Reversal","Range Break","Momentum","Scalp","Swing"],d="Manual",y=(e,a=t)=>{const i=Array.isArray(e)&&e.length>0?e:a,l=new Set,n=[];return i.forEach(s=>{const o=String(s??"").trim();if(!o||o.toLowerCase()===d.toLowerCase())return;const r=o.toLowerCase();l.has(r)||(l.add(r),n.push(o))}),n.length>0?n:[...a]},S=e=>[...y(e)],P=S(t);export{m as D,v as E,T as M,P as S,y as s};

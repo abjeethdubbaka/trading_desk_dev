@@ -10,7 +10,6 @@ export default function CompactView({
   onDelete,
   onInlineUpdateTrade,
   onViewDetails,
-  onTagClick,
   reviews,
   reviewLoading,
   onReviewTrade,
@@ -67,7 +66,6 @@ export default function CompactView({
             onDelete={onDelete}
             onInlineUpdateTrade={onInlineUpdateTrade}
             onViewDetails={onViewDetails}
-            onTagClick={onTagClick}
             columns={columns}
             review={reviews?.[trade.id]}
             reviewLoading={reviewLoading?.[trade.id]}

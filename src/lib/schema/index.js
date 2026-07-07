@@ -67,7 +67,6 @@ export const TradeSchema = {
     'exit_screenshot',
     
     // Tags & Categorization
-    'tags',
     'trade_mistakes',
     'trade_successes',
     
@@ -84,7 +83,6 @@ export const TradeSchema = {
     direction: 'long',
     followed_plan: true,
     commission: 0,
-    tags: [],
     emotions: [],
     plan_rating: 3, // 1-5 scale
     entry_quality: 3, // 1-5 scale

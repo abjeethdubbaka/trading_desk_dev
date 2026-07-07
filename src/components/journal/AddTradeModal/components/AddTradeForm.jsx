@@ -19,7 +19,6 @@ import EmotionsSelect from './EmotionsSelect';
 import NotesFields from './NotesFields';
 import ScreenshotUpload from './ScreenshotUpload';
 import { SETUP_TYPE_OPTIONS as DEFAULT_SETUP_TYPE_OPTIONS } from '../constants/tradeConstants';
-import { TagSelector } from '../../components/TagSelector';
 
 const CAP_OPTIONS = [
   { value: 'micro', label: 'Micro (<10M)' },
@@ -247,21 +246,10 @@ export default function AddTradeForm({
         </div>
       )}
 
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-        <EmotionsSelect
-          value={formData.emotions}
-          onChange={(value) => updateField('emotions', value)}
-        />
-
-        <div className="space-y-2">
-          <Label>Tags</Label>
-          <TagSelector
-            value={Array.isArray(formData.tags) ? formData.tags : []}
-            onChange={(tags) => updateField('tags', tags)}
-            placeholder="Add tags…"
-          />
-        </div>
-      </div>
+      <EmotionsSelect
+        value={formData.emotions}
+        onChange={(value) => updateField('emotions', value)}
+      />
 
       <NotesFields
         setupType={formData.setup_type}

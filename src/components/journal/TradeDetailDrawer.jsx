@@ -5,7 +5,6 @@ import { PnlBadge, DirectionBadge, RMultipleBadge, EmotionBadge, SetupBadge } fr
 import { getTradePnL } from '@/lib/utils/tradeFields';
 import { formatDate, formatTime, formatCurrency } from './utils/formatters';
 import { getTradeNotesText } from './utils/notes';
-import { TagChip } from './components/TagChip';
 import { useScreenshotIdsUrls } from './shared/media/useScreenshotUrls';
 import { imageFileToDataUrl } from './shared/media/imageUtils';
 import MultiImageLightbox from '@/components/ui/MultiImageLightbox';
@@ -56,7 +55,7 @@ function ScreenshotThumb({ id, url, status, onView, onRemove }) {
   );
 }
 
-export function TradeDetailDrawer({ trade, onClose, onEdit, onTagClick, updateTrade }) {
+export function TradeDetailDrawer({ trade, onClose, onEdit, updateTrade }) {
   const [lightbox, setLightbox] = useState(null);
   const fileInputRef = React.useRef(null);
 
@@ -109,7 +108,6 @@ export function TradeDetailDrawer({ trade, onClose, onEdit, onTagClick, updateTr
   const exitPrice = trade.exit_price || 0;
   const positionSize = trade.position_size || 0;
   const notes = getTradeNotesText(trade);
-  const tags = Array.isArray(trade.tags) ? trade.tags.filter(Boolean) : [];
   const emotions = Array.isArray(trade.emotions)
     ? trade.emotions.filter(Boolean)
     : trade.emotions ? [trade.emotions] : [];
@@ -212,17 +210,6 @@ export function TradeDetailDrawer({ trade, onClose, onEdit, onTagClick, updateTr
               </DetailRow>
             )}
           </div>
-
-          {tags.length > 0 && (
-            <div>
-              <p className="mb-1.5 text-[10px] uppercase tracking-[0.16em] text-white/35">Tags</p>
-              <div className="flex flex-wrap gap-1">
-                {tags.map((name) => (
-                  <TagChip key={name} name={name} size="xs" onClick={onTagClick} />
-                ))}
-              </div>
-            </div>
-          )}
 
           {notes && (
             <div>

@@ -1,21 +1,16 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Button } from '@/components/ui/button';
-import { Trash2, Download, Tag, CheckCircle, XCircle, X } from 'lucide-react';
+import { Trash2, CheckCircle, XCircle, X } from 'lucide-react';
 import { cn } from '@/lib/utils/general';
 import { useConfirm } from '@/components/ui/ConfirmDialog';
-import { TagSelector } from '../components/TagSelector';
 
 export function BulkActionBar({
   count,
   selectedTrades,
   onDelete,
-  onExportSelected,
-  onBulkTag,
   onBulkMarkPlan,
   onClear,
 }) {
-  const [showTagInput, setShowTagInput] = useState(false);
-  const [tagDraft, setTagDraft] = useState([]);
   const [confirm, confirmDialog] = useConfirm();
 
   if (count === 0) return null;
@@ -29,13 +24,6 @@ export function BulkActionBar({
     });
     if (!ok) return;
     onDelete(selectedTrades.map((t) => t.id));
-  };
-
-  const handleApplyTags = () => {
-    if (!tagDraft.length) return;
-    onBulkTag(selectedTrades, tagDraft);
-    setTagDraft([]);
-    setShowTagInput(false);
   };
 
   return (
@@ -61,26 +49,6 @@ export function BulkActionBar({
       <Button
         size="sm"
         variant="ghost"
-        onClick={() => onExportSelected(selectedTrades)}
-        className="h-7 text-xs text-white/60 hover:text-white hover:bg-white/10 gap-1.5"
-      >
-        <Download className="w-3.5 h-3.5" />
-        Export CSV
-      </Button>
-
-      <Button
-        size="sm"
-        variant="ghost"
-        onClick={() => setShowTagInput((v) => !v)}
-        className="h-7 text-xs text-white/60 hover:text-white hover:bg-white/10 gap-1.5"
-      >
-        <Tag className="w-3.5 h-3.5" />
-        Add Tag
-      </Button>
-
-      <Button
-        size="sm"
-        variant="ghost"
         onClick={() => onBulkMarkPlan(selectedTrades, true)}
         className="h-7 text-xs text-emerald-400/70 hover:text-emerald-300 hover:bg-emerald-500/10 gap-1.5"
       >
@@ -97,32 +65,6 @@ export function BulkActionBar({
         <XCircle className="w-3.5 h-3.5" />
         Plan Violation
       </Button>
-
-      {showTagInput && (
-        <div className="flex items-center gap-1.5 w-full mt-1">
-          <TagSelector
-            value={tagDraft}
-            onChange={setTagDraft}
-            placeholder="Type tag name…"
-            className="flex-1 max-w-xs"
-          />
-          <Button
-            size="sm"
-            onClick={handleApplyTags}
-            className="h-7 px-3 text-xs bg-cyan-600 hover:bg-cyan-700"
-          >
-            Apply
-          </Button>
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={() => { setShowTagInput(false); setTagDraft([]); }}
-            className="h-7 px-2 text-xs text-white/40"
-          >
-            Cancel
-          </Button>
-        </div>
-      )}
 
       <button
         type="button"

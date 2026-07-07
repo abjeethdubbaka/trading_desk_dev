@@ -71,7 +71,7 @@ export function CompactHeader({
       <div className="mr-2 w-5 flex-shrink-0" />
 
       <div className="w-[82px] flex-shrink-0">
-        <SortableHeader label="Date/Time/Duration" sortKey="date" {...sortProps} />
+        <SortableHeader label="Date/Time/D" sortKey="date" {...sortProps} />
       </div>
       <div className="w-[110px] flex-shrink-0">
         <SortableHeader label="Symbol" sortKey="symbol" {...sortProps} />
@@ -91,9 +91,6 @@ export function CompactHeader({
 
       <div className={cn('w-[110px] flex-shrink-0', columns?.setup ? 'hidden xl:block' : 'hidden')}>
         <SortableHeader label="Setup" sortKey="setup" {...sortProps} />
-      </div>
-      <div className="w-16 flex-shrink-0">
-        <ColLabel>Tags</ColLabel>
       </div>
       <div className={cn('w-[110px] flex-shrink-0', columns?.exitReason ? 'hidden xl:block' : 'hidden')}>
         <ColLabel>Exit Reason</ColLabel>

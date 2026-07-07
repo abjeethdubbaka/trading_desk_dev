@@ -32,7 +32,6 @@ export function useSettings() {
       updateFields: () => Promise.resolve(),
       updateSettings: () => Promise.resolve(),
       updateField: () => Promise.resolve(),
-      updateFloatCategory: () => Promise.resolve(),
       updateRiskAmount: () => Promise.resolve(),
       refetch: () => Promise.resolve(),
       saveImmediately: () => Promise.resolve(),
@@ -44,20 +43,6 @@ export function useSettings() {
       exportSettings: () => Promise.resolve()
     };
   }
-
-  const updateFloatCategory = (categoryKey, updates) => {
-    const currentCategories = context.settings?.float_categories || {};
-    const existingCategory = currentCategories[categoryKey] || {};
-    return context.updateFields({
-      float_categories: {
-        ...currentCategories,
-        [categoryKey]: {
-          ...existingCategory,
-          ...updates,
-        },
-      },
-    });
-  };
 
   const updateRiskAmount = (value) => {
     const numericValue = value === '' ? 0 : Number(value);
@@ -72,7 +57,6 @@ export function useSettings() {
     loading: context.isLoading,
     saving: context.isSaving,
     updateSettings: context.updateFields,
-    updateFloatCategory,
     updateRiskAmount,
     saveSettings: context.savePending,
   };

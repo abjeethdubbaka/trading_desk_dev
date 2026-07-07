@@ -13,15 +13,17 @@ import {
   Calculator,
   Power,
   History,
-  Book,
+  // Book, // only used by the commented-out Knowledge Base nav item
   CheckCircle,
   BarChart3,
   FileBarChart,
   // ScanSearch, // only used by the commented-out Screenshot Analysis nav item
+  Images,
   NotebookPen,
   Wallet,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import LiveClock from '@/components/ui/LiveClock';
 import { cn } from '@/lib/utils';
 import { formatAnalysisTimer, useAnalysisTimer } from '@/lib/context/AnalysisTimerContext';
 import { useTrades } from '@/lib/hooks/useTrades';
@@ -67,11 +69,18 @@ const navItems = [
     icon: BookOpen,
     page: 'Playbook',
   },
+  // Knowledge Base nav item — retired, replaced by Informative Images, commented out, not deleted.
+  // {
+  //   name: 'Knowledge Base',
+  //   description: 'Reference playbooks, notes, and process docs.',
+  //   icon: Book,
+  //   page: 'Knowledge',
+  // },
   {
-    name: 'Knowledge Base',
-    description: 'Reference playbooks, notes, and process docs.',
-    icon: Book,
-    page: 'Knowledge',
+    name: 'Informative Images',
+    description: 'Chart setups and behaviors you studied, organized for quick recall.',
+    icon: Images,
+    page: 'InformativeImages',
   },
   {
     name: "Do's & Don'ts",
@@ -159,6 +168,8 @@ export default function Layout({ children, currentPageName }) {
         <div className="absolute bottom-[-60px] left-1/3 h-72 w-72 rounded-full bg-blue-500/10 blur-[120px]" />
       </div>
 
+      <LiveClock className="fixed top-3 right-4 z-[60] hidden lg:flex" />
+
       <div className="fixed left-0 right-0 top-0 z-50 flex h-16 items-center justify-between border-b border-white/10 bg-[#090d15]/85 px-4 backdrop-blur-xl lg:hidden">
         <div className="flex min-w-0 items-center gap-3">
           <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 to-cyan-500 shadow-[0_0_22px_rgba(16,185,129,0.45)]">
@@ -169,6 +180,8 @@ export default function Layout({ children, currentPageName }) {
             <p className="truncate text-[10px] uppercase tracking-[0.18em] text-white/45">TradeDesk</p>
           </div>
         </div>
+
+        <LiveClock className="hidden sm:flex" />
 
         <Button
           variant="ghost"
@@ -326,7 +339,7 @@ export default function Layout({ children, currentPageName }) {
       </aside>
 
       <main className="min-h-screen pt-16 lg:pt-0 lg:pl-[72px] lg:pr-[24px]">
-        <div className="px-4 pb-8 pt-4 lg:px-8 lg:pt-7">
+        <div className="px-4 pb-8 pt-4 lg:px-8 lg:pt-14">
           <div className="animate-fade-up">{children}</div>
         </div>
       </main>

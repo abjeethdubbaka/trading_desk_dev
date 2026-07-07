@@ -14,37 +14,19 @@ export function useJournalFilters(trades = []) {
   const [searchTerm, setSearchTerm] = useState('');
   const [filter,     setFilter]     = useState('all');
   const [dateRange,  setDateRange]  = useState('all');
-  const [tagFilter,  setTagFilter]  = useState([]);
 
   const filteredTrades = useMemo(() => {
-    // Extract #tag tokens from the search string
-    const inlineTags = [];
-    const hashRx = /#(\w+)/g;
-    let m;
-    while ((m = hashRx.exec(searchTerm)) !== null) inlineTags.push(m[1].toLowerCase());
-    const rawSearch = searchTerm.replace(/#\w+/g, '').trim().toLowerCase();
-    const allTagFilters = inlineTags.length > 0
-      ? [...new Set([...tagFilter.map(t => t.toLowerCase()), ...inlineTags])]
-      : tagFilter.map(t => t.toLowerCase());
+    const rawSearch = searchTerm.trim().toLowerCase();
 
     return trades.filter(trade => {
       // ── Search ──────────────────────────────────────────────────────────
       if (rawSearch) {
         const notesText = getTradeNotesText(trade).toLowerCase();
-        const tradeTags = Array.isArray(trade.tags) ? trade.tags : [];
         const match =
           trade.symbol?.toLowerCase().includes(rawSearch) ||
           notesText.includes(rawSearch) ||
-          trade.setup_type?.toLowerCase().includes(rawSearch) ||
-          tradeTags.some((t) => String(t).toLowerCase().includes(rawSearch));
+          trade.setup_type?.toLowerCase().includes(rawSearch);
         if (!match) return false;
-      }
-
-      // ── Tag filter (from tagFilter state + #hashtags in search) ──────────
-      if (allTagFilters.length > 0) {
-        const tradeTags = Array.isArray(trade.tags) ? trade.tags.map(t => String(t).toLowerCase()) : [];
-        const hasMatch = allTagFilters.some((t) => tradeTags.includes(t));
-        if (!hasMatch) return false;
       }
 
       // ── Direction / outcome filter ───────────────────────────────────────
@@ -76,21 +58,19 @@ export function useJournalFilters(trades = []) {
 
       return true;
     });
-  }, [trades, searchTerm, filter, dateRange, tagFilter]);
+  }, [trades, searchTerm, filter, dateRange]);
 
   // Expose a batch-apply for preset loading
-  const applyFilterState = useCallback(({ searchTerm: s, filter: f, dateRange: d, tagFilter: t }) => {
+  const applyFilterState = useCallback(({ searchTerm: s, filter: f, dateRange: d }) => {
     if (s !== undefined) setSearchTerm(s ?? '');
     if (f !== undefined) setFilter(f ?? 'all');
     if (d !== undefined) setDateRange(d ?? 'all');
-    if (t !== undefined) setTagFilter(Array.isArray(t) ? t : []);
   }, []);
 
   return {
     searchTerm, setSearchTerm,
     filter,     setFilter,
     dateRange,  setDateRange,
-    tagFilter,  setTagFilter,
     filteredTrades,
     applyFilterState,
   };

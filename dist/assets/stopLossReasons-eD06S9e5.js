@@ -1,0 +1,1 @@
+const e=["Target hit","Stop loss hit","Time-based exit","Trend reversal","Manual override","Emotional exit"],t=["Trending","Choppy / Range-bound","High Volatility","Low Volatility","News-driven","Low Volume"],o=["Hit hard stop","Trailing stop","Break of structure","Invalidation level hit","Time stop","Moved stop to breakeven"];export{e as D,t as a,o as b};

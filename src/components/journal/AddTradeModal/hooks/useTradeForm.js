@@ -53,8 +53,7 @@ const normalizeStrategyStepResults = (results) => (
     : []
 );
 
-export const useTradeForm = (initialData, userId = PLACEHOLDER_USER_ID, defaultTags = [], open = true) => {
-  const normalizedDefaultTags = Array.isArray(defaultTags) ? defaultTags : [];
+export const useTradeForm = (initialData, userId = PLACEHOLDER_USER_ID, open = true) => {
   const getDefaultReflectionAnswers = () => ({
     what_went_wrong: [],
     what_learned: [],
@@ -123,7 +122,6 @@ export const useTradeForm = (initialData, userId = PLACEHOLDER_USER_ID, defaultT
     share_float: null,
     float_category: null,
     share_float_range: null,
-    tags: [...normalizedDefaultTags],
   });
 
   // Initialize form with initial data - only run when initialData actually changes
@@ -213,7 +211,6 @@ export const useTradeForm = (initialData, userId = PLACEHOLDER_USER_ID, defaultT
         : null,
       float_category: initialData.float_category || null,
       share_float_range: initialData.share_float_range || null,
-      tags: Array.isArray(initialData.tags) ? [...initialData.tags] : [],
     };
   }, [initialData?.id]); // Only depend on the ID, not the whole object
 
@@ -264,9 +261,8 @@ export const useTradeForm = (initialData, userId = PLACEHOLDER_USER_ID, defaultT
       share_float: null,
       float_category: null,
       share_float_range: null,
-      tags: [...normalizedDefaultTags],
     });
-  }, [open, initialFormData, normalizedDefaultTags]);
+  }, [open, initialFormData]);
 
   const updateField = useCallback((field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -309,7 +305,6 @@ export const useTradeForm = (initialData, userId = PLACEHOLDER_USER_ID, defaultT
       share_float: null,
       float_category: null,
       share_float_range: null,
-      tags: [],
     });
   }, []);
 

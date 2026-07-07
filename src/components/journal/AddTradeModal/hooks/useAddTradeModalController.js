@@ -157,13 +157,7 @@ export function useAddTradeModalController({ open, onSave, initialData }) {
     enabled: open,
   });
 
-  const defaultTags = useMemo(
-    () => (Array.isArray(settings?.default_tags) ? settings.default_tags : []),
-     
-    [JSON.stringify(settings?.default_tags)]
-  );
-
-  const { formData, updateField, prepareForSubmission } = useTradeForm(initialData, USER_ID, defaultTags, open);
+  const { formData, updateField, prepareForSubmission } = useTradeForm(initialData, USER_ID, open);
   const screenshotIds = formData.screenshots || [];
   const [uploading, setUploading] = useState(false);
 

@@ -2,13 +2,13 @@ import React from 'react';
 import { toast } from 'sonner';
 import { Input } from '@/components/ui/input';
 import Field from '@/components/settings/Field';
-import TagManager from '@/components/settings/TagManager';
 import SimpleListManager from '@/components/settings/SimpleListManager';
 import { DEFAULT_EXIT_REASONS } from '@/lib/constants/exitReasons';
 import { DEFAULT_MARKET_ENVIRONMENTS } from '@/lib/constants/marketEnvironments';
 import { DEFAULT_STOP_LOSS_REASONS } from '@/lib/constants/stopLossReasons';
 import { DEFAULT_MISTAKES } from '@/lib/constants/mistakes';
 import { DEFAULT_LEARNINGS } from '@/lib/constants/learnings';
+import { DEFAULT_INFORMATIVE_IMAGE_CATEGORIES } from '@/lib/constants/informativeImageCategories';
 
 export default function RiskSettingsTab({
   settings,
@@ -86,13 +86,6 @@ export default function RiskSettingsTab({
       </div>
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-        <Field label="Default tags" hint="Check a tag to auto-apply it to every new trade. Rename or delete tags here too — saves instantly.">
-          <TagManager
-            defaultTags={Array.isArray(settings?.default_tags) ? settings.default_tags : []}
-            onChange={(tags) => saveListField('default_tags', tags)}
-          />
-        </Field>
-
         <Field label="Exit reasons" hint="Options shown in the Reason for Exit dropdown when logging a trade.">
           <SimpleListManager
             items={Array.isArray(settings?.exit_reasons) ? settings.exit_reasons : DEFAULT_EXIT_REASONS}
@@ -130,6 +123,14 @@ export default function RiskSettingsTab({
             items={Array.isArray(settings?.learnings) ? settings.learnings : DEFAULT_LEARNINGS}
             placeholder="Add a learning keyword…"
             onChange={(items) => saveListField('learnings', items)}
+          />
+        </Field>
+
+        <Field label="Informative image categories" hint="Options shown for the 'Other' image type in Informative Images. Setup images are categorized from your Playbook setups instead.">
+          <SimpleListManager
+            items={Array.isArray(settings?.informative_image_categories) ? settings.informative_image_categories : DEFAULT_INFORMATIVE_IMAGE_CATEGORIES}
+            placeholder="Add a category…"
+            onChange={(items) => saveListField('informative_image_categories', items)}
           />
         </Field>
       </div>

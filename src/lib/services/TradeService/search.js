@@ -11,11 +11,10 @@ export function createTradeSearch(service) {
       
       const lowerQuery = query.toLowerCase();
       
-      return trades.filter(trade => 
+      return trades.filter(trade =>
         trade.symbol?.toLowerCase().includes(lowerQuery) ||
         trade.setup_type?.toLowerCase().includes(lowerQuery) ||
-        trade.notes?.toLowerCase().includes(lowerQuery) ||
-        trade.tags?.some(tag => tag.toLowerCase().includes(lowerQuery))
+        trade.notes?.toLowerCase().includes(lowerQuery)
       );
     },
 

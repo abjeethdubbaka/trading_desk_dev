@@ -20,7 +20,6 @@ const FIELD_ALIASES = Object.freeze({
   r_multiple: ['r_multiple', 'rmultiple', 'r'],
   followed_plan: ['followed_plan', 'plan_followed', 'followedplan'],
   emotions: ['emotions', 'emotion', 'mood'],
-  tags: ['tags', 'tag'],
   account_tier: ['account_tier', 'account', 'tier'],
 });
 
@@ -311,7 +310,6 @@ const mapRowToTrade = (row, options = {}) => {
   const notes = getFirstValue(row, FIELD_ALIASES.notes);
   const setupType = getFirstValue(row, FIELD_ALIASES.setup_type);
   const emotions = parseList(getFirstValue(row, FIELD_ALIASES.emotions));
-  const tags = parseList(getFirstValue(row, FIELD_ALIASES.tags));
   const accountTier = getFirstValue(row, FIELD_ALIASES.account_tier) || defaultAccountTier;
 
   const trade = {
@@ -338,7 +336,6 @@ const mapRowToTrade = (row, options = {}) => {
   if (setupType) trade.setup_type = setupType;
   if (notes) trade.notes = notes;
   if (emotions.length > 0) trade.emotions = emotions;
-  if (tags.length > 0) trade.tags = tags;
 
   const validation = validateTrade(trade);
   if (!validation.isValid) {

@@ -11,7 +11,6 @@ import { useJournal } from '@/lib/hooks/useTrades';
 import { getTradePnL } from '@/lib/utils/tradeFields';
 import { stripCalculatorAutoNote } from '@/components/journal/utils/notes';
 import { PnlBadge, DirectionBadge } from '@/components/ui/TradeBadge';
-import { TagChip } from '@/components/journal/components/TagChip';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 
@@ -58,7 +57,6 @@ function highlight(text, term) {
 
 function NoteCard({ trade, searchTerm }) {
   const pnl  = getTradePnL(trade);
-  const tags = Array.isArray(trade.tags) ? trade.tags.filter(Boolean) : [];
   const { notes, whatWentWrong, whatLearned } = getNoteContent(trade);
 
   const hl = (text) => highlight(text, searchTerm);
@@ -109,13 +107,6 @@ function NoteCard({ trade, searchTerm }) {
             What I learned
           </p>
           <p className="text-sm leading-relaxed text-white/65">{hl(whatLearned)}</p>
-        </div>
-      )}
-
-      {/* Tags */}
-      {tags.length > 0 && (
-        <div className="flex flex-wrap gap-1 pt-0.5">
-          {tags.map((tag) => <TagChip key={tag} name={tag} size="xs" />)}
         </div>
       )}
     </div>

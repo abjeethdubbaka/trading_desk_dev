@@ -1,0 +1,1 @@
+import{j as t}from"./vendor-react-X_jKGu1-.js";import{c as n}from"./index-eUnLejaQ.js";function o({text:e,className:r=""}){return e?t.jsx("span",{className:n("inline-flex h-4 w-4 cursor-help items-center justify-center rounded-full border border-white/25 text-[10px] text-white/65",r),title:e,"aria-label":e,children:"?"}):null}export{o as I};

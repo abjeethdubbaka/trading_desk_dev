@@ -6,7 +6,6 @@ import { Image, AlertCircle, ChevronDown, Edit2, Star, Trash2 } from 'lucide-rea
 import { PnlBadge, DirectionBadge, RMultipleBadge, EmotionBadge, SetupBadge } from '@/components/ui/TradeBadge';
 import TradeReviewPanel from '../../analysis/TradeReviewPanel';
 import { TradeThumbnail } from './TradeThumbnail';
-import { TagChip } from '../../components/TagChip';
 import { EditableCell } from '../cells/EditableCell';
 import { useInlineTradeEdit } from '../../hooks/useInlineTradeEdit';
 import { getTradePnL } from '@/lib/utils/tradeFields';
@@ -26,7 +25,6 @@ export function CompactTradeRow({
   onDelete,
   onInlineUpdateTrade,
   onViewDetails,
-  onTagClick,
   columns,
   review,
   reviewLoading,
@@ -64,7 +62,6 @@ export function CompactTradeRow({
   const exitPrice = trade.exit_price || 0;
   const positionSize = trade.position_size || 0;
   const screenshots = trade.screenshots || [];
-  const tags = Array.isArray(trade.tags) ? trade.tags.filter(Boolean) : [];
   const emotionList = Array.isArray(trade.emotions)
     ? trade.emotions.filter(Boolean)
     : (trade.emotions ? [trade.emotions] : []);
@@ -192,17 +189,6 @@ export function CompactTradeRow({
             onSave={(v) => editField('setup_type', v)}
             loading={savingField === 'setup_type'}
           />
-        </div>
-
-        {/* Tags */}
-        <div className="flex items-center gap-1 flex-wrap mx-2 flex-shrink-0 min-w-0" onClick={(e) => e.stopPropagation()}>
-          {tags.length > 0 ? (
-            tags.map((name) => (
-              <TagChip key={name} name={name} size="xs" onClick={onTagClick} />
-            ))
-          ) : (
-            <span className="text-[10px] text-white/25">-</span>
-          )}
         </div>
 
         {/* Exit Reason */}

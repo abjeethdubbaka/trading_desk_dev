@@ -145,8 +145,7 @@ export const FieldValidations = {
   stop_loss_reason: [ValidationTypes.STRING],
   target_price: [ValidationTypes.POSITIVE_NUMBER],
   commission: [ValidationTypes.NON_NEGATIVE_NUMBER],
-  tags: [ValidationTypes.ARRAY],
-  
+
   // Settings fields
   risk_amount: [ValidationTypes.CURRENCY],
   position_sizing_percent: [ValidationTypes.PERCENTAGE],
@@ -285,8 +284,7 @@ export function sanitizeTrade(trade = {}) {
     
     // Notes and metadata
     notes: String(trade.notes || '').trim(),
-    tags: Array.isArray(trade.tags) ? trade.tags.filter(Boolean) : [],
-    
+
     // Emotion and psychology
     emotion_before: String(trade.emotion_before || '').trim(),
     emotion_after: String(trade.emotion_after || '').trim(),

@@ -13,12 +13,9 @@ import { Skeleton } from '@/components/ui/skeleton';
 import {
   AddTradeModal,
   CompactView,
-  DetailedView,
   EmptyState,
   JournalPagination,
   JournalToolbar,
-  VIEW_MODES,
-  useJournalDataTransfer,
   useJournalFilters,
   useJournalPagination,
   useJournalTradeManagement,
@@ -37,7 +34,6 @@ const PAGE_SIZE = 20;
 
 export default function Journal() {
   const {
-    viewMode, setViewMode,
     drawerTradeId, openDrawer, closeDrawer,
     showShortcutsOverlay, toggleShortcuts, closeShortcuts,
     handleEscape,
@@ -55,7 +51,6 @@ export default function Journal() {
     isUpdating,
     isBulkCreating,
   } = useTradesMutation();
-  const accountTier = settings?.account_tier || 'custom';
   const isSaving = isCreating || isUpdating || isBulkCreating;
   const riskLimit = Number(settings?.risk_amount);
 
@@ -70,7 +65,6 @@ export default function Journal() {
     searchTerm, setSearchTerm,
     filter,     setFilter,
     dateRange,  setDateRange,
-    tagFilter,  setTagFilter,
     filteredTrades,
     applyFilterState,
   } = useJournalFilters(tradesWithQuality);
@@ -97,13 +91,13 @@ export default function Journal() {
   }, [applyPreset, applyFilterState, setSort]);
 
   const handleSavePreset = useCallback((name) => {
-    savePreset(name, { searchTerm, filter, dateRange, tagFilter, sortKey, sortDir });
-  }, [savePreset, searchTerm, filter, dateRange, tagFilter, sortKey, sortDir]);
+    savePreset(name, { searchTerm, filter, dateRange, sortKey, sortDir });
+  }, [savePreset, searchTerm, filter, dateRange, sortKey, sortDir]);
 
   // ── resetSignal drives pagination + selection resets ──────────────────────
   const resetSignal = useMemo(
-    () => `${searchTerm}|${filter}|${dateRange}|${tagFilter.join(',')}|${sortKey}|${sortDir}`,
-    [searchTerm, filter, dateRange, tagFilter, sortKey, sortDir],
+    () => `${searchTerm}|${filter}|${dateRange}|${sortKey}|${sortDir}`,
+    [searchTerm, filter, dateRange, sortKey, sortDir],
   );
 
   // ── Pagination ───────────────────────────────────────────────────────────
@@ -128,14 +122,6 @@ export default function Journal() {
     count: selectionCount,
   } = useJournalSelection({ trades: paginatedItems, resetSignal });
 
-  // ── Data transfer ─────────────────────────────────────────────────────────
-  const { isImporting, importStatus, handleImportCsv, handleExportCsv } =
-    useJournalDataTransfer({ filteredTrades, accountTier, bulkCreateTrades, existingTrades: trades });
-
-  const handleExportSelected = useCallback((selected) => {
-    handleExportCsv(selected);
-  }, [handleExportCsv]);
-
   // ── Trade management ──────────────────────────────────────────────────────
   const {
     showModal,
@@ -147,7 +133,6 @@ export default function Journal() {
     handleDelete,
     handleInlineUpdateTrade,
     handleBulkDelete,
-    handleBulkTag,
     handleBulkMarkPlan,
   } = useJournalTradeManagement({ createTrade, updateTrade, deleteTrade, bulkCreateTrades });
 
@@ -159,11 +144,6 @@ export default function Journal() {
     window.addEventListener('trades-updated', refetch);
     return () => window.removeEventListener('trades-updated', refetch);
   }, [refetch]);
-
-  const handleTagClick = useCallback((tagName) => {
-    setTagFilter((prev) => (prev.includes(tagName) ? prev : [...prev, tagName]));
-    closeDrawer();
-  }, [setTagFilter, closeDrawer]);
 
   useJournalKeyboardShortcuts({
     onNewTrade: openCreateModal,
@@ -185,16 +165,7 @@ export default function Journal() {
         onFilterChange={setFilter}
         dateRange={dateRange}
         onDateRangeChange={setDateRange}
-        tagFilter={tagFilter}
-        onTagFilterChange={setTagFilter}
-        viewMode={viewMode}
-        onViewModeChange={setViewMode}
         onAddTrade={openCreateModal}
-        onExportCsv={handleExportCsv}
-        canExport={filteredTrades.length > 0}
-        onImportCsv={handleImportCsv}
-        isImporting={isImporting}
-        importStatus={importStatus}
         trades={filteredTrades}
         presets={presets}
         onApplyPreset={handleApplyPreset}
@@ -208,8 +179,6 @@ export default function Journal() {
           count={selectionCount}
           selectedTrades={selectedTrades}
           onDelete={handleBulkDeleteWithClear}
-          onExportSelected={handleExportSelected}
-          onBulkTag={handleBulkTag}
           onBulkMarkPlan={handleBulkMarkPlan}
           onClear={clearSelection}
         />
@@ -250,42 +219,34 @@ export default function Journal() {
         </div>
       ) : filteredTrades.length === 0 ? (
         <EmptyState
-          hasFilters={!!(searchTerm || filter !== 'all' || dateRange !== 'all' || tagFilter.length > 0)}
+          hasFilters={!!(searchTerm || filter !== 'all' || dateRange !== 'all')}
           onAddTrade={openCreateModal}
         />
       ) : (
         <div className="bg-[#1a1a24] border border-white/10 rounded overflow-hidden">
-          {viewMode === VIEW_MODES.COMPACT ? (
-            <CompactView
-              trades={paginatedItems}
-              onEdit={handleEdit}
-              onDelete={handleDelete}
-              onInlineUpdateTrade={handleInlineUpdateTrade}
-              onViewDetails={(trade) => openDrawer(trade.id)}
-              onTagClick={handleTagClick}
-              columns={columns}
-              onToggleColumn={toggleColumn}
-              reviews={reviews}
-              reviewLoading={reviewLoading}
-              onReviewTrade={reviewTrade}
-              onClearReview={clearReview}
-              reviewUsefulness={usefulnessById}
-              onRateReviewUsefulness={rateReviewUsefulness}
-              sortKey={sortKey}
-              sortDir={sortDir}
-              onSortChange={onSortChange}
-              selectedIds={selectedIds}
-              onToggleSelect={toggleSelect}
-              onToggleAll={toggleAllOnPage}
-              isAllSelected={isAllSelected}
-              isIndeterminate={isIndeterminate}
-            />
-          ) : (
-            <DetailedView
-              trades={paginatedItems}
-              onEdit={handleEdit}
-            />
-          )}
+          <CompactView
+            trades={paginatedItems}
+            onEdit={handleEdit}
+            onDelete={handleDelete}
+            onInlineUpdateTrade={handleInlineUpdateTrade}
+            onViewDetails={(trade) => openDrawer(trade.id)}
+            columns={columns}
+            onToggleColumn={toggleColumn}
+            reviews={reviews}
+            reviewLoading={reviewLoading}
+            onReviewTrade={reviewTrade}
+            onClearReview={clearReview}
+            reviewUsefulness={usefulnessById}
+            onRateReviewUsefulness={rateReviewUsefulness}
+            sortKey={sortKey}
+            sortDir={sortDir}
+            onSortChange={onSortChange}
+            selectedIds={selectedIds}
+            onToggleSelect={toggleSelect}
+            onToggleAll={toggleAllOnPage}
+            isAllSelected={isAllSelected}
+            isIndeterminate={isIndeterminate}
+          />
         </div>
       )}
 
@@ -311,7 +272,6 @@ export default function Journal() {
           trade={drawerTrade}
           onClose={closeDrawer}
           onEdit={() => { handleEdit(drawerTrade); closeDrawer(); }}
-          onTagClick={handleTagClick}
           updateTrade={updateTrade}
         />
       )}
