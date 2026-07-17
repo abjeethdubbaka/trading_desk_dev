@@ -3,6 +3,7 @@ import { PLACEHOLDER_USER_ID } from '@/lib/constants';
 import { calculatePnL } from '../utils/calculationUtils';
 import { getCurrentLocalDateTime, utcToLocalDateTime } from '../utils/dateUtils';
 import { buildTradeNotes, stripCalculatorAutoNote } from '../../utils/notes';
+import { useSettings } from '@/lib/context/SettingsContext';
 
 const DEFAULT_EMOTION = 'neutral';
 const parseOptionalPositiveNumber = (value) => {
@@ -54,6 +55,8 @@ const normalizeStrategyStepResults = (results) => (
 );
 
 export const useTradeForm = (initialData, userId = PLACEHOLDER_USER_ID, open = true) => {
+  const { settings } = useSettings();
+  const isFutures = settings?.trading_type === 'futures';
   const getDefaultReflectionAnswers = () => ({
     what_went_wrong: [],
     what_learned: [],
@@ -122,6 +125,10 @@ export const useTradeForm = (initialData, userId = PLACEHOLDER_USER_ID, open = t
     share_float: null,
     float_category: null,
     share_float_range: null,
+    instrument_type: isFutures ? 'futures' : 'stocks',
+    tick_size: '',
+    tick_value: '',
+    futures_preset: 'ES',
   });
 
   // Initialize form with initial data - only run when initialData actually changes
@@ -211,6 +218,10 @@ export const useTradeForm = (initialData, userId = PLACEHOLDER_USER_ID, open = t
         : null,
       float_category: initialData.float_category || null,
       share_float_range: initialData.share_float_range || null,
+      instrument_type: initialData.instrument_type || 'stocks',
+      tick_size: initialData.tick_size?.toString() || '',
+      tick_value: initialData.tick_value?.toString() || '',
+      futures_preset: initialData.futures_preset || 'ES',
     };
   }, [initialData?.id]); // Only depend on the ID, not the whole object
 
@@ -261,8 +272,12 @@ export const useTradeForm = (initialData, userId = PLACEHOLDER_USER_ID, open = t
       share_float: null,
       float_category: null,
       share_float_range: null,
+      instrument_type: isFutures ? 'futures' : 'stocks',
+      tick_size: '',
+      tick_value: '',
+      futures_preset: 'ES',
     });
-  }, [open, initialFormData]);
+  }, [open, initialFormData, isFutures]);
 
   const updateField = useCallback((field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -305,18 +320,26 @@ export const useTradeForm = (initialData, userId = PLACEHOLDER_USER_ID, open = t
       share_float: null,
       float_category: null,
       share_float_range: null,
+      instrument_type: isFutures ? 'futures' : 'stocks',
+      tick_size: '',
+      tick_value: '',
+      futures_preset: 'ES',
     });
-  }, []);
+  }, [isFutures]);
 
   const prepareForSubmission = useCallback(() => {
-    // Calculate final values for submission
+    const currentIsFutures = formData.instrument_type === 'futures';
     const { pnl, pnlPercent, rMultiple } = calculatePnL({
       entryPrice: formData.entry_price,
       exitPrice: formData.exit_price,
       stopLoss: formData.stop_loss,
       positionSize: formData.position_size,
       direction: formData.direction,
-      fee: formData.fee
+      fee: formData.fee,
+      isFutures: currentIsFutures,
+      tickSize: formData.tick_size,
+      tickValue: formData.tick_value,
+      contracts: formData.position_size,
     });
 
     const normalizedEmotion = normalizeEmotionValue(formData.emotions);
@@ -390,6 +413,9 @@ export const useTradeForm = (initialData, userId = PLACEHOLDER_USER_ID, open = t
         : null,
       float_category: formData.float_category ? String(formData.float_category).trim() : null,
       share_float_range: formData.share_float_range ? String(formData.share_float_range).trim() : null,
+      instrument_type: formData.instrument_type || 'stocks',
+      tick_size: currentIsFutures && formData.tick_size ? parseFloat(formData.tick_size) : null,
+      tick_value: currentIsFutures && formData.tick_value ? parseFloat(formData.tick_value) : null,
       // Setup type is selected from configured strategy setups.
       setup_type: formData.setup_type
       // Note: entry_time and exit_time are handled in the main component

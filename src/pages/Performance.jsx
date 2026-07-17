@@ -20,8 +20,6 @@ import PerformanceBySetupType from '@/components/performance/PerformanceBySetupT
 import PerformanceByShareFloatRange from '@/components/performance/PerformanceByShareFloatRange';
 import WeeklyReviewCard from '@/components/performance/WeeklyReviewCard';
 import StrategyEngineCard from '@/components/performance/StrategyEngineCard';
-import PnLCalendarHeatmap from '@/components/performance/PnLCalendarHeatmap';
-import EquityCurveChart from '@/components/performance/EquityCurveChart';
 import CategoricalBreakdownCard from '@/components/performance/CategoricalBreakdownCard';
 import AnalysisPanel from '@/components/journal/analysis/AnalysisPanel';
 import InfoHint from '@/components/ui/InfoHint';
@@ -31,10 +29,11 @@ import { useTrades } from '@/lib/hooks/useTrades';
 import { useTradesWithQuality } from '@/lib/hooks/useTradesWithQuality';
 import {
   analyzeMistakePatterns,
-  buildStrategyEngineSnapshot,
   buildEquityCurve,
+  buildStrategyEngineSnapshot,
   buildWeeklyReview,
   calcCoreStats,
+  calcDisciplineSavings,
   calcHoldTimeStats,
   calcMaxDrawdown,
   calcMonthlyExpectedReturn,
@@ -50,6 +49,7 @@ import {
   perfBySetupType,
   perfByShareFloatRange,
 } from '@/lib/calculations/trades';
+import { normalizePlaybookEntries, PLAYBOOK_FIELD } from '@/lib/playbook/utils';
 import { cn, toFiniteNumber } from '@/lib/utils/general';
 import { ACCOUNT_TIERS, ACCOUNT_TIER_IDS } from '@/lib/config/accountTypes';
 
@@ -129,8 +129,85 @@ function getPeriodStart(period) {
   }
 }
 
+const RISK_LEVEL_LABEL_PERF = { half: '½ Risk', normal: 'Normal', double: '2× Risk' };
+const RISK_LEVEL_COLOR_PERF = { half: 'text-amber-300', normal: 'text-emerald-300', double: 'text-rose-300' };
+
+function DisciplineSavingsCard({ savings, riskLimit, label }) {
+  if (!savings || savings.tradesAnalyzed === 0) return null;
+
+  const compliant = savings.totalSaved <= 0;
+  const headerLabel = label ?? `Risk Discipline · $${riskLimit.toFixed(0)}/trade limit`;
+
+  return (
+    <div className={cn(
+      'rounded-2xl border p-5 space-y-4',
+      compliant ? 'border-emerald-500/25 bg-emerald-500/5' : 'border-violet-500/25 bg-violet-500/5'
+    )}>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <p className={cn('text-[10px] font-semibold uppercase tracking-widest', compliant ? 'text-emerald-300/70' : 'text-violet-300/70')}>
+            {headerLabel}
+          </p>
+          {compliant ? (
+            <p className="mt-0.5 text-sm font-semibold text-white/80">
+              Every loss stayed within your{' '}
+              <span className="text-emerald-300 font-bold">${riskLimit.toFixed(0)}</span>
+              {' '}risk limit — great discipline this period.
+            </p>
+          ) : (
+            <p className="mt-0.5 text-sm font-semibold text-white/80">
+              If you had cut losses based on your limit, you could have saved{' '}
+              <span className="text-violet-300 font-bold text-base">${savings.totalSaved.toFixed(0)}</span>
+            </p>
+          )}
+        </div>
+        <div className="flex gap-3 text-center">
+          <div className="rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2">
+            <p className="text-[10px] text-white/40 uppercase">Over limit</p>
+            <p className={cn('font-bold text-lg', savings.tradesExceeded > 0 ? 'text-rose-400' : 'text-emerald-400')}>
+              {savings.tradesExceeded}
+            </p>
+          </div>
+          <div className="rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2">
+            <p className="text-[10px] text-white/40 uppercase">Within limit</p>
+            <p className="font-bold text-emerald-400 text-lg">{savings.tradesAnalyzed - savings.tradesExceeded}</p>
+          </div>
+          {!compliant && (
+            <div className="rounded-lg border border-violet-500/20 bg-violet-500/10 px-3 py-2">
+              <p className="text-[10px] text-violet-300/60 uppercase">Would save</p>
+              <p className="font-bold text-violet-300 text-lg">${savings.totalSaved.toFixed(0)}</p>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {!compliant && savings.bySetup.length > 0 && (
+        <div className="space-y-2">
+          <p className="text-[10px] uppercase tracking-widest text-white/35">Breakdown by setup</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            {savings.bySetup.map((row) => (
+              <div key={row.setup} className="flex items-center gap-3 rounded-lg border border-white/8 bg-white/[0.03] px-3 py-2.5">
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-white/80 truncate">{row.setup}</p>
+                  <p className={cn('text-[10px]', RISK_LEVEL_COLOR_PERF[row.riskLevel] ?? 'text-white/40')}>
+                    {RISK_LEVEL_LABEL_PERF[row.riskLevel] ?? 'Normal'} · limit ${row.allowedLoss.toFixed(0)}/trade · {row.count} breach{row.count !== 1 ? 'es' : ''}
+                  </p>
+                </div>
+                <div className="text-right flex-shrink-0">
+                  <p className="text-sm font-bold text-violet-300">saved ${row.totalSaved.toFixed(0)}</p>
+                  <p className="text-[10px] text-white/30">worst ${row.worstSingle.toFixed(0)} over</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 const TIER_VIEW_OPTIONS = [
-  { value: 'overall', label: 'Overall', icon: '⬛' },
+  { value: 'overall', label: 'Overall', icon: '' },
   ...ACCOUNT_TIER_IDS.map((id) => ({ value: id, label: ACCOUNT_TIERS[id]?.label ?? id, icon: ACCOUNT_TIERS[id]?.icon ?? '' })),
 ];
 
@@ -139,12 +216,22 @@ export default function PerformancePage() {
   const [viewTier, setViewTier] = useState('overall');
   const { settings } = useSettings();
   const accountSize = toFiniteNumber(settings?.account_size, 50000);
-  const riskLimit = toFiniteNumber(settings?.risk_amount, 0);
+  const tierPreset = viewTier !== 'overall' ? ACCOUNT_TIERS[viewTier] : null;
+  const tierRiskAmounts = settings?.tier_risk_amounts || {};
+  // Overall: use current settings risk_amount; specific tier: use saved tier amount, fall back to settings
+  const riskLimit = viewTier !== 'overall' && tierRiskAmounts[viewTier] != null
+    ? toFiniteNumber(tierRiskAmounts[viewTier], 0)
+    : toFiniteNumber(settings?.risk_amount, 0);
+  const currentAccountType = settings?.account_type || 'demo';
+  const currentTradingType = settings?.trading_type || 'stocks';
   const { data: trades = [], isLoading } = useTrades({
-    filters: viewTier === 'overall' ? {} : { account_tier: viewTier },
+    filters: viewTier === 'overall'
+      ? { account_type: currentAccountType, trading_type: currentTradingType }
+      : { account_tier: viewTier, account_type: currentAccountType, trading_type: currentTradingType },
   });
 
   const tradesWithQuality = useTradesWithQuality(trades, riskLimit);
+  const playbookEntries = useMemo(() => normalizePlaybookEntries(settings?.[PLAYBOOK_FIELD]), [settings]);
 
   const periodTrades = useMemo(() => {
     const start = getPeriodStart(period);
@@ -218,6 +305,57 @@ export default function PerformancePage() {
   );
   const weeklyReview = useMemo(() => buildWeeklyReview(deferredTrades, [7, 14]), [deferredTrades]);
   const mistakeInsights = useMemo(() => analyzeMistakePatterns(deferredTrades, 4), [deferredTrades]);
+  const disciplineSavings = useMemo(() => {
+    if (viewTier !== 'overall') {
+      return calcDisciplineSavings(periodTrades, playbookEntries, riskLimit);
+    }
+    // Overall: combine discipline savings across each tier using that tier's saved risk limit
+    const allTierIds = ACCOUNT_TIER_IDS.filter((id) => id !== 'custom');
+    let totalSaved = 0;
+    let tradesAnalyzed = 0;
+    let tradesExceeded = 0;
+    const bySetupMap = new Map();
+
+    allTierIds.forEach((tierId) => {
+      const tierLimit = toFiniteNumber(tierRiskAmounts[tierId], 0);
+      if (tierLimit <= 0) return;
+      const tierTrades = periodTrades.filter((t) => t?.account_tier === tierId);
+      if (!tierTrades.length) return;
+      const result = calcDisciplineSavings(tierTrades, playbookEntries, tierLimit);
+      totalSaved += result.totalSaved;
+      tradesAnalyzed += result.tradesAnalyzed;
+      tradesExceeded += result.tradesExceeded;
+      result.bySetup.forEach((row) => {
+        const key = `${tierId}:${row.setup}`;
+        if (bySetupMap.has(key)) {
+          const existing = bySetupMap.get(key);
+          existing.totalSaved += row.totalSaved;
+          existing.count += row.count;
+          existing.worstSingle = Math.max(existing.worstSingle, row.worstSingle);
+        } else {
+          bySetupMap.set(key, { ...row, setup: `${row.setup} (${ACCOUNT_TIERS[tierId]?.label ?? tierId})` });
+        }
+      });
+    });
+
+    // Also include trades with no tier or unknown tier using current riskLimit
+    const tieredIds = new Set(allTierIds);
+    const untiedTrades = periodTrades.filter((t) => !t?.account_tier || !tieredIds.has(t.account_tier));
+    const fallbackLimit = toFiniteNumber(settings?.risk_amount, 0);
+    if (untiedTrades.length && fallbackLimit > 0) {
+      const result = calcDisciplineSavings(untiedTrades, playbookEntries, fallbackLimit);
+      totalSaved += result.totalSaved;
+      tradesAnalyzed += result.tradesAnalyzed;
+      tradesExceeded += result.tradesExceeded;
+    }
+
+    return {
+      totalSaved: Math.round(totalSaved * 100) / 100,
+      bySetup: [...bySetupMap.values()].sort((a, b) => b.totalSaved - a.totalSaved),
+      tradesAnalyzed,
+      tradesExceeded,
+    };
+  }, [viewTier, periodTrades, playbookEntries, riskLimit, tierRiskAmounts, settings?.risk_amount]);
   const emotionStats = useMemo(() => computeEmotionStats(deferredTrades), [deferredTrades]);
   const isStale = deferredTrades !== periodTrades;
 
@@ -357,7 +495,7 @@ export default function PerformancePage() {
 
       {/* Tier + Period filters */}
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-wrap gap-1.5">
+        <div className="flex flex-wrap items-center gap-1.5">
           {TIER_VIEW_OPTIONS.map((opt) => {
             const isActive = viewTier === opt.value;
             return (
@@ -374,11 +512,16 @@ export default function PerformancePage() {
                     : 'border-white/10 bg-white/[0.03] text-white/45 hover:border-white/20 hover:text-white/65'
                 )}
               >
-                <span>{opt.icon}</span>
+                {opt.icon && <span>{opt.icon}</span>}
                 {opt.label}
               </button>
             );
           })}
+          {tierPreset && riskLimit > 0 && (
+            <span className="ml-1 rounded-lg border border-blue-400/25 bg-blue-500/10 px-2.5 py-1 text-xs font-semibold text-blue-300">
+              Your risk limit: ${riskLimit.toLocaleString()}/trade
+            </span>
+          )}
         </div>
 
         <div className="flex flex-wrap gap-1.5">
@@ -462,6 +605,12 @@ export default function PerformancePage() {
           </TabHero>
 
           <EmotionMatrix trades={periodTrades} />
+
+          <DisciplineSavingsCard
+            savings={disciplineSavings}
+            riskLimit={riskLimit}
+            label={viewTier === 'overall' ? 'Risk Discipline · All tiers combined' : undefined}
+          />
         </TabsContent>
 
         <TabsContent value="timing" className="mt-4 space-y-4">
@@ -646,8 +795,6 @@ export default function PerformancePage() {
             <AnalysisPanel trades={periodTrades} isCollapsed={false} />
           </div>
 
-          <PnLCalendarHeatmap trades={periodTrades} />
-          <EquityCurveChart curve={curve} initialBalance={accountSize} />
         </TabsContent>
       </Tabs>
     </div>

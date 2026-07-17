@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
 import { toast } from 'sonner';
-import { calcPosition } from '@/lib/calculations/trades';
+import { calcPosition, calcFuturesPosition } from '@/lib/calculations/trades';
 
 const CALCULATOR_DECISION_EVENT = 'calculator-decision-context';
 
@@ -27,22 +27,44 @@ export function usePositionCalculation({
   setCalculation,
   resetTimer,
   onCalculationSaved,
+  // futures
+  isFutures = false,
+  tickSize,
+  tickValue,
 }) {
-  const buildCalculationParams = useCallback((overrides = {}) => ({
-    entryPrice,
-    direction,
-    accountSize,
-    positionPct: positionSizingPct,
-    stopPct: defaultStopLossPct,
-    stopLossPrice: customStop || undefined,
-    riskAmount: riskMultiplier !== 1 && Number.isFinite(Number(riskAmount))
-      ? Number(riskAmount) * riskMultiplier
-      : riskAmount,
-    maxPositionValue,
-    targetProfitDollars,
-    riskRewardRatio: playbookTargetR ?? 3,
-    ...overrides,
-  }), [
+  const buildCalculationParams = useCallback((overrides = {}) => {
+    if (isFutures) {
+      return {
+        entryPrice,
+        direction,
+        accountSize,
+        riskAmount: riskMultiplier !== 1 && Number.isFinite(Number(riskAmount))
+          ? Number(riskAmount) * riskMultiplier
+          : riskAmount,
+        stopLossPrice: customStop || undefined,
+        tickSize,
+        tickValue,
+        riskRewardRatio: playbookTargetR ?? 3,
+        ...overrides,
+      };
+    }
+    return {
+      entryPrice,
+      direction,
+      accountSize,
+      positionPct: positionSizingPct,
+      stopPct: defaultStopLossPct,
+      stopLossPrice: customStop || undefined,
+      riskAmount: riskMultiplier !== 1 && Number.isFinite(Number(riskAmount))
+        ? Number(riskAmount) * riskMultiplier
+        : riskAmount,
+      maxPositionValue,
+      targetProfitDollars,
+      riskRewardRatio: playbookTargetR ?? 3,
+      ...overrides,
+    };
+  }, [
+    isFutures,
     entryPrice,
     direction,
     accountSize,
@@ -54,15 +76,18 @@ export function usePositionCalculation({
     playbookTargetR,
     maxPositionValue,
     targetProfitDollars,
+    tickSize,
+    tickValue,
   ]);
 
   const runCalculation = useCallback((overrides = {}) => {
-    const result = calcPosition(buildCalculationParams(overrides));
+    const calc = isFutures ? calcFuturesPosition : calcPosition;
+    const result = calc(buildCalculationParams(overrides));
     const normalizedResult = { ...result, _viewSource: 'snapshot' };
     setCalculation(normalizedResult);
-    resetTimer(); // each new calculation result gets a fresh timer
+    resetTimer();
     return normalizedResult;
-  }, [buildCalculationParams, resetTimer, setCalculation]);
+  }, [isFutures, buildCalculationParams, resetTimer, setCalculation]);
 
   const handleCalculate = useCallback(() => {
     if (!entryPrice) {

@@ -232,6 +232,7 @@ export default function Journal() {
             onViewDetails={(trade) => openDrawer(trade.id)}
             columns={columns}
             onToggleColumn={toggleColumn}
+            riskLimit={riskLimit}
             reviews={reviews}
             reviewLoading={reviewLoading}
             onReviewTrade={reviewTrade}

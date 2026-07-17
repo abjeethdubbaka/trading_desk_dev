@@ -111,9 +111,6 @@ export function useSettings(options = {}) {
         }
       }
       
-      // Invalidate any dependent queries
-      queryClient.invalidateQueries({ queryKey: ['trades'] }); // Trades might depend on settings
-      
       options.onSave?.(newSettings);
     },
     onError: (error) => {
@@ -144,19 +141,25 @@ export function useSettings(options = {}) {
     }, debounceMs);
   }, [debounceMs, saveMutation]);
 
-  // Immediate save
+  // Immediate save — merges any queued pending changes so nothing is lost
   const saveImmediately = useCallback((updates) => {
-    // Clear any pending debounced saves
     if (debouncedSaveRef.current) {
       clearTimeout(debouncedSaveRef.current);
       debouncedSaveRef.current = null;
     }
-    
-    // Clear pending updates
+
+    const pending = pendingUpdatesRef.current;
     pendingUpdatesRef.current = {};
-    
-    // Save immediately
-    return saveMutation.mutateAsync(updates);
+
+    // One-level deep merge so namespace keys (demo/funded) don't clobber each other
+    const merged = { ...pending };
+    for (const [k, v] of Object.entries(updates)) {
+      merged[k] = isPlainObject(v) && isPlainObject(merged[k])
+        ? { ...merged[k], ...v }
+        : v;
+    }
+
+    return saveMutation.mutateAsync(merged);
   }, [saveMutation]);
 
   // Update single field

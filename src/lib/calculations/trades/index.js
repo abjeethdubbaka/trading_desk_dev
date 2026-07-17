@@ -26,8 +26,9 @@ export {
   analyzeMistakePatterns,
   buildWeeklyReview,
   computeTradeSetupQuality,
+  calcDisciplineSavings,
 } from './analytics/insights.js';
 export { buildStrategyEngineSnapshot } from './analytics/strategyEngine.js';
 export { resolveShareFloatRange } from './shared/shareFloat.js';
 export { calcExitTargets } from './calculators/exits.js';
-export { calcPosition } from './calculators/position.js';
+export { calcPosition, calcFuturesPosition, FUTURES_CONTRACTS } from './calculators/position.js';

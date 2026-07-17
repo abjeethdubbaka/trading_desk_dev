@@ -17,13 +17,16 @@ export function useTradesMutation(options = {}) {
   const queryClient = useQueryClient();
   const { settings } = useSettings();
   const currentTier = settings?.account_tier || 'custom';
+  const currentAccountType = settings?.account_type || 'demo';
+  const currentTradingType = settings?.trading_type || 'stocks';
 
   const createMutation = useMutation({
     mutationFn: (tradeData) => {
-      // Add current account tier to trade data
       const tradeWithTier = {
         ...tradeData,
-        account_tier: currentTier
+        account_tier: currentTier,
+        account_type: currentAccountType,
+        trading_type: currentTradingType,
       };
       return tradeService.create(tradeWithTier);
     },
@@ -68,7 +71,15 @@ export function useTradesMutation(options = {}) {
   });
 
   const bulkCreateMutation = useMutation({
-    mutationFn: (tradesArray) => tradeService.bulkCreate(tradesArray),
+    mutationFn: (tradesArray) => {
+      const stamped = tradesArray.map((trade) => ({
+        ...trade,
+        account_tier: currentTier,
+        account_type: currentAccountType,
+        trading_type: currentTradingType,
+      }));
+      return tradeService.bulkCreate(stamped);
+    },
     onSuccess: (newTrades) => {
       // Invalidate trades list
       queryClient.invalidateQueries({ queryKey: tradeKeys.lists() });

@@ -1,24 +1,45 @@
 import { formatChartDate, groupByDay, round } from '../shared/helpers.js';
 
 export function buildEquityCurve(trades = [], initialBalance = 50000) {
-  if (!trades.length) return [{ date: 'Start', balance: initialBalance, pnl: 0, trade: 0 }];
+  if (!trades.length) return [{ date: 'Start', balance: initialBalance, pnl: 0, trade: 0, peak: initialBalance, drawdownPct: 0, drawdownAbs: 0 }];
 
+  // P&L is realised at exit — sort by exit_time, fall back to entry_time
   const sorted = [...trades]
-    .filter((trade) => trade?.entry_time)
-    .sort((a, b) => new Date(a.entry_time) - new Date(b.entry_time));
+    .filter((t) => t?.entry_time || t?.exit_time)
+    .sort((a, b) => {
+      const ta = new Date(a.exit_time || a.entry_time).getTime();
+      const tb = new Date(b.exit_time || b.entry_time).getTime();
+      return ta - tb;
+    });
 
   let balance = initialBalance;
+  let peak = initialBalance;
   const points = sorted.map((trade, index) => {
-    balance += trade?.pnl ?? 0;
+    const pnl = trade?.pnl ?? 0;
+    balance = round(balance + pnl, 2);
+    if (balance > peak) peak = balance;
+    const drawdownAbs = round(balance - peak, 2);
+    const drawdownPct = peak > 0 ? round((drawdownAbs / peak) * 100, 2) : 0;
+    // Use exit_time date label when available
+    const dateLabel = formatChartDate(trade.exit_time || trade.entry_time);
     return {
-      date: formatChartDate(trade.entry_time),
-      balance: round(balance, 2),
-      pnl: trade?.pnl ?? 0,
+      date: dateLabel,
+      balance,
+      pnl,
       trade: index + 1,
+      peak: round(peak, 2),
+      drawdownAbs,
+      drawdownPct,
+      symbol: trade.symbol ?? null,
+      direction: trade.direction ?? null,
+      rMultiple: trade.r_multiple ?? null,
     };
   });
 
-  return [{ date: 'Start', balance: initialBalance, pnl: 0, trade: 0 }, ...points];
+  return [
+    { date: 'Start', balance: initialBalance, pnl: 0, trade: 0, peak: initialBalance, drawdownAbs: 0, drawdownPct: 0, symbol: null, direction: null, rMultiple: null },
+    ...points,
+  ];
 }
 
 export function calcMaxDrawdown(curve = []) {

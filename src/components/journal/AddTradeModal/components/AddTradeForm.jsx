@@ -91,8 +91,12 @@ export default function AddTradeForm({
           stop_loss: formData.stop_loss,
           position_size: formData.position_size,
           fee: formData.fee,
+          tick_size: formData.tick_size,
+          tick_value: formData.tick_value,
+          futures_preset: formData.futures_preset,
         }}
         onChange={updateField}
+        instrumentType={formData.instrument_type || 'stocks'}
       />
 
       <TradeMetrics

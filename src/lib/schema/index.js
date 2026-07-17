@@ -17,8 +17,10 @@ export const TradeSchema = {
     'setup_grade',
     'setup_quality_score',
     'custom_setup_type',
-    'account_tier', // Track which account tier was used for this trade
-    
+    'account_tier',
+    'account_type',
+    'trading_type',
+
     // Risk Management
     'stop_loss',
     'stop_loss_reason',
@@ -100,6 +102,8 @@ export const SettingsSchema = {
     // Account Configuration
     'account_size',
     'account_tier',
+    'account_type',
+    'trading_type',
     
     // Risk Management
     'risk_amount',
@@ -150,12 +154,20 @@ export const SettingsSchema = {
     
     // Data & Export
     'export_preferences',
-    'backup_settings'
+    'backup_settings',
+
+    // Per-account-type namespaces (demo / funded isolated settings)
+    'demo',
+    'funded',
+    // Per-tier risk amounts map { '25K': 75, '200K': 600, ... }
+    'tier_risk_amounts',
   ],
   defaults: {
     // Account Configuration
     account_size: 50000,
     account_tier: 'custom',
+    account_type: 'demo',
+    trading_type: 'stocks',
     
     // Risk Management
     risk_amount: 500,

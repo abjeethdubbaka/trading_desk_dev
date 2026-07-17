@@ -5,6 +5,7 @@ import { Label } from '@/components/ui/label';
 import { Sigma, Plus, RotateCcw, CheckCircle2, BookOpen, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import MultiImageLightbox from '@/components/ui/MultiImageLightbox';
+import { FUTURES_CONTRACTS } from '@/lib/calculations/trades';
 
 const RISK_LEVEL_META = {
   half:   { label: '½ Size', color: 'text-amber-300',   bg: 'bg-amber-500/10 border-amber-500/25' },
@@ -35,6 +36,14 @@ export default function FloatInputForm({
   todayTradeCount = 0,
   maxDailyTrades = null,
   disabled = false,
+  // futures
+  isFutures = false,
+  futuresPreset = 'ES',
+  onFuturesPresetChange,
+  tickSize = '',
+  onTickSizeChange,
+  tickValue = '',
+  onTickValueChange,
 }) {
   const [lbOpen, setLbOpen] = useState(false);
   const [lbIndex, setLbIndex] = useState(0);
@@ -185,6 +194,59 @@ export default function FloatInputForm({
         </div>
       )}
 
+      {/* Futures contract preset */}
+      {isFutures && (
+        <div className="space-y-1.5">
+          <Label className="text-xs uppercase tracking-wide text-white/60">Futures Contract</Label>
+          <div className="flex gap-2">
+            <select
+              value={futuresPreset}
+              onChange={(e) => {
+                const key = e.target.value;
+                onFuturesPresetChange?.(key);
+                const spec = FUTURES_CONTRACTS[key];
+                if (spec) {
+                  onTickSizeChange?.(String(spec.tickSize));
+                  onTickValueChange?.(String(spec.tickValue));
+                }
+              }}
+              className="flex-1 h-10 rounded-lg border border-white/15 bg-[#0d1520] px-3 text-sm text-white/90 outline-none focus:border-emerald-400/40 appearance-none cursor-pointer"
+              disabled={disabled}
+            >
+              {Object.entries(FUTURES_CONTRACTS).map(([key, spec]) => (
+                <option key={key} value={key} style={{ backgroundColor: '#0d1520' }}>
+                  {key} — {spec.name}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <div className="space-y-1">
+              <Label className="text-xs text-white/50">Tick Size</Label>
+              <Input
+                type="text"
+                value={tickSize}
+                onChange={(e) => onTickSizeChange?.(e.target.value)}
+                placeholder="0.25"
+                className="h-9 bg-white/5 border-white/10 text-sm"
+                disabled={disabled}
+              />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs text-white/50">Tick Value ($)</Label>
+              <Input
+                type="text"
+                value={tickValue}
+                onChange={(e) => onTickValueChange?.(e.target.value)}
+                placeholder="12.50"
+                className="h-9 bg-white/5 border-white/10 text-sm"
+                disabled={disabled}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Price inputs */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
         <div className="space-y-2">
@@ -192,7 +254,7 @@ export default function FloatInputForm({
           <Input
             value={symbol}
             onChange={(e) => setSymbol(e.target.value.toUpperCase())}
-            placeholder="TSLA"
+            placeholder={isFutures ? 'ES' : 'TSLA'}
             className="h-11 bg-white/5 border-white/10 focus-visible:ring-blue-500/30"
             disabled={disabled}
           />
@@ -204,7 +266,7 @@ export default function FloatInputForm({
             type="text"
             value={entryPrice}
             onChange={(e) => setEntryPrice(e.target.value)}
-            placeholder="215.00"
+            placeholder={isFutures ? '5890.00' : '215.00'}
             className="h-11 bg-white/5 border-white/10 focus-visible:ring-blue-500/30"
             disabled={disabled}
           />
@@ -216,7 +278,7 @@ export default function FloatInputForm({
             type="text"
             value={customStopLossPrice}
             onChange={(e) => setCustomStopLossPrice(e.target.value)}
-            placeholder="209.50"
+            placeholder={isFutures ? '5880.00' : '209.50'}
             className="h-11 bg-white/5 border-white/10 focus-visible:ring-blue-500/30"
             disabled={disabled}
           />

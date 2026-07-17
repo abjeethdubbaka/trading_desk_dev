@@ -66,9 +66,22 @@ export default function AccountTierSelector({ onSettingsReplaced }) {
 
   const currentTier = ACCOUNT_TIERS[currentTierId];
   const isCustom = currentTierId === 'custom';
+  const currentAccountType = settings?.account_type || 'demo';
+
+  const handleAccountTypeSelect = useCallback(async (type) => {
+    try {
+      const patch = { account_type: type };
+      updateFields(patch);
+      await saveImmediately(patch);
+    } catch {
+      // silent
+    }
+  }, [updateFields, saveImmediately]);
 
   const handleTierSelect = useCallback(async (tierId) => {
     try {
+      const existingTierRisk = settings?.tier_risk_amounts || {};
+
       if (currentTierId && currentTierId !== 'custom') {
         const baseTier = getTierSettingsFields(currentTierId);
         const normalizedCurrent = sanitizeTierSettingsPayload(settings || {});
@@ -80,6 +93,12 @@ export default function AccountTierSelector({ onSettingsReplaced }) {
           }
         });
         saveTierCustomizations(currentTierId, customizations);
+
+        // Snapshot current tier's risk_amount before leaving it
+        const currentRisk = Number(settings?.risk_amount);
+        if (Number.isFinite(currentRisk) && currentRisk > 0) {
+          existingTierRisk[currentTierId] = currentRisk;
+        }
       }
 
       const globalSetupTypes = toGlobalSetupTypes(settings?.journal_preferences?.default_setup_types);
@@ -91,8 +110,14 @@ export default function AccountTierSelector({ onSettingsReplaced }) {
         ? { ...nextBase, journal_preferences: { ...(nextBase?.journal_preferences || {}), ...(globalSetupTypes.length > 0 ? { default_setup_types: globalSetupTypes } : {}) } }
         : nextBase;
 
-      updateFields(nextSettings);
-      await saveImmediately(nextSettings);
+      // Snapshot incoming tier's risk_amount too
+      const incomingRisk = Number(nextSettings?.risk_amount);
+      if (tierId !== 'custom' && Number.isFinite(incomingRisk) && incomingRisk > 0) {
+        existingTierRisk[tierId] = incomingRisk;
+      }
+
+      updateFields({ ...nextSettings, tier_risk_amounts: existingTierRisk });
+      await saveImmediately({ ...nextSettings, tier_risk_amounts: existingTierRisk });
       onSettingsReplaced?.();
       setIsOpen(false);
     } catch {
@@ -160,6 +185,12 @@ export default function AccountTierSelector({ onSettingsReplaced }) {
             <div className="flex items-center gap-2">
               <span className="text-lg">{currentTier?.icon}</span>
               <span>{displayLabel}</span>
+              <Badge
+                variant="secondary"
+                className={`text-xs ${currentAccountType === 'funded' ? 'bg-violet-500/20 text-violet-200 border-violet-400/30' : 'bg-cyan-500/15 text-cyan-200 border-cyan-400/25'}`}
+              >
+                {currentAccountType === 'funded' ? 'Funded' : 'Demo'}
+              </Badge>
               <Badge variant="secondary" className="text-xs">{currentTier?.badge}</Badge>
             </div>
             <ChevronDown className="w-4 h-4 opacity-50" />
@@ -168,6 +199,36 @@ export default function AccountTierSelector({ onSettingsReplaced }) {
 
         <DropdownMenuContent className="w-72 bg-gray-900 border-white/10" align="start">
           <div className="p-2 space-y-1">
+
+            {/* Demo / Funded toggle */}
+            <div className="mb-2 grid grid-cols-2 gap-1 rounded-lg border border-white/10 bg-white/[0.03] p-1">
+              {[
+                { value: 'demo',   label: 'Demo',   desc: 'Simulated / practice' },
+                { value: 'funded', label: 'Funded', desc: 'Prop firm / live' },
+              ].map(({ value, label, desc }) => {
+                const active = currentAccountType === value;
+                return (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleAccountTypeSelect(value); }}
+                    className={`rounded px-2 py-2 text-left transition-colors ${
+                      active
+                        ? value === 'funded'
+                          ? 'border border-violet-400/35 bg-violet-500/15 text-violet-100'
+                          : 'border border-cyan-400/35 bg-cyan-500/15 text-cyan-100'
+                        : 'text-white/45 hover:text-white/70'
+                    }`}
+                  >
+                    <p className="text-xs font-semibold">{label}</p>
+                    <p className="text-[10px] text-white/40 leading-tight">{desc}</p>
+                  </button>
+                );
+              })}
+            </div>
+
+            <p className="text-[10px] uppercase tracking-widest text-white/30 px-1 pb-0.5">Account Size</p>
+
             {/* Built-in tiers */}
             {ACCOUNT_TIER_IDS.filter(id => id !== 'custom').map((tierId) => {
               const tier = ACCOUNT_TIERS[tierId];

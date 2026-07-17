@@ -139,6 +139,13 @@ export default function FloatPositionSizer({ historyData, onCalculationSaved = (
             todayTradeCount={controller.todayTradeCount}
             maxDailyTrades={controller.maxDailyTrades}
             disabled={false}
+            isFutures={controller.isFutures}
+            futuresPreset={controller.futuresPreset}
+            onFuturesPresetChange={controller.setFuturesPreset}
+            tickSize={controller.tickSize}
+            onTickSizeChange={controller.setTickSize}
+            tickValue={controller.tickValue}
+            onTickValueChange={controller.setTickValue}
           />
         </CardContent>
       </Card>

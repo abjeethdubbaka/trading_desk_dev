@@ -29,6 +29,7 @@ export function useFloatPositionSizerController({ historyData, onCalculationSave
   const maxPositionValue = settings?.max_position_value;
   const exitStrategy = settings?.exit_strategy;
   const maxDailyTrades = settings?.max_daily_trades ?? null;
+  const isFutures = settings?.trading_type === 'futures';
 
   const { data: allTrades = [] } = useTrades();
 
@@ -53,6 +54,9 @@ export function useFloatPositionSizerController({ historyData, onCalculationSave
   const [comment, setComment] = useState(() => String(initialState.comment || ''));
   const [selectedSetupId, setSelectedSetupId_raw] = useState(() => String(initialState.selectedSetupId || ''));
   const [exitPrice, setExitPrice] = useState('');
+  const [futuresPreset, setFuturesPreset] = useState('ES');
+  const [tickSize, setTickSize] = useState('');
+  const [tickValue, setTickValue] = useState('');
 
   const setSelectedSetupId = useCallback((value) => {
     setSelectedSetupId_raw(value);
@@ -119,6 +123,9 @@ export function useFloatPositionSizerController({ historyData, onCalculationSave
     setCalculation,
     resetTimer,
     onCalculationSaved,
+    isFutures,
+    tickSize,
+    tickValue,
   });
 
   const { isSavingTrade, handleAddToJournal, lossLimitInfo, dismissLossLimitInfo } = useTradeSubmission({
@@ -290,5 +297,12 @@ export function useFloatPositionSizerController({ historyData, onCalculationSave
     playbookExitStrategy,
     todayTradeCount,
     maxDailyTrades,
+    isFutures,
+    futuresPreset,
+    setFuturesPreset,
+    tickSize,
+    setTickSize,
+    tickValue,
+    setTickValue,
   };
 }

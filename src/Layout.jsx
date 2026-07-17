@@ -19,7 +19,6 @@ import {
   FileBarChart,
   // ScanSearch, // only used by the commented-out Screenshot Analysis nav item
   Images,
-  NotebookPen,
   Wallet,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -28,6 +27,7 @@ import { cn } from '@/lib/utils';
 import { formatAnalysisTimer, useAnalysisTimer } from '@/lib/context/AnalysisTimerContext';
 import { useTrades } from '@/lib/hooks/useTrades';
 import { useExpenses } from '@/lib/hooks/useFinance';
+import { useAutoBackup } from '@/lib/hooks/useBackup';
 
 // AI assistant not in use — flow commented out, not deleted, in case it's revived later.
 // const ChatDock = lazy(() => import('@/components/chat/ChatDock'));
@@ -44,12 +44,6 @@ const navItems = [
     description: 'Review, tag, and refine execution trade by trade.',
     icon: BookOpen,
     page: 'Journal',
-  },
-  {
-    name: 'Notes',
-    description: 'All trade notes in one searchable feed.',
-    icon: NotebookPen,
-    page: 'Notes',
   },
   {
     name: 'Calculator',
@@ -123,6 +117,7 @@ const navItems = [
 
 export default function Layout({ children, currentPageName }) {
   const [mobileOpen, setMobileOpen] = useState(false);
+  useAutoBackup();
 
   const { isElectron, closeApp } = useElectron();
 

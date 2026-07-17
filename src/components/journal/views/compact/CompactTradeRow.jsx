@@ -38,6 +38,7 @@ export function CompactTradeRow({
   index,
   isSelected,
   onToggleSelect,
+  riskLimit = 0,
 }) {
   const [expanded, setExpanded] = useState(false);
   const [reviewOpen, setReviewOpen] = useState(false);
@@ -58,6 +59,7 @@ export function CompactTradeRow({
   }, []);
 
   const pnl = getTradePnL(trade);
+  const exceededRisk = riskLimit > 0 && pnl < 0 && Math.abs(pnl) > riskLimit;
   const entryPrice = trade.entry_price || 0;
   const exitPrice = trade.exit_price || 0;
   const positionSize = trade.position_size || 0;
@@ -77,7 +79,9 @@ export function CompactTradeRow({
       className={cn(
         'group border-b border-white/[0.04] last:border-0',
         'transition-colors duration-150',
-        isSelected ? 'bg-cyan-500/[0.06]' : 'hover:bg-white/[0.02]',
+        exceededRisk
+          ? 'border-l-[3px] border-l-rose-500 bg-rose-500/[0.12] hover:bg-rose-500/[0.18]'
+          : isSelected ? 'bg-cyan-500/[0.06]' : 'hover:bg-white/[0.02]',
         'animate-fade-in',
       )}
       style={{ animationDelay: `${Math.min(index * 20, 200)}ms` }}

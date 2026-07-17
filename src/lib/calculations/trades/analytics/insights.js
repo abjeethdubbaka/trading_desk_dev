@@ -424,3 +424,75 @@ export function analyzeMistakePatterns(trades = [], limit = 5) {
     topFixes,
   };
 }
+
+const RISK_LEVEL_MULTIPLIER = { half: 0.5, normal: 1.0, double: 2.0 };
+
+/**
+ * For each losing trade, compares the actual loss against the max allowed loss
+ * for that setup (base risk × setup risk_level multiplier). Accumulates how much
+ * would have been saved had the trader respected the setup's risk limit.
+ *
+ * @param {Array}  trades           - trades array (already filtered to period)
+ * @param {Array}  playbookEntries  - from usePlaybook() / settings.strategy_playbook
+ * @param {number} baseRiskAmount   - settings.risk_amount (dollars)
+ * @returns {{ totalSaved, bySetup: Array, tradesAnalyzed, tradesExceeded }}
+ */
+export function calcDisciplineSavings(trades = [], playbookEntries = [], baseRiskAmount = 0) {
+  const base = Number(baseRiskAmount);
+  if (!base || base <= 0) return { totalSaved: 0, bySetup: [], tradesAnalyzed: 0, tradesExceeded: 0 };
+
+  const setupMap = new Map();
+  playbookEntries.forEach((e) => {
+    if (e?.name) setupMap.set(e.name.trim().toLowerCase(), e);
+  });
+
+  const bySetup = new Map(); // key → { setup, allowedLoss, totalSaved, count, trades }
+  let totalSaved = 0;
+  let tradesAnalyzed = 0;
+  let tradesExceeded = 0;
+
+  for (const trade of trades) {
+    const pnl = Number(trade?.pnl ?? 0);
+    if (!Number.isFinite(pnl) || pnl >= 0) continue; // only losses
+
+    const setupName = String(trade?.setup_type || '').trim();
+    const entry = setupName ? setupMap.get(setupName.toLowerCase()) : null;
+    const multiplier = RISK_LEVEL_MULTIPLIER[entry?.risk_level] ?? 1.0;
+    const allowedLoss = round(base * multiplier, 2);
+    const actualLoss = Math.abs(pnl);
+
+    tradesAnalyzed++;
+
+    if (actualLoss <= allowedLoss) continue; // within limit — no savings
+
+    const saved = round(actualLoss - allowedLoss, 2);
+    totalSaved += saved;
+    tradesExceeded++;
+
+    const key = setupName || 'Unknown';
+    if (!bySetup.has(key)) {
+      bySetup.set(key, {
+        setup: key,
+        riskLevel: entry?.risk_level ?? 'normal',
+        multiplier,
+        allowedLoss,
+        totalSaved: 0,
+        count: 0,
+        worstSingle: 0,
+      });
+    }
+    const bucket = bySetup.get(key);
+    bucket.totalSaved = round(bucket.totalSaved + saved, 2);
+    bucket.count++;
+    if (saved > bucket.worstSingle) bucket.worstSingle = round(saved, 2);
+  }
+
+  const bySetupArray = [...bySetup.values()].sort((a, b) => b.totalSaved - a.totalSaved);
+
+  return {
+    totalSaved: round(totalSaved, 2),
+    bySetup: bySetupArray,
+    tradesAnalyzed,
+    tradesExceeded,
+  };
+}

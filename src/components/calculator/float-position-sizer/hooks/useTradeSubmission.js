@@ -43,8 +43,9 @@ export function useTradeSubmission({
       toast.error('Enter a symbol first');
       return;
     }
-    if (!/^[A-Z]{1,5}$/.test(normalizedSymbol)) {
-      toast.error('Symbol must be 1-5 uppercase letters (e.g., AAPL)');
+    const isFuturesSymbol = /^\d/.test(normalizedSymbol) || normalizedSymbol.includes('6') || normalizedSymbol.length > 5;
+    if (!isFuturesSymbol && !/^[A-Z0-9]{1,6}$/.test(normalizedSymbol)) {
+      toast.error('Invalid symbol format');
       return;
     }
 

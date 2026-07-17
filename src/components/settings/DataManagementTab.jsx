@@ -1,5 +1,6 @@
 import React from 'react';
 import PasteTradesCard from '@/components/settings/PasteTradesCard';
+import BackupRestoreCard from '@/components/settings/BackupRestoreCard';
 
 export default function DataManagementTab({
   handleReEnrichTrades,
@@ -13,6 +14,8 @@ export default function DataManagementTab({
   return (
     <div className="space-y-4">
       <h2 className="text-sm font-semibold text-white/70">Data management</h2>
+
+      <BackupRestoreCard />
 
       <PasteTradesCard
         accountTier={accountTier}

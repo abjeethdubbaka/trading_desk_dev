@@ -22,6 +22,11 @@ export function useResultsDisplayCalculations({
   isTimerRunning,
   isExpired,
   remainingSeconds,
+  // futures extras (all optional — absent for stocks)
+  isFutures = false,
+  tickSize,
+  tickValue,
+  stopTicks: stopTicksProp,
 }) {
   const targets = useMemo(() => {
     const shareCount = Math.floor(Number(shares));
@@ -30,6 +35,33 @@ export function useResultsDisplayCalculations({
 
     if (!Number.isFinite(shareCount) || shareCount <= 0) return [];
     if (!Number.isFinite(entry) || !Number.isFinite(stop)) return [];
+
+    if (isFutures) {
+      const tSize = Number(tickSize);
+      const tValue = Number(tickValue);
+      if (!tSize || !tValue) return [];
+      const resolvedStopTicks = Number.isFinite(Number(stopTicksProp)) && Number(stopTicksProp) > 0
+        ? Number(stopTicksProp)
+        : Math.round(Math.abs(entry - stop) / tSize);
+      if (resolvedStopTicks <= 0) return [];
+
+      const levels = sanitizeExitLevels(exitStrategy);
+      const multiplier = direction === 'short' ? -1 : 1;
+      let remaining = shareCount;
+
+      return levels
+        .map((level, index) => {
+          const allocated = index === levels.length - 1
+            ? remaining
+            : Math.min(remaining, Math.floor(shareCount * level.weight));
+          remaining -= allocated;
+          const price = entry + multiplier * resolvedStopTicks * tSize * level.r;
+          const profit = allocated * resolvedStopTicks * tValue * level.r;
+          const allocatedPct = shareCount > 0 ? (allocated / shareCount) * 100 : 0;
+          return { r: level.r, shares: allocated, percent: allocatedPct, price, profit, isTrailingStop: Boolean(level.trailingStop) };
+        })
+        .filter((t) => t.shares > 0);
+    }
 
     const riskPerShare = Math.abs(entry - stop);
     if (!Number.isFinite(riskPerShare) || riskPerShare <= 0) return [];
@@ -50,7 +82,7 @@ export function useResultsDisplayCalculations({
         return { r: level.r, shares: allocatedShares, percent: allocatedPct, price, profit, isTrailingStop: Boolean(level.trailingStop) };
       })
       .filter((t) => t.shares > 0);
-  }, [shares, stopLossPrice, entryPrice, direction, exitStrategy]);
+  }, [shares, stopLossPrice, entryPrice, direction, exitStrategy, isFutures, tickSize, tickValue, stopTicksProp]);
 
   const overallProfit = useMemo(() => targets.reduce((sum, t) => sum + (t.profit || 0), 0), [targets]);
 

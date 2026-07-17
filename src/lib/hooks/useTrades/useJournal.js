@@ -12,9 +12,16 @@ import { useTradePerformance } from './useTradePerformance.js';
 export function useJournal(options = {}) {
   const { settings } = useSettings();
   const currentTier = settings?.account_tier || 'custom';
+  const currentAccountType = settings?.account_type || 'demo';
+  const currentTradingType = settings?.trading_type || 'stocks';
   const { filters = {}, includeStats = false, includePerformance = false, ...queryOptions } = options;
 
-  const filtersWithTier = { ...filters, account_tier: currentTier };
+  const filtersWithTier = {
+    ...filters,
+    account_tier: currentTier,
+    account_type: currentAccountType,
+    trading_type: currentTradingType,
+  };
   const filtersForStats = { ...filters };
 
   const tradesQuery = useTrades({ filters: filtersWithTier, ...queryOptions });

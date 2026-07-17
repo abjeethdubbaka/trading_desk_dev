@@ -1,5 +1,96 @@
 import { round } from '../shared/helpers.js';
 
+// ── Futures contract specs ─────────────────────────────────────────────────────
+export const FUTURES_CONTRACTS = {
+  ES:  { name: 'E-mini S&P 500',          tickSize: 0.25,    tickValue: 12.50 },
+  MES: { name: 'Micro E-mini S&P 500',    tickSize: 0.25,    tickValue: 1.25  },
+  NQ:  { name: 'E-mini Nasdaq-100',       tickSize: 0.25,    tickValue: 5.00  },
+  MNQ: { name: 'Micro E-mini Nasdaq-100', tickSize: 0.25,    tickValue: 0.50  },
+  RTY: { name: 'E-mini Russell 2000',     tickSize: 0.10,    tickValue: 5.00  },
+  M2K: { name: 'Micro Russell 2000',      tickSize: 0.10,    tickValue: 0.50  },
+  YM:  { name: 'E-mini DJIA',             tickSize: 1.00,    tickValue: 5.00  },
+  MYM: { name: 'Micro E-mini DJIA',       tickSize: 1.00,    tickValue: 0.50  },
+  CL:  { name: 'Crude Oil',               tickSize: 0.01,    tickValue: 10.00 },
+  GC:  { name: 'Gold',                    tickSize: 0.10,    tickValue: 10.00 },
+  SI:  { name: 'Silver',                  tickSize: 0.005,   tickValue: 25.00 },
+  '6E':{ name: 'Euro FX',                tickSize: 0.00005, tickValue: 6.25  },
+};
+
+export function calcFuturesPosition({
+  entryPrice,
+  direction = 'long',
+  accountSize = 50000,
+  riskAmount,
+  stopLossPrice,
+  tickSize,
+  tickValue,
+  riskRewardRatio = 3,
+  maxContracts = null,
+}) {
+  const entry   = Number(entryPrice);
+  const account = Number(accountSize);
+  const tSize   = Number(tickSize);
+  const tValue  = Number(tickValue);
+
+  if (!entry || !account)   throw new Error('Entry price and account size are required');
+  if (!tSize || !tValue)    throw new Error('Tick size and tick value are required');
+  if (!stopLossPrice)       throw new Error('Stop loss price is required for futures sizing');
+
+  const stop = Number(stopLossPrice);
+  const stopDistance = Math.abs(entry - stop);
+  if (stopDistance < tSize) throw new Error('Stop distance must be at least 1 tick');
+
+  const isLong = direction === 'long';
+  const stopTicks = Math.round(stopDistance / tSize);
+  const riskPerContract = stopTicks * tValue;
+
+  const resolvedRiskAmount = Number.isFinite(Number(riskAmount)) && Number(riskAmount) > 0
+    ? Number(riskAmount)
+    : account * 0.01;
+
+  let contracts = Math.max(1, Math.floor(resolvedRiskAmount / riskPerContract));
+  if (maxContracts != null && Number.isFinite(Number(maxContracts)) && Number(maxContracts) > 0) {
+    contracts = Math.min(contracts, Math.floor(Number(maxContracts)));
+  }
+
+  const actualRisk        = contracts * riskPerContract;
+  const riskUtilizationPct = resolvedRiskAmount > 0 ? (actualRisk / resolvedRiskAmount) * 100 : 100;
+  const targetPrice       = isLong
+    ? entry + stopTicks * riskRewardRatio * tSize
+    : entry - stopTicks * riskRewardRatio * tSize;
+  const targetProfit      = contracts * stopTicks * riskRewardRatio * tValue;
+  const actualRiskPct     = account > 0 ? (actualRisk / account) * 100 : 0;
+
+  return {
+    entryPrice:          round(entry, 5),
+    stopLossPrice:       round(stop, 5),
+    targetPrice:         round(targetPrice, 5),
+    direction,
+    contracts,
+    shares:              contracts,        // alias so ResultsDisplay renders correctly
+    stopTicks,
+    riskPerContract:     round(riskPerContract, 2),
+    positionValue:       round(contracts * entry, 2),
+    actualRisk:          round(actualRisk, 2),
+    actualRiskPct:       round(actualRiskPct, 2),
+    requestedRisk:       round(resolvedRiskAmount, 2),
+    riskUtilizationPct:  round(riskUtilizationPct, 2),
+    riskLevel:           actualRiskPct >= 2 ? 'High' : actualRiskPct >= 1 ? 'Medium' : 'Low',
+    targetProfit:        round(targetProfit, 2),
+    riskRewardRatio,
+    isFutures:           true,
+    tickSize:            tSize,
+    tickValue:           tValue,
+    mode:                'futures',
+    capReason:           null,
+    cappedByBalance:     false,
+    cappedByPositionValue: false,
+    cappedByFloat:       false,
+    cappedByFloatAdjustment: false,
+    calculatedAt:        new Date().toLocaleString(),
+  };
+}
+
 export function calcPosition({
   entryPrice,
   direction = 'long',

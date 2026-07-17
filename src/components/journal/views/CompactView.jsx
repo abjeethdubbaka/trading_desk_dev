@@ -29,6 +29,7 @@ export default function CompactView({
   // Column visibility
   columns,
   onToggleColumn,
+  riskLimit = 0,
 }) {
   const { urlsById: screenshotUrls, statusById: screenshotStatuses } = useTradeScreenshotUrls(trades);
 
@@ -62,6 +63,7 @@ export default function CompactView({
             key={trade.id}
             trade={trade}
             index={index}
+            riskLimit={riskLimit}
             onEdit={onEdit}
             onDelete={onDelete}
             onInlineUpdateTrade={onInlineUpdateTrade}

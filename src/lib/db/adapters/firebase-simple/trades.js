@@ -95,6 +95,8 @@ export function normalizeTradeListOptions(options = {}) {
     sortDir,
     limit: toPositiveInteger(options.limit),
     account_tier: normalizeText(options.account_tier),
+    account_type: normalizeText(options.account_type),
+    trading_type: normalizeText(options.trading_type),
     symbol: normalizeText(options.symbol)?.toUpperCase() || null,
     direction: normalizeText(options.direction)?.toLowerCase() || null,
     setup_type: normalizeText(options.setup_type),
@@ -120,6 +122,16 @@ export function applyTradeClientFilters(trades = [], options = {}) {
   return trades.filter((trade) => {
     if (normalizedOptions.account_tier && trade.account_tier !== normalizedOptions.account_tier) {
       return false;
+    }
+
+    if (normalizedOptions.account_type) {
+      const tradeAccountType = trade.account_type || 'demo';
+      if (tradeAccountType !== normalizedOptions.account_type) return false;
+    }
+
+    if (normalizedOptions.trading_type) {
+      const tradeTradingType = trade.trading_type || 'stocks';
+      if (tradeTradingType !== normalizedOptions.trading_type) return false;
     }
 
     if (normalizedOptions.symbol && String(trade.symbol || '').toUpperCase() !== normalizedOptions.symbol) {
@@ -172,6 +184,8 @@ function buildTradesQuery(tradesRef, options, { includeFilters = true, includeLi
 
   if (includeFilters) {
     if (options.account_tier) constraints.push(where('account_tier', '==', options.account_tier));
+    // account_type and trading_type are client-side only: Firestore skips documents
+    // where the field is absent, which would hide legacy trades that predate these fields.
     if (options.symbol) constraints.push(where('symbol', '==', options.symbol));
     if (options.direction) constraints.push(where('direction', '==', options.direction));
     if (options.setup_type) constraints.push(where('setup_type', '==', options.setup_type));

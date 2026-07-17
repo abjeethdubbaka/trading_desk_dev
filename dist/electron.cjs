@@ -1,4 +1,4 @@
-const { app, BrowserWindow, Menu, ipcMain, shell } = require('electron');
+const { app, BrowserWindow, Menu, ipcMain, shell, Notification } = require('electron');
 const path = require('path');
 const isDev = !app.isPackaged; // Better way to detect development mode
 
@@ -370,10 +370,39 @@ function createMenu() {
   Menu.setApplicationMenu(menu);
 }
 
+// ─── 10:30 daily discipline reminder ────────────────────────────────────────
+let reminderTimer = null;
+
+function scheduleDailyReminder() {
+  if (reminderTimer) clearTimeout(reminderTimer);
+
+  const now = new Date();
+  const target = new Date();
+  target.setHours(10, 30, 0, 0);
+
+  // If 10:30 already passed today, schedule for tomorrow
+  if (target <= now) target.setDate(target.getDate() + 1);
+
+  const msUntil = target.getTime() - now.getTime();
+
+  reminderTimer = setTimeout(() => {
+    if (Notification.isSupported()) {
+      new Notification({
+        title: '🚫 TradeDesk Reminder',
+        body: "Don't Trade — it's not worth it.",
+        silent: false, // plays default system sound
+      }).show();
+    }
+    // Reschedule for the same time tomorrow
+    scheduleDailyReminder();
+  }, msUntil);
+}
+
 // App event handlers
 app.whenReady().then(() => {
   createWindow();
   createMenu();
+  scheduleDailyReminder();
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
@@ -388,12 +417,9 @@ app.on('window-all-closed', () => {
   }
 });
 
-// Handle all windows closed event
-app.on('before-quit', (event) => {
-  // Clean up any resources before quitting
-  if (mainWindow) {
-    mainWindow.removeAllListeners();
-  }
+app.on('before-quit', () => {
+  if (reminderTimer) clearTimeout(reminderTimer);
+  if (mainWindow) mainWindow.removeAllListeners();
 });
 
 // Force quit on SIGINT (Ctrl+C)

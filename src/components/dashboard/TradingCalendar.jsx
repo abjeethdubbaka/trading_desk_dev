@@ -4,18 +4,21 @@ import {
   startOfMonth,
   endOfMonth,
   eachDayOfInterval,
-  isSameMonth,
   isToday,
   addMonths,
   subMonths,
+  getDay,
 } from 'date-fns';
-import { ChevronLeft, ChevronRight, TrendingUp, TrendingDown } from 'lucide-react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { getTradePnL, getTradeDate } from '@/lib/utils/tradeFields';
+
+const WEEKDAY_LABELS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+// getDay() returns 0=Sun … 6=Sat; index 0 and 6 are weekends
+const WEEKEND = new Set([0, 6]);
 
 export default function TradingCalendar({ trades, onDaySelect }) {
   const [currentMonth, setCurrentMonth] = useState(new Date());
 
-  // Group all trades by YYYY-MM-DD once — O(n) instead of O(days × n)
   const tradesByDay = useMemo(() => {
     const map = new Map();
     for (const trade of trades ?? []) {
@@ -34,10 +37,12 @@ export default function TradingCalendar({ trades, onDaySelect }) {
     return eachDayOfInterval({ start, end });
   }, [currentMonth]);
 
+  // Number of blank cells before day 1 so it lands in the right column
+  const startOffset = getDay(startOfMonth(currentMonth)); // 0=Sun … 6=Sat
+
   const getDayMetrics = (day) => {
     const dayTrades = tradesByDay.get(format(day, 'yyyy-MM-dd'));
     if (!dayTrades?.length) return null;
-
     let totalPnL = 0, wins = 0, losses = 0;
     for (const t of dayTrades) {
       const p = getTradePnL(t);
@@ -48,7 +53,8 @@ export default function TradingCalendar({ trades, onDaySelect }) {
     return { totalPnL, wins, losses, trades: dayTrades.length };
   };
 
-  const getDayColor = (metrics) => {
+  const getDayColor = (metrics, isWeekend) => {
+    if (isWeekend) return 'bg-white/[0.02] cursor-default';
     if (!metrics) return 'bg-white/5 hover:bg-white/10';
     if (metrics.totalPnL > 0) {
       if (metrics.totalPnL > 1000) return 'bg-emerald-500/30 hover:bg-emerald-500/40';
@@ -63,48 +69,56 @@ export default function TradingCalendar({ trades, onDaySelect }) {
     return 'bg-white/5 hover:bg-white/10';
   };
 
-  const nextMonth = () => setCurrentMonth(addMonths(currentMonth, 1));
-  const prevMonth = () => setCurrentMonth(subMonths(currentMonth, 1));
-
   return (
     <div className="glass-card rounded-2xl p-2 gradient-border">
       <div className="flex items-center justify-between mb-2">
         <h3 className="text-xs font-semibold">Trading Calendar</h3>
         <div className="flex items-center gap-1">
           <button
-            onClick={prevMonth}
+            onClick={() => setCurrentMonth(subMonths(currentMonth, 1))}
             className="p-0.5 rounded hover:bg-white/10 transition-colors"
           >
-            <ChevronLeft className="w-2 h-2" />
+            <ChevronLeft className="w-3 h-3" />
           </button>
-          <span className="text-[10px] font-medium min-w-[70px] text-center">
+          <span className="text-[10px] font-medium min-w-[54px] text-center">
             {format(currentMonth, 'MMM yy')}
           </span>
           <button
-            onClick={nextMonth}
+            onClick={() => setCurrentMonth(addMonths(currentMonth, 1))}
             className="p-0.5 rounded hover:bg-white/10 transition-colors"
           >
-            <ChevronRight className="w-2 h-2" />
+            <ChevronRight className="w-3 h-3" />
           </button>
         </div>
       </div>
 
       {/* Calendar Grid */}
       <div className="grid grid-cols-7 gap-0.5">
-        {/* Weekday headers */}
-        {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((day, index) => (
-          <div key={index} className="text-center text-[9px] text-white/50 font-medium p-0.5">
-            {day}
+        {/* Day-of-week headers */}
+        {WEEKDAY_LABELS.map((label, i) => (
+          <div
+            key={i}
+            className={`text-center text-[9px] font-medium py-0.5 ${
+              WEEKEND.has(i) ? 'text-white/25' : 'text-white/50'
+            }`}
+          >
+            {label}
           </div>
         ))}
 
-        {/* Calendar days */}
+        {/* Leading blank cells so day 1 lands on the correct weekday column */}
+        {Array.from({ length: startOffset }).map((_, i) => (
+          <div key={`pad-${i}`} />
+        ))}
+
+        {/* Month days */}
         {monthDays.map((day, index) => {
-          const metrics = getDayMetrics(day);
-          const isCurrentMonth = isSameMonth(day, currentMonth);
+          const isWeekend = WEEKEND.has(getDay(day));
+          const metrics = isWeekend ? null : getDayMetrics(day);
           const todayRing = isToday(day);
+          const pnlPositive = metrics && metrics.totalPnL >= 0;
           const label = metrics
-            ? `${format(day, 'MMM d, yyyy')} / ${metrics.trades} trade${metrics.trades !== 1 ? 's' : ''} / Net $${metrics.totalPnL.toFixed(0)}`
+            ? `${format(day, 'MMM d')} · ${metrics.trades} trade${metrics.trades !== 1 ? 's' : ''} · ${metrics.totalPnL >= 0 ? '+' : ''}$${metrics.totalPnL.toFixed(0)}`
             : format(day, 'MMM d, yyyy');
 
           return (
@@ -112,42 +126,34 @@ export default function TradingCalendar({ trades, onDaySelect }) {
               key={index}
               type="button"
               title={label}
-              onClick={() => onDaySelect?.(day, metrics)}
+              disabled={isWeekend}
+              onClick={() => !isWeekend && onDaySelect?.(day, metrics)}
               className={[
-                'aspect-[2/1] rounded p-0.5 transition-all text-left',
-                getDayColor(metrics),
-                !isCurrentMonth ? 'opacity-30' : '',
+                'rounded py-px px-0 transition-all flex flex-col items-center justify-start gap-px',
+                'aspect-[2/1]',
+                getDayColor(metrics, isWeekend),
+                isWeekend ? 'opacity-30' : '',
                 todayRing ? 'ring-1 ring-cyan-400' : '',
-                'relative flex flex-col justify-between',
-              ].join(' ')}
+              ].filter(Boolean).join(' ')}
             >
-              <div className="text-[9px] text-white/80 text-center leading-tight">
+              <span className={`text-[7px] leading-none font-medium ${isWeekend ? 'text-white/30' : 'text-white/60'}`}>
                 {format(day, 'd')}
-              </div>
+              </span>
 
               {metrics && (
-                <div className="flex flex-col items-center">
-                  <div className="text-[9px] font-bold text-white leading-tight">
-                    ${metrics.totalPnL.toFixed(0)}
-                  </div>
-                  <div className="flex items-center gap-0.5">
+                <>
+                  <span className={`text-[7px] font-bold leading-none ${pnlPositive ? 'text-emerald-300' : 'text-red-300'}`}>
+                    {metrics.totalPnL >= 0 ? '+' : ''}${metrics.totalPnL.toFixed(0)}
+                  </span>
+                  <div className="flex items-center gap-px leading-none">
                     {metrics.wins > 0 && (
-                      <div className="flex items-center gap-0.5">
-                        <TrendingUp className="w-1 h-1 text-emerald-400" />
-                        <span className="text-[9px] text-emerald-400">{metrics.wins}</span>
-                      </div>
+                      <span className="text-[6px] text-emerald-400 font-medium">{metrics.wins}W</span>
                     )}
                     {metrics.losses > 0 && (
-                      <div className="flex items-center gap-0.5">
-                        <TrendingDown className="w-1 h-1 text-red-400" />
-                        <span className="text-[9px] text-red-400">{metrics.losses}</span>
-                      </div>
+                      <span className="text-[6px] text-red-400 font-medium">{metrics.losses}L</span>
                     )}
                   </div>
-                  <div className="text-[8px] text-white/60">
-                    {metrics.trades}
-                  </div>
-                </div>
+                </>
               )}
             </button>
           );
@@ -155,21 +161,10 @@ export default function TradingCalendar({ trades, onDaySelect }) {
       </div>
 
       {/* Legend */}
-      <div className="mt-4 flex items-center justify-between text-xs">
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded bg-emerald-500/30"></div>
-            <span className="text-white/60">Profit</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded bg-red-500/30"></div>
-            <span className="text-white/60">Loss</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded bg-white/5"></div>
-            <span className="text-white/60">No trades</span>
-          </div>
-        </div>
+      <div className="mt-2 flex items-center gap-3 text-[10px] text-white/50">
+        <span className="flex items-center gap-1"><span className="inline-block w-2 h-2 rounded bg-emerald-500/30" />Profit</span>
+        <span className="flex items-center gap-1"><span className="inline-block w-2 h-2 rounded bg-red-500/30" />Loss</span>
+        <span className="flex items-center gap-1"><span className="inline-block w-2 h-2 rounded bg-white/5" />No trades</span>
       </div>
     </div>
   );

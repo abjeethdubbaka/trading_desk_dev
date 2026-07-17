@@ -34,8 +34,10 @@ export default function Dashboard() {
 
   const { settings } = useSettings();
   const currentTier = settings?.account_tier || 'custom';
+  const currentAccountType = settings?.account_type || 'demo';
+  const currentTradingType = settings?.trading_type || 'stocks';
   const { data: trades = [], isLoading } = useTrades({
-    filters: { account_tier: currentTier },
+    filters: { account_tier: currentTier, account_type: currentAccountType, trading_type: currentTradingType },
   });
 
   const accountSize = toFiniteNumber(settings?.account_size, 50000);
@@ -51,7 +53,9 @@ export default function Dashboard() {
   );
   const currentBalance = accountSize + toFiniteNumber(allStats.totalPnL, 0);
   const maxDailyLoss = -Math.abs(maxDollars);
-  const tierLabel = ACCOUNT_TIERS[currentTier]?.label ?? (currentTier === 'custom' ? 'Custom' : currentTier);
+  const accountType = settings?.account_type || 'demo';
+  const tierSizeLabel = ACCOUNT_TIERS[currentTier]?.label ?? (currentTier === 'custom' ? 'Custom' : currentTier);
+  const tierLabel = `${accountType === 'funded' ? 'Funded' : 'Demo'} · ${tierSizeLabel}`;
 
   if (isLoading) {
     return (
