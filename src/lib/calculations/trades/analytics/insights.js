@@ -1,6 +1,7 @@
 import { calcCoreStats } from './coreStats.js';
 import { perfBySetupType } from './performanceBreakdowns.js';
-import { round } from '../shared/helpers.js';
+import { pct, round } from '../shared/helpers.js';
+import { getTradePnL } from '../../../utils/tradeFields.js';
 
 const LEGACY_STEP_KEYS = [
   'smoothVWAPPullback',
@@ -494,5 +495,44 @@ export function calcDisciplineSavings(trades = [], playbookEntries = [], baseRis
     bySetup: bySetupArray,
     tradesAnalyzed,
     tradesExceeded,
+  };
+}
+
+/**
+ * Win rate on trades entered within windowMinutes after a losing trade.
+ * Identifies "revenge trading" patterns.
+ */
+export function calcRevengeTrades(trades = [], windowMinutes = 20) {
+  if (trades.length < 2) {
+    return { total: 0, wins: 0, losses: 0, winRate: 0, windowMinutes };
+  }
+
+  const sorted = [...trades]
+    .filter((t) => t?.entry_time)
+    .sort((a, b) => new Date(a.entry_time) - new Date(b.entry_time));
+
+  let total = 0;
+  let wins = 0;
+
+  for (let i = 1; i < sorted.length; i++) {
+    const prevPnL = getTradePnL(sorted[i - 1]);
+    if (prevPnL >= 0) continue;
+
+    const prevMs = new Date(sorted[i - 1].entry_time).getTime();
+    const currMs = new Date(sorted[i].entry_time).getTime();
+    const mins   = (currMs - prevMs) / 60000;
+
+    if (mins >= 0 && mins <= windowMinutes) {
+      total++;
+      if (getTradePnL(sorted[i]) > 0) wins++;
+    }
+  }
+
+  return {
+    total,
+    wins,
+    losses: total - wins,
+    winRate: total > 0 ? round(pct(wins, total), 1) : 0,
+    windowMinutes,
   };
 }

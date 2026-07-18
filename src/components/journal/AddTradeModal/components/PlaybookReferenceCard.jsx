@@ -3,9 +3,10 @@ import {
   BookOpenCheck,
   CheckCircle2,
   ExternalLink,
-  Search,
+  Shield,
   ShieldAlert,
   Target,
+  TrendingUp,
 } from 'lucide-react';
 
 function formatExpectedR(profile) {
@@ -59,9 +60,15 @@ export default function PlaybookReferenceCard({ entry }) {
             Setup Playbook
           </p>
           <p className="mt-1 text-sm font-semibold text-white">{entry.name}</p>
-          <p className="text-xs text-white/65">
-            {entry.timeframe || 'Timeframe n/a'} | {entry.market_context || 'Context n/a'}
-          </p>
+          {Array.isArray(entry.timeframe) && entry.timeframe.length > 0 ? (
+            <div className="mt-0.5 flex flex-wrap gap-1">
+              {entry.timeframe.map((tf) => (
+                <span key={tf} className="rounded-full border border-cyan-400/25 bg-cyan-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-cyan-200/80">
+                  {tf}
+                </span>
+              ))}
+            </div>
+          ) : null}
         </div>
 
         <div className="rounded-lg border border-emerald-300/30 bg-emerald-500/15 px-2.5 py-1.5">
@@ -76,32 +83,40 @@ export default function PlaybookReferenceCard({ entry }) {
         <p className="mt-2.5 text-xs text-white/80">{entry.description}</p>
       ) : null}
 
-      <div className="mt-3 grid grid-cols-1 gap-2 md:grid-cols-2 xl:grid-cols-4">
-        <CriteriaBlock
-          icon={Search}
-          title="Stock Filters"
-          items={entry.stock_filter_criteria}
-          toneClassName="text-amber-200/90"
-        />
-        <CriteriaBlock
-          icon={Target}
-          title="Entry"
-          items={entry.entry_criteria}
-          toneClassName="text-emerald-200/90"
-        />
-        <CriteriaBlock
-          icon={CheckCircle2}
-          title="Exit"
-          items={entry.exit_criteria}
-          toneClassName="text-cyan-200/90"
-        />
-        <CriteriaBlock
-          icon={ShieldAlert}
-          title="Invalidations"
-          items={entry.invalidations}
-          toneClassName="text-rose-200/90"
-        />
-      </div>
+      {entry.has_sl_exit_plan !== false && (
+        <div className="mt-3 grid grid-cols-1 gap-2 md:grid-cols-2 xl:grid-cols-3">
+          <CriteriaBlock
+            icon={Target}
+            title="Entry"
+            items={entry.entry_criteria}
+            toneClassName="text-emerald-200/90"
+          />
+          <CriteriaBlock
+            icon={CheckCircle2}
+            title="Exit"
+            items={entry.exit_criteria}
+            toneClassName="text-cyan-200/90"
+          />
+          <CriteriaBlock
+            icon={Shield}
+            title="Stop Loss"
+            items={entry.stop_loss_management}
+            toneClassName="text-violet-200/90"
+          />
+          <CriteriaBlock
+            icon={TrendingUp}
+            title="SL Move"
+            items={entry.stop_loss_move}
+            toneClassName="text-amber-200/90"
+          />
+          <CriteriaBlock
+            icon={ShieldAlert}
+            title="Invalidations"
+            items={entry.invalidations}
+            toneClassName="text-rose-200/90"
+          />
+        </div>
+      )}
 
       {examples.length > 0 ? (
         <div className="mt-3 rounded-lg border border-white/10 bg-black/20 p-2.5">

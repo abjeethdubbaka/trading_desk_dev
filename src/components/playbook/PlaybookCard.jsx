@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { BookPlus, CheckCircle2, ExternalLink, Image, Search, Shield, ShieldAlert } from 'lucide-react';
+import { BookPlus, CheckCircle2, ExternalLink, Image, Shield, ShieldAlert, TrendingUp } from 'lucide-react';
 import { cn } from '@/lib/utils/general';
 import MultiImageLightbox from '@/components/ui/MultiImageLightbox';
 import { formatDate, toExpectedRLabel } from './playbookFormHelpers';
@@ -37,14 +37,15 @@ export default function PlaybookCard({
       <div className="flex items-start justify-between gap-3">
         <div>
           <h3 className="text-base font-semibold text-white/95">{entry.name}</h3>
-          <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-            <span className="rounded-full border border-white/15 bg-white/[0.04] px-2 py-0.5 text-[10px] uppercase tracking-[0.1em] text-white/70">
-              {entry.timeframe || 'Timeframe n/a'}
-            </span>
-            <span className="rounded-full border border-white/15 bg-white/[0.04] px-2 py-0.5 text-[10px] uppercase tracking-[0.1em] text-white/70">
-              {entry.market_context || 'Context n/a'}
-            </span>
-          </div>
+          {Array.isArray(entry.timeframe) && entry.timeframe.length > 0 ? (
+            <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+              {entry.timeframe.map((tf) => (
+                <span key={tf} className="rounded-full border border-cyan-400/25 bg-cyan-500/10 px-2 py-0.5 text-[10px] font-semibold tracking-wide text-cyan-200/80">
+                  {tf}
+                </span>
+              ))}
+            </div>
+          ) : null}
         </div>
         <span
           className={cn(
@@ -66,18 +67,20 @@ export default function PlaybookCard({
         <MetricsPill label="Expected R" value={toExpectedRLabel(entry.expected_r_profile)} />
         <div className={cn(
           'rounded-xl border px-3 py-2.5',
-          entry.risk_level === 'half'   ? 'border-amber-500/25 bg-amber-500/8' :
-          entry.risk_level === 'double' ? 'border-rose-500/25 bg-rose-500/8' :
-                                          'border-emerald-500/20 bg-emerald-500/6',
+          entry.risk_level === 'half'         ? 'border-amber-500/25 bg-amber-500/8' :
+          entry.risk_level === 'double'       ? 'border-rose-500/25 bg-rose-500/8' :
+          entry.risk_level === 'oneandahalf' ? 'border-cyan-500/25 bg-cyan-500/8' :
+                                               'border-emerald-500/20 bg-emerald-500/6',
         )}>
           <p className="text-[9px] uppercase tracking-widest text-white/40">Risk Level</p>
           <p className={cn(
             'mt-1 text-sm font-semibold',
-            entry.risk_level === 'half'   ? 'text-amber-300' :
-            entry.risk_level === 'double' ? 'text-rose-300' :
-                                            'text-emerald-300',
+            entry.risk_level === 'half'         ? 'text-amber-300' :
+            entry.risk_level === 'double'       ? 'text-rose-300' :
+            entry.risk_level === 'oneandahalf' ? 'text-cyan-300' :
+                                                 'text-emerald-300',
           )}>
-            {entry.risk_level === 'half' ? '½ Size' : entry.risk_level === 'double' ? '2× Size' : 'Normal'}
+            {entry.risk_level === 'half' ? '½×' : entry.risk_level === 'double' ? '2×' : entry.risk_level === 'oneandahalf' ? '1.5×' : '1×'}
           </p>
         </div>
         <MetricsPill
@@ -86,38 +89,40 @@ export default function PlaybookCard({
         />
       </div>
 
-      <div className="mt-3 grid grid-cols-1 gap-2 lg:grid-cols-2">
-        <CriteriaSection
-          label="Stock Filter Criteria"
-          items={entry.stock_filter_criteria}
-          icon={Search}
-          toneClassName="text-amber-200/90"
-        />
-        <CriteriaSection
-          label="Entry Criteria"
-          items={entry.entry_criteria}
-          icon={BookPlus}
-          toneClassName="text-emerald-200/90"
-        />
-        <CriteriaSection
-          label="Exit Criteria"
-          items={entry.exit_criteria}
-          icon={CheckCircle2}
-          toneClassName="text-cyan-200/90"
-        />
-        <CriteriaSection
-          label="Stop Loss Management"
-          items={entry.stop_loss_management}
-          icon={Shield}
-          toneClassName="text-violet-200/90"
-        />
-        <CriteriaSection
-          label="Invalidations"
-          items={entry.invalidations}
-          icon={ShieldAlert}
-          toneClassName="text-rose-200/90"
-        />
-      </div>
+      {entry.has_sl_exit_plan !== false && (
+        <div className="mt-3 grid grid-cols-1 gap-2 lg:grid-cols-2">
+          <CriteriaSection
+            label="Entry Criteria"
+            items={entry.entry_criteria}
+            icon={BookPlus}
+            toneClassName="text-emerald-200/90"
+          />
+          <CriteriaSection
+            label="Exit Criteria"
+            items={entry.exit_criteria}
+            icon={CheckCircle2}
+            toneClassName="text-cyan-200/90"
+          />
+          <CriteriaSection
+            label="Stop Loss"
+            items={entry.stop_loss_management}
+            icon={Shield}
+            toneClassName="text-violet-200/90"
+          />
+          <CriteriaSection
+            label="Stop Loss Move"
+            items={entry.stop_loss_move}
+            icon={TrendingUp}
+            toneClassName="text-amber-200/90"
+          />
+          <CriteriaSection
+            label="Invalidations"
+            items={entry.invalidations}
+            icon={ShieldAlert}
+            toneClassName="text-rose-200/90"
+          />
+        </div>
+      )}
 
       {Array.isArray(entry.examples) && entry.examples.length > 0 ? (
         <div className="mt-3 rounded-xl border border-white/10 bg-black/25 p-2.5">
@@ -169,19 +174,6 @@ export default function PlaybookCard({
           />
         </div>
       )}
-
-      {Array.isArray(entry.tags) && entry.tags.length > 0 ? (
-        <div className="mt-3 flex flex-wrap gap-1.5">
-          {entry.tags.map((tag) => (
-            <span
-              key={`${entry.id}-tag-${tag}`}
-              className="rounded-full border border-white/15 bg-white/[0.04] px-2 py-0.5 text-[10px] uppercase tracking-[0.1em] text-white/65"
-            >
-              {tag}
-            </span>
-          ))}
-        </div>
-      ) : null}
 
       <PlaybookCardActions
         entry={entry}

@@ -10,7 +10,7 @@ export {
   calcMaxDrawdown,
   calcSharpeRatio,
 } from './analytics/equity.js';
-export { calcStreaks, getDailySequence, calcMonthlyExpectedReturn } from './analytics/streaks.js';
+export { calcStreaks, getDailySequence, calcMonthlyExpectedReturn, calcGreenDayStats } from './analytics/streaks.js';
 export {
   perfByCategory,
   perfByDayOfWeek,
@@ -20,6 +20,7 @@ export {
   perfBySetupTimeFloatHeatmap,
   perfBySetupType,
   perfByShareFloatRange,
+  perfByTradeInSession,
 } from './analytics/performanceBreakdowns.js';
 export { computeEmotionStats, computePlanAdherence } from './analytics/behavior.js';
 export {
@@ -27,6 +28,7 @@ export {
   buildWeeklyReview,
   computeTradeSetupQuality,
   calcDisciplineSavings,
+  calcRevengeTrades,
 } from './analytics/insights.js';
 export { buildStrategyEngineSnapshot } from './analytics/strategyEngine.js';
 export { resolveShareFloatRange } from './shared/shareFloat.js';

@@ -2,6 +2,17 @@ import { sanitizeSetupTypes } from '../../components/journal/AddTradeModal/const
 
 export const PLAYBOOK_FIELD = 'strategy_playbook';
 
+const VALID_TIMEFRAMES = ['2min', '5min', '15min', '30min'];
+
+function normalizeTimeframes(input) {
+  if (Array.isArray(input)) {
+    return input.map((t) => String(t).trim()).filter((t) => VALID_TIMEFRAMES.includes(t));
+  }
+  if (typeof input === 'string' && input.trim()) {
+    return VALID_TIMEFRAMES.filter((tf) => input.includes(tf));
+  }
+  return [];
+}
 
 function toTrimmedString(value) {
   return String(value ?? '').trim();
@@ -99,18 +110,17 @@ export function createBlankPlaybookEntry() {
     id: buildPlaybookId(),
     name: '',
     description: '',
-    timeframe: '',
-    market_context: '',
-    stock_filter_criteria: [],
+    timeframe: [],
+    has_sl_exit_plan: true,
     entry_criteria: [],
     exit_criteria: [],
     stop_loss_management: [],
+    stop_loss_move: [],
     invalidations: [],
     steps: [],
     examples: [],
     images: [],
     expected_r_profile: { min: null, min_percent: null, target: null, target_percent: null, stretch: null, stretch_percent: null },
-    tags: [],
     risk_level: 'normal',
     is_active: true,
     created_at: now,
@@ -133,17 +143,12 @@ export function normalizePlaybookEntry(entry) {
     id: toTrimmedString(source.id) || base.id,
     name: normalizedName,
     description: toTrimmedString(source.description),
-    timeframe: toTrimmedString(source.timeframe),
-    market_context: toTrimmedString(source.market_context || source.marketCondition),
-    stock_filter_criteria: normalizeLineItems(
-      source.stock_filter_criteria ||
-      source.stockFilterCriteria ||
-      source.filter_criteria ||
-      source.filterCriteria
-    ),
+    timeframe: normalizeTimeframes(source.timeframe),
+    has_sl_exit_plan: source.has_sl_exit_plan !== false,
     entry_criteria: normalizeLineItems(source.entry_criteria || source.entryCriteria),
     exit_criteria: normalizeLineItems(source.exit_criteria || source.exitCriteria),
     stop_loss_management: normalizeLineItems(source.stop_loss_management || source.stopLossManagement),
+    stop_loss_move: normalizeLineItems(source.stop_loss_move),
     invalidations: normalizeLineItems(source.invalidations),
     steps: Array.isArray(source.steps)
       ? source.steps
@@ -156,8 +161,7 @@ export function normalizePlaybookEntry(entry) {
     examples: normalizeExamples(source.examples),
     images: Array.isArray(source.images) ? source.images.filter((s) => typeof s === 'string' && s.length > 0) : [],
     expected_r_profile: normalizeExpectedRProfile(source.expected_r_profile || source.expectedRProfile),
-    tags: normalizeTags(source.tags),
-    risk_level: ['half', 'normal', 'double'].includes(source.risk_level) ? source.risk_level : 'normal',
+    risk_level: ['half', 'normal', 'oneandahalf', 'double'].includes(source.risk_level) ? source.risk_level : 'normal',
     is_active: source.is_active !== false,
     created_at: toTrimmedString(source.created_at) || base.created_at,
     updated_at: toTrimmedString(source.updated_at) || base.updated_at,
@@ -239,11 +243,7 @@ export function createPlaybookEntryFromSetupName(setupName) {
     ...nextEntry,
     name: normalizedSetupName,
     description: `Execution playbook for ${normalizedSetupName}`,
-    stock_filter_criteria: [
-      'Relative volume >= 2x',
-      'Dollar volume >= $10M',
-      'Clean premarket catalyst or fresh news',
-    ],
+    has_sl_exit_plan: true,
     entry_criteria: [`Define ${normalizedSetupName} entry trigger`],
     exit_criteria: ['Define primary exit signal'],
     invalidations: ['Define invalidation level before entry'],
@@ -252,7 +252,6 @@ export function createPlaybookEntryFromSetupName(setupName) {
       target: 2,
       stretch: 3,
     },
-    tags: ['playbook'],
     created_at: now,
     updated_at: now,
   });

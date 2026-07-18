@@ -10,6 +10,38 @@ import { DEFAULT_MISTAKES } from '@/lib/constants/mistakes';
 import { DEFAULT_LEARNINGS } from '@/lib/constants/learnings';
 import { DEFAULT_INFORMATIVE_IMAGE_CATEGORIES } from '@/lib/constants/informativeImageCategories';
 
+const DEFAULT_ENTRY_PRESETS = [
+  'Price breaks and holds above key level',
+  'VWAP reclaim confirmed on candle close',
+  'First pullback to key level after momentum',
+  'Setup candle formed on target timeframe',
+  'Volume confirmation above average',
+];
+
+const DEFAULT_STOP_LOSS_PRESETS = [
+  'Initial stop: below entry candle low',
+  'Move to breakeven after +1R',
+  'Trail stop with prior candle highs after +2R',
+  'Time stop: exit if no momentum in 15 min',
+  'Max daily loss reached: full exit',
+];
+
+const DEFAULT_EXIT_PRESETS = [
+  'Scale 50% at +1R, trail rest',
+  'Full exit at target R',
+  'Scale: 33% at +1R, 33% at +2R, trail rest',
+  'Exit at VWAP / key level',
+  'Exit on close below key level',
+];
+
+const DEFAULT_STOP_LOSS_MOVE_PRESETS = [
+  'Move to breakeven at +1R',
+  'Move stop to +0.5R after first scale',
+  'Trail with 5-min candle highs after +2R',
+  'Trail with VWAP after full position profitable',
+  'Lock in +1R when trade reaches +2R',
+];
+
 export default function RiskSettingsTab({
   settings,
   updateFields,
@@ -131,6 +163,38 @@ export default function RiskSettingsTab({
             items={Array.isArray(settings?.informative_image_categories) ? settings.informative_image_categories : DEFAULT_INFORMATIVE_IMAGE_CATEGORIES}
             placeholder="Add a category…"
             onChange={(items) => saveListField('informative_image_categories', items)}
+          />
+        </Field>
+
+        <Field label="Entry presets" hint="Preset rules shown in the Playbook entry editor's Entry Criteria dropdown.">
+          <SimpleListManager
+            items={Array.isArray(settings?.entry_presets) ? settings.entry_presets : DEFAULT_ENTRY_PRESETS}
+            placeholder="Add an entry rule…"
+            onChange={(items) => saveListField('entry_presets', items)}
+          />
+        </Field>
+
+        <Field label="Stop loss presets" hint="Preset rules shown in the Playbook entry editor's Stop Loss dropdown.">
+          <SimpleListManager
+            items={Array.isArray(settings?.stop_loss_presets) ? settings.stop_loss_presets : DEFAULT_STOP_LOSS_PRESETS}
+            placeholder="Add a stop loss rule…"
+            onChange={(items) => saveListField('stop_loss_presets', items)}
+          />
+        </Field>
+
+        <Field label="Exit presets" hint="Preset rules shown in the Playbook entry editor's Exit Criteria dropdown.">
+          <SimpleListManager
+            items={Array.isArray(settings?.exit_presets) ? settings.exit_presets : DEFAULT_EXIT_PRESETS}
+            placeholder="Add an exit rule…"
+            onChange={(items) => saveListField('exit_presets', items)}
+          />
+        </Field>
+
+        <Field label="Stop loss move presets" hint="Preset rules for how to trail or move the stop loss during a trade.">
+          <SimpleListManager
+            items={Array.isArray(settings?.stop_loss_move_presets) ? settings.stop_loss_move_presets : DEFAULT_STOP_LOSS_MOVE_PRESETS}
+            placeholder="Add a SL move rule…"
+            onChange={(items) => saveListField('stop_loss_move_presets', items)}
           />
         </Field>
       </div>

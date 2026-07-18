@@ -61,7 +61,7 @@ const PriceFields = ({ values, onChange, instrumentType = 'stocks' }) => {
         </div>
       )}
 
-      <div className="grid grid-cols-5 gap-4">
+      <div className="grid grid-cols-4 gap-4">
         <div className="space-y-2">
           <Label htmlFor="entry-price">Entry *</Label>
           <Input
@@ -83,18 +83,6 @@ const PriceFields = ({ values, onChange, instrumentType = 'stocks' }) => {
             step="0.01"
             value={values.exit_price}
             onChange={(e) => onChange('exit_price', e.target.value)}
-            className="bg-white/5 border-white/10"
-            placeholder="0.00"
-          />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="stop-loss">Stop Loss</Label>
-          <Input
-            id="stop-loss"
-            type="number"
-            step="0.01"
-            value={values.stop_loss || ''}
-            onChange={(e) => onChange('stop_loss', e.target.value)}
             className="bg-white/5 border-white/10"
             placeholder="0.00"
           />

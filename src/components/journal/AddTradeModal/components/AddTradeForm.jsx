@@ -43,6 +43,7 @@ export default function AddTradeForm({
     exitReasonOptions = [],
     marketEnvironmentOptions = [],
     stopLossReasonOptions = [],
+    selectedPlaybookEntry = null,
     mistakeOptions = [],
     learningOptions = [],
     loading,
@@ -115,84 +116,137 @@ export default function AddTradeForm({
         onExitChange={(value) => updateField('exit_time', value)}
       />
 
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
-        <div className="space-y-2">
-          <Label>Setup Type</Label>
-          <Select
-            value={formData.setup_type}
-            onValueChange={(value) => updateField('setup_type', value)}
-          >
-            <SelectTrigger className="bg-white/5 border-white/10">
-              <SelectValue placeholder="Select setup" />
-            </SelectTrigger>
-            <SelectContent className="bg-[#1a1a24] border-white/10">
-              {setupTypeOptions.map((setup) => (
-                <SelectItem key={setup} value={setup}>
-                  {setup}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+      {(() => {
+        const playbookSLPlan = selectedPlaybookEntry?.has_sl_exit_plan === true;
+        const slOptions = playbookSLPlan ? (selectedPlaybookEntry.stop_loss_management || []) : stopLossReasonOptions;
+        const slMoveOptions = playbookSLPlan ? (selectedPlaybookEntry.stop_loss_move || []) : [];
+        const exitOptions = playbookSLPlan ? (selectedPlaybookEntry.exit_criteria || []) : exitReasonOptions;
 
-        <div className="space-y-2">
-          <Label>S/L Reason</Label>
-          <Select
-            value={formData.stop_loss_reason || ''}
-            onValueChange={(value) => updateField('stop_loss_reason', value)}
-          >
-            <SelectTrigger className="bg-white/5 border-white/10">
-              <SelectValue placeholder="Why this stop loss?" />
-            </SelectTrigger>
-            <SelectContent className="bg-[#1a1a24] border-white/10">
-              {stopLossReasonOptions.map((reason) => (
-                <SelectItem key={reason} value={reason}>
-                  {reason}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+        const setupTypeSelect = (
+          <div className="space-y-2">
+            <Label>Setup Type</Label>
+            <Select value={formData.setup_type} onValueChange={(value) => updateField('setup_type', value)}>
+              <SelectTrigger className="bg-white/5 border-white/10">
+                <SelectValue placeholder="Select setup" />
+              </SelectTrigger>
+              <SelectContent className="bg-[#1a1a24] border-white/10">
+                {setupTypeOptions.map((setup) => (
+                  <SelectItem key={setup} value={setup}>{setup}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        );
 
-        <div className="space-y-2">
-          <Label>Exit Reason</Label>
-          <Select
-            value={formData.exit_reason || ''}
-            onValueChange={(value) => updateField('exit_reason', value)}
-          >
-            <SelectTrigger className="bg-white/5 border-white/10">
-              <SelectValue placeholder="Why did you exit?" />
-            </SelectTrigger>
-            <SelectContent className="bg-[#1a1a24] border-white/10">
-              {exitReasonOptions.map((reason) => (
-                <SelectItem key={reason} value={reason}>
-                  {reason}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+        const marketEnvSelect = (
+          <div className="space-y-2">
+            <Label>Market Env</Label>
+            <Select value={formData.market_condition || ''} onValueChange={(value) => updateField('market_condition', value)}>
+              <SelectTrigger className="bg-white/5 border-white/10">
+                <SelectValue placeholder="What was the market like?" />
+              </SelectTrigger>
+              <SelectContent className="bg-[#1a1a24] border-white/10">
+                {marketEnvironmentOptions.map((env) => (
+                  <SelectItem key={env} value={env}>{env}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        );
 
-        <div className="space-y-2">
-          <Label>Market Env</Label>
-          <Select
-            value={formData.market_condition || ''}
-            onValueChange={(value) => updateField('market_condition', value)}
-          >
-            <SelectTrigger className="bg-white/5 border-white/10">
-              <SelectValue placeholder="What was the market like?" />
-            </SelectTrigger>
-            <SelectContent className="bg-[#1a1a24] border-white/10">
-              {marketEnvironmentOptions.map((env) => (
-                <SelectItem key={env} value={env}>
-                  {env}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+        if (playbookSLPlan) {
+          const entryOptions = selectedPlaybookEntry.entry_criteria || [];
+          return (
+            <div className="space-y-3">
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                {setupTypeSelect}
+                {marketEnvSelect}
+              </div>
 
-      </div>
+              {/* Step 1: Entry */}
+              <div className="space-y-1.5">
+                <Label className="text-emerald-200/80">Entry</Label>
+                <Select value={formData.entry_criteria_used || ''} onValueChange={(value) => updateField('entry_criteria_used', value)}>
+                  <SelectTrigger className="bg-emerald-500/[0.06] border-emerald-400/20">
+                    <SelectValue placeholder="Which entry trigger did you follow?" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-[#1a1a24] border-white/10">
+                    {entryOptions.map((opt) => (
+                      <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Step 2: Stop Loss — revealed after entry */}
+              {formData.entry_criteria_used && (
+                <div className="space-y-1.5">
+                  <Label className="text-violet-200/80">Stop Loss</Label>
+                  <Select value={formData.stop_loss_reason || ''} onValueChange={(value) => updateField('stop_loss_reason', value)}>
+                    <SelectTrigger className="bg-violet-500/[0.06] border-violet-400/20">
+                      <SelectValue placeholder="Which SL rule did you use?" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-[#1a1a24] border-white/10">
+                      {slOptions.map((opt) => (
+                        <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {formData.stop_loss_reason && (
+                    <Input
+                      type="number"
+                      step="0.01"
+                      value={formData.stop_loss || ''}
+                      onChange={(e) => updateField('stop_loss', e.target.value)}
+                      placeholder="SL price"
+                      className="bg-violet-500/[0.06] border-violet-400/20"
+                    />
+                  )}
+                </div>
+              )}
+
+              {/* Step 3: SL Move + Exit — revealed after stop loss */}
+              {formData.stop_loss_reason && (
+                <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                  <div className="space-y-1.5">
+                    <Label className="text-amber-200/80">SL Move</Label>
+                    <Select value={formData.stop_loss_move_used || ''} onValueChange={(value) => updateField('stop_loss_move_used', value)}>
+                      <SelectTrigger className="bg-amber-500/[0.06] border-amber-400/20">
+                        <SelectValue placeholder="How did you move SL?" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-[#1a1a24] border-white/10">
+                        {slMoveOptions.map((opt) => (
+                          <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-cyan-200/80">Exit</Label>
+                    <Select value={formData.exit_reason || ''} onValueChange={(value) => updateField('exit_reason', value)}>
+                      <SelectTrigger className="bg-cyan-500/[0.06] border-cyan-400/20">
+                        <SelectValue placeholder="Which exit rule did you follow?" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-[#1a1a24] border-white/10">
+                        {exitOptions.map((opt) => (
+                          <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        }
+
+        return (
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            {setupTypeSelect}
+            {marketEnvSelect}
+          </div>
+        );
+      })()}
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <div className="space-y-2">

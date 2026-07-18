@@ -1,4 +1,5 @@
 import { average, formatHour, median, pct, round } from '../shared/helpers.js';
+import { getTradePnL } from '../../../utils/tradeFields.js';
 import {
   getShareFloatRangeByKey,
   getShareFloatRanges,
@@ -564,4 +565,43 @@ export function perfByCategory(trades = [], getCategory) {
       avgPnL: bucket.trades > 0 ? round(bucket.totalPnL / bucket.trades, 2) : 0,
     }))
     .sort((a, b) => b.totalPnL - a.totalPnL);
+}
+
+/**
+ * Win rate and avg P&L for the 1st, 2nd, 3rd... trade taken each session.
+ * Reveals whether performance degrades as more trades are taken in a day.
+ */
+export function perfByTradeInSession(trades = [], maxSlot = 5) {
+  const byDay = {};
+  for (const trade of trades) {
+    if (!trade?.entry_time) continue;
+    const key = new Date(trade.entry_time).toISOString().slice(0, 10);
+    if (!byDay[key]) byDay[key] = [];
+    byDay[key].push(trade);
+  }
+
+  const slots = Array.from({ length: maxSlot }, (_, i) => ({
+    tradeNum: i + 1,
+    label: i + 1 < maxSlot ? `#${i + 1}` : `#${maxSlot}+`,
+    trades: 0, wins: 0, totalPnL: 0,
+  }));
+
+  for (const dayTrades of Object.values(byDay)) {
+    const sorted = [...dayTrades].sort((a, b) => new Date(a.entry_time) - new Date(b.entry_time));
+    sorted.forEach((trade, idx) => {
+      const slot = slots[Math.min(idx, maxSlot - 1)];
+      const p = getTradePnL(trade);
+      slot.trades++;
+      slot.totalPnL += p;
+      if (p > 0) slot.wins++;
+    });
+  }
+
+  return slots
+    .filter((s) => s.trades > 0)
+    .map((s) => ({
+      ...s,
+      winRate: round(pct(s.wins, s.trades), 1),
+      avgPnL:  s.trades > 0 ? round(s.totalPnL / s.trades, 0) : 0,
+    }));
 }

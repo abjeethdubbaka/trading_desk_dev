@@ -2,7 +2,6 @@ import {
   createBlankPlaybookEntry,
   normalizePlaybookEntry,
   toCriteriaTextareaValue,
-  toTagsInputValue,
 } from '@/lib/playbook/utils';
 
 export function formatDate(value) {
@@ -32,14 +31,13 @@ export function toFormState(entry) {
     id: normalized.id,
     name: normalized.name,
     description: normalized.description,
-    timeframe: normalized.timeframe,
-    market_context: normalized.market_context,
-    stock_filter_criteria_text: toCriteriaTextareaValue(normalized.stock_filter_criteria),
-    entry_criteria_text: toCriteriaTextareaValue(normalized.entry_criteria),
-    exit_criteria_text: toCriteriaTextareaValue(normalized.exit_criteria),
-    stop_loss_management_text: toCriteriaTextareaValue(normalized.stop_loss_management),
+    timeframe: Array.isArray(normalized.timeframe) ? [...normalized.timeframe] : [],
+    has_sl_exit_plan: normalized.has_sl_exit_plan !== false,
+    entry_criteria_items: Array.isArray(normalized.entry_criteria) ? [...normalized.entry_criteria] : [],
+    exit_criteria_items: Array.isArray(normalized.exit_criteria) ? [...normalized.exit_criteria] : [],
+    stop_loss_management_items: Array.isArray(normalized.stop_loss_management) ? [...normalized.stop_loss_management] : [],
+    stop_loss_move_items: Array.isArray(normalized.stop_loss_move) ? [...normalized.stop_loss_move] : [],
     invalidations_text: toCriteriaTextareaValue(normalized.invalidations),
-    tags_text: toTagsInputValue(normalized.tags),
     expected_r_min: normalized.expected_r_profile?.min ?? '',
     expected_r_min_percent: normalized.expected_r_profile?.min_percent ?? '',
     expected_r_target: normalized.expected_r_profile?.target ?? '',
@@ -87,14 +85,13 @@ export function toEntryPayload(formState, sourceEntry = null) {
     id: baseEntry.id,
     name: String(formState.name || '').trim(),
     description: String(formState.description || '').trim(),
-    timeframe: String(formState.timeframe || '').trim(),
-    market_context: String(formState.market_context || '').trim(),
-    stock_filter_criteria: normalizeTextareaLines(formState.stock_filter_criteria_text),
-    entry_criteria: normalizeTextareaLines(formState.entry_criteria_text),
-    exit_criteria: normalizeTextareaLines(formState.exit_criteria_text),
-    stop_loss_management: normalizeTextareaLines(formState.stop_loss_management_text),
+    timeframe: Array.isArray(formState.timeframe) ? formState.timeframe : [],
+    has_sl_exit_plan: formState.has_sl_exit_plan !== false,
+    entry_criteria: Array.isArray(formState.entry_criteria_items) ? formState.entry_criteria_items : [],
+    exit_criteria: Array.isArray(formState.exit_criteria_items) ? formState.exit_criteria_items : [],
+    stop_loss_management: Array.isArray(formState.stop_loss_management_items) ? formState.stop_loss_management_items : [],
+    stop_loss_move: Array.isArray(formState.stop_loss_move_items) ? formState.stop_loss_move_items : [],
     invalidations: normalizeTextareaLines(formState.invalidations_text),
-    tags: normalizeTagsText(formState.tags_text),
     expected_r_profile: {
       min: toNumberOrNull(formState.expected_r_min),
       min_percent: toNumberOrNull(formState.expected_r_min_percent),
@@ -122,21 +119,20 @@ export function validateFormState(formState) {
     return 'Setup name is required';
   }
 
-  if (normalizeTextareaLines(formState.entry_criteria_text).length === 0) {
-    return 'At least one entry criterion is required';
-  }
-
-  if (normalizeTextareaLines(formState.exit_criteria_text).length === 0) {
-    return 'At least one exit criterion is required';
-  }
-
-  if (normalizeTextareaLines(formState.invalidations_text).length === 0) {
-    return 'At least one invalidation is required';
-  }
-
-  const targetValue = toNumberOrNull(formState.expected_r_target);
-  if (targetValue === null || targetValue <= 0) {
-    return 'Expected R target must be a positive number';
+  if (formState.has_sl_exit_plan !== false) {
+    if (!Array.isArray(formState.entry_criteria_items) || formState.entry_criteria_items.length === 0) {
+      return 'At least one entry criterion is required';
+    }
+    if (!Array.isArray(formState.exit_criteria_items) || formState.exit_criteria_items.length === 0) {
+      return 'At least one exit criterion is required';
+    }
+    if (normalizeTextareaLines(formState.invalidations_text).length === 0) {
+      return 'At least one invalidation is required';
+    }
+    const targetValue = toNumberOrNull(formState.expected_r_target);
+    if (targetValue === null || targetValue <= 0) {
+      return 'Expected R target must be a positive number';
+    }
   }
 
   return null;

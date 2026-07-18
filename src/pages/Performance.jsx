@@ -19,6 +19,7 @@ import PerformanceByPrice from '@/components/performance/PerformanceByPrice';
 import PerformanceBySetupType from '@/components/performance/PerformanceBySetupType';
 import PerformanceByShareFloatRange from '@/components/performance/PerformanceByShareFloatRange';
 import WeeklyReviewCard from '@/components/performance/WeeklyReviewCard';
+import TradeSequenceCard from '@/components/performance/TradeSequenceCard';
 import StrategyEngineCard from '@/components/performance/StrategyEngineCard';
 import CategoricalBreakdownCard from '@/components/performance/CategoricalBreakdownCard';
 import AnalysisPanel from '@/components/journal/analysis/AnalysisPanel';
@@ -34,9 +35,11 @@ import {
   buildWeeklyReview,
   calcCoreStats,
   calcDisciplineSavings,
+  calcGreenDayStats,
   calcHoldTimeStats,
   calcMaxDrawdown,
   calcMonthlyExpectedReturn,
+  calcRevengeTrades,
   calcSharpeRatio,
   computeEmotionStats,
   computeTradeSetupQuality,
@@ -48,6 +51,7 @@ import {
   perfByPriceRange,
   perfBySetupType,
   perfByShareFloatRange,
+  perfByTradeInSession,
 } from '@/lib/calculations/trades';
 import { normalizePlaybookEntries, PLAYBOOK_FIELD } from '@/lib/playbook/utils';
 import { cn, toFiniteNumber } from '@/lib/utils/general';
@@ -356,7 +360,10 @@ export default function PerformancePage() {
       tradesExceeded,
     };
   }, [viewTier, periodTrades, playbookEntries, riskLimit, tierRiskAmounts, settings?.risk_amount]);
-  const emotionStats = useMemo(() => computeEmotionStats(deferredTrades), [deferredTrades]);
+  const emotionStats    = useMemo(() => computeEmotionStats(deferredTrades),    [deferredTrades]);
+  const greenDayStats   = useMemo(() => calcGreenDayStats(periodTrades),         [periodTrades]);
+  const revengeTrades   = useMemo(() => calcRevengeTrades(deferredTrades, 20),   [deferredTrades]);
+  const byTradeInSession = useMemo(() => perfByTradeInSession(deferredTrades, 5), [deferredTrades]);
   const isStale = deferredTrades !== periodTrades;
 
   const timingTopHour = useMemo(
@@ -456,7 +463,7 @@ export default function PerformancePage() {
 
   return (
     <div className="space-y-5">
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 xl:grid-cols-8">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-9">
         <StatPill
           label="Total P&L"
           value={`${stats.totalPnL >= 0 ? '+' : ''}$${Math.abs(stats.totalPnL).toFixed(0)}`}
@@ -488,6 +495,11 @@ export default function PerformancePage() {
           label="Avg Hold"
           value={holdStats.closedTrades > 0 ? formatHoldDuration(holdStats.avgMinutes) : '--'}
           color={holdStats.closedTrades > 0 ? 'text-sky-300' : 'text-white/40'}
+        />
+        <StatPill
+          label="Green Days"
+          value={greenDayStats.totalDays > 0 ? `${greenDayStats.greenDayPct.toFixed(0)}%` : '--'}
+          color={greenDayStats.greenDayPct >= 60 ? 'text-emerald-400' : greenDayStats.greenDayPct >= 45 ? 'text-amber-400' : 'text-rose-400'}
         />
       </div>
 
@@ -602,6 +614,13 @@ export default function PerformancePage() {
               value={behaviorTopLearning ? `${behaviorTopLearning.text} (${behaviorTopLearning.count}x)` : '--'}
               tone="text-cyan-200"
             />
+            <InsightChip
+              label="Revenge Win Rate"
+              value={revengeTrades.total >= 3
+                ? `${revengeTrades.winRate.toFixed(0)}% (${revengeTrades.total} trades)`
+                : revengeTrades.total > 0 ? `${revengeTrades.total} trades (small sample)` : 'no data'}
+              tone={revengeTrades.total >= 3 && revengeTrades.winRate < 40 ? 'text-rose-300' : 'text-white/70'}
+            />
           </TabHero>
 
           <EmotionMatrix trades={periodTrades} />
@@ -644,11 +663,22 @@ export default function PerformancePage() {
               value={holdStats.closedTrades > 0 ? formatHoldDuration(holdStats.medianMinutes) : '--'}
               tone="text-white"
             />
+            <InsightChip
+              label="Winner Hold"
+              value={holdStats.avgWinningMinutes != null ? formatHoldDuration(holdStats.avgWinningMinutes) : '--'}
+              tone="text-emerald-200"
+            />
+            <InsightChip
+              label="Loser Hold"
+              value={holdStats.avgLosingMinutes != null ? formatHoldDuration(holdStats.avgLosingMinutes) : '--'}
+              tone={holdStats.avgLosingMinutes != null && holdStats.avgWinningMinutes != null && holdStats.avgLosingMinutes > holdStats.avgWinningMinutes ? 'text-rose-300' : 'text-white/70'}
+            />
           </TabHero>
 
           <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
             <PerformanceByHoldDurationBuckets data={byHoldBucket} />
             <div className="space-y-3">
+              <TradeSequenceCard data={byTradeInSession} />
               <PerformanceByHourOfDay data={byHour} />
               <PerformanceByDayOfWeek data={byDay} />
               <PerformanceByMonthOfYear data={byMonth} />

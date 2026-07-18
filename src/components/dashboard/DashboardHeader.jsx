@@ -55,6 +55,11 @@ export default function DashboardHeader({
   todayTrades = 0,
   trades = [],
   tierLabel = '',
+  greenDayPct = 0,
+  greenDays = 0,
+  totalTradingDays = 0,
+  currentStreak = 0,
+  currentStreakType = null,
 }) {
   const pnlPos   = totalPnL >= 0;
   const todayPos = todayPnL >= 0;
@@ -114,6 +119,20 @@ export default function DashboardHeader({
           </Metric>
           <Sep />
 
+          <Metric label="Green Days" minWidth="min-w-[110px]">
+            {totalTradingDays > 0 ? (
+              <>
+                <span className={cn('font-mono text-xl font-bold', greenDayPct >= 60 ? 'text-emerald-400' : greenDayPct >= 45 ? 'text-amber-400' : 'text-rose-400')}>
+                  {greenDayPct.toFixed(0)}%
+                </span>
+                <div className="mt-0.5 text-[10px] font-mono text-white/35">{greenDays}G / {totalTradingDays - greenDays}R</div>
+              </>
+            ) : (
+              <span className="font-mono text-xl font-bold text-white/20">—</span>
+            )}
+          </Metric>
+          <Sep />
+
           <Metric label="Today" minWidth="min-w-[110px]">
             <AnimatedStat value={todayPnL} format={(n) => `${n >= 0 ? '+' : ''}$${Math.abs(Math.round(n)).toLocaleString()}`} colorize={false} className={cn('font-mono text-xl font-bold', todayPos ? 'text-emerald-400' : 'text-rose-400')} />
             <div className="mt-0.5 text-[10px] text-white/35">{todayTrades} trade{todayTrades !== 1 ? 's' : ''}</div>
@@ -122,6 +141,20 @@ export default function DashboardHeader({
 
           <Metric label="Trades" minWidth="min-w-[80px]">
             <span className="font-mono text-xl font-bold text-white/60">{totalTrades}</span>
+          </Metric>
+          <Sep />
+
+          <Metric label="Streak" minWidth="min-w-[80px]">
+            {currentStreak > 0 && currentStreakType ? (
+              <>
+                <span className={cn('font-mono text-xl font-bold', currentStreakType === 'win' ? 'text-emerald-400' : 'text-rose-400')}>
+                  {currentStreak}{currentStreakType === 'win' ? 'W' : 'L'}
+                </span>
+                <div className="mt-0.5 text-[10px] text-white/35">{currentStreakType === 'win' ? 'on fire' : 'step back?'}</div>
+              </>
+            ) : (
+              <span className="font-mono text-xl font-bold text-white/20">—</span>
+            )}
           </Metric>
           <Sep />
 

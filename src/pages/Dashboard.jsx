@@ -12,6 +12,8 @@ import { useTradeEvents }   from '@/components/journal';
 import {
   calcCoreStats,
   calcTodayStats,
+  calcGreenDayStats,
+  calcStreaks,
 } from '@/lib/calculations/trades';
 import { buildDisciplineSnapshot } from '@/lib/calculations/discipline';
 import { ACCOUNT_TIERS } from '@/lib/config/accountTypes';
@@ -45,8 +47,10 @@ export default function Dashboard() {
   const maxDollars = toFiniteNumber(settings?.max_dollars, 250);
 
   // ── Analytics (pure functions, no extra queries) ──────────────────────────
-  const allStats   = useMemo(() => calcCoreStats(trades),          [trades]);
-  const todayStats = useMemo(() => calcTodayStats(trades),         [trades]);
+  const allStats      = useMemo(() => calcCoreStats(trades),     [trades]);
+  const todayStats    = useMemo(() => calcTodayStats(trades),    [trades]);
+  const greenDayStats = useMemo(() => calcGreenDayStats(trades), [trades]);
+  const streaks       = useMemo(() => calcStreaks(trades),        [trades]);
   const disciplineSnapshot = useMemo(
     () => buildDisciplineSnapshot(trades, settings),
     [trades, settings]
@@ -130,6 +134,11 @@ export default function Dashboard() {
         todayTrades={todayStats.totalTrades}
         trades={trades}
         tierLabel={tierLabel}
+        greenDayPct={greenDayStats.greenDayPct}
+        greenDays={greenDayStats.greenDays}
+        totalTradingDays={greenDayStats.totalDays}
+        currentStreak={streaks.currentStreak}
+        currentStreakType={streaks.currentType}
       />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">

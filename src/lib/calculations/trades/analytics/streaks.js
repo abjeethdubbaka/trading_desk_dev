@@ -1,4 +1,4 @@
-import { groupByDay, round } from '../shared/helpers.js';
+import { groupByDay, pct, round } from '../shared/helpers.js';
 
 export function calcStreaks(trades = []) {
   if (!trades.length) {
@@ -53,6 +53,27 @@ export function getDailySequence(trades = [], n = 20) {
     const result = pnl > 0 ? 'W' : pnl < 0 ? 'L' : 'B';
     return { date, pnl: round(pnl, 2), result };
   });
+}
+
+/**
+ * % of trading days that closed green, plus avg P&L on green vs red days.
+ */
+export function calcGreenDayStats(trades = []) {
+  const byDay = groupByDay(trades);
+  const days = Object.values(byDay);
+  if (!days.length) {
+    return { totalDays: 0, greenDays: 0, redDays: 0, greenDayPct: 0, avgGreenPnL: 0, avgRedPnL: 0 };
+  }
+  const greenList = days.filter((d) => d.totalPnL > 0);
+  const redList   = days.filter((d) => d.totalPnL < 0);
+  return {
+    totalDays:   days.length,
+    greenDays:   greenList.length,
+    redDays:     redList.length,
+    greenDayPct: pct(greenList.length, days.length),
+    avgGreenPnL: greenList.length > 0 ? round(greenList.reduce((s, d) => s + d.totalPnL, 0) / greenList.length, 0) : 0,
+    avgRedPnL:   redList.length   > 0 ? round(redList.reduce((s, d)   => s + d.totalPnL, 0) / redList.length,   0) : 0,
+  };
 }
 
 const TRADING_DAYS_PER_MONTH = 21;
