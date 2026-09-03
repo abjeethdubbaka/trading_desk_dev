@@ -6,6 +6,7 @@
  */
 
 import React, { lazy, Suspense, useState, useMemo } from 'react';
+import { cn } from '@/lib/utils';
 import { useTrades } from '@/lib/hooks/useTrades';
 import { useSettings }      from '@/lib/context/SettingsContext';
 import { useTradeEvents }   from '@/components/journal';
@@ -17,6 +18,8 @@ import {
 } from '@/lib/calculations/trades';
 import { buildDisciplineSnapshot } from '@/lib/calculations/discipline';
 import { ACCOUNT_TIERS } from '@/lib/config/accountTypes';
+import { getDailyTargetsWeek1, getDailyTargetPurposesWeek1 } from '@/lib/config/dailyTargets';
+import { getTodayMaxDailyLoss } from '@/lib/config/dailyLossLimits';
 import { toFiniteNumber } from '@/lib/utils/general';
 
 import { Skeleton } from '@/components/ui/skeleton';
@@ -28,6 +31,138 @@ import DisciplineCoachCard from '@/components/dashboard/DisciplineCoachCard';
 
 const MorningBrief = lazy(() => import('@/components/dashboard/MorningBrief'));
 const AIModelScorecard = lazy(() => import('@/components/dashboard/AIModelScorecard'));
+
+// ── Daily target schedule ─────────────────────────────────────────────────────
+const DOW_LABELS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
+
+function getTodayTarget(settings) {
+  const now = new Date();
+  const dow = now.getDay(); // 0=Sun, 6=Sat
+  if (dow === 0 || dow === 6) return null;
+  const dayIndex = dow - 1; // 0=Mon … 4=Fri
+  const targets  = getDailyTargetsWeek1(settings);
+  const purposes = getDailyTargetPurposesWeek1(settings);
+  return { amount: targets[dayIndex] ?? 0, purpose: purposes[dayIndex] ?? '', dayIndex };
+}
+
+function DailyTargetBanner({ todayPnL = 0, settings }) {
+  const target = getTodayTarget(settings);
+  if (!target || target.amount === 0) return null;
+
+  const { amount, purpose, dayIndex } = target;
+  const pct       = amount > 0 ? Math.min(100, Math.max(0, (todayPnL / amount) * 100)) : 0;
+  const isHit     = todayPnL >= amount;
+  const isNeg     = todayPnL < 0;
+  const remaining = Math.max(0, amount - todayPnL);
+
+  return (
+    <div className={cn(
+      'rounded-2xl border p-5',
+      isHit
+        ? 'border-emerald-400/25 bg-gradient-to-r from-emerald-500/[0.07] to-transparent'
+        : 'border-violet-500/20 bg-gradient-to-r from-violet-500/[0.06] to-transparent',
+    )}>
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <p className="text-[10px] font-semibold uppercase tracking-widest text-white/35">
+            Today's Target · {DOW_LABELS[dayIndex]}
+          </p>
+          <div className="mt-1.5 flex flex-wrap items-baseline gap-3">
+            <span className="text-4xl font-bold tracking-tight text-white/90">
+              ${amount.toLocaleString()}
+            </span>
+            {purpose && (
+              <span className="text-sm text-white/35">{purpose}</span>
+            )}
+          </div>
+        </div>
+        <div className="text-right">
+          <p className={cn(
+            'text-2xl font-bold tabular-nums',
+            isHit ? 'text-emerald-400' : isNeg ? 'text-rose-400' : 'text-white/55',
+          )}>
+            {todayPnL >= 0 ? '+' : ''}${Math.abs(todayPnL).toFixed(0)}
+          </p>
+          <p className="mt-0.5 text-xs text-white/30">
+            {isHit ? 'Target reached!' : `$${remaining.toFixed(0)} to go`}
+          </p>
+        </div>
+      </div>
+      <div className="mt-4 space-y-1.5">
+        <div className="h-2 w-full overflow-hidden rounded-full bg-white/[0.08]">
+          <div
+            className={cn(
+              'h-full rounded-full transition-all duration-500',
+              isHit ? 'bg-emerald-500' : isNeg ? 'bg-rose-500/60' : 'bg-violet-500',
+            )}
+            style={{ width: `${pct}%` }}
+          />
+        </div>
+        <p className="text-right text-[10px] text-white/25">{Math.round(pct)}% of daily goal</p>
+      </div>
+    </div>
+  );
+}
+
+function TodayFocusCard({ todayStats, weekPnL = 0, targetProfit, maxDailyLoss, streaks, alerts }) {
+  const { totalPnL: todayPnL, totalTrades: todayTrades } = todayStats;
+  const pnlPct = targetProfit > 0 ? Math.min(100, Math.max(0, (weekPnL / targetProfit) * 100)) : 0;
+  const isGreen = weekPnL > 0;
+  const isAtMax = todayPnL <= maxDailyLoss;
+
+  const topAlert = alerts?.[0] ?? null;
+
+  let streakLine = null;
+  if (streaks.currentStreak > 0 && streaks.currentType) {
+    const type = streaks.currentType;
+    streakLine = type === 'win'
+      ? `${streaks.currentStreak}-trade win streak — keep the discipline.`
+      : `${streaks.currentStreak}-trade loss streak — confirm criteria before the next entry.`;
+  }
+
+  return (
+    <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4 space-y-3">
+      <p className="text-[10px] font-semibold uppercase tracking-widest text-white/35">Today's Focus</p>
+
+      {/* P&L progress toward weekly target */}
+      {targetProfit > 0 && (
+        <div className="space-y-1.5">
+          <div className="flex items-baseline justify-between gap-2">
+            <span className={`font-mono text-base font-bold ${isGreen ? 'text-emerald-400' : weekPnL < 0 ? 'text-rose-400' : 'text-white/40'}`}>
+              {weekPnL >= 0 ? '+' : ''}${Math.round(Math.abs(weekPnL)).toLocaleString()}
+            </span>
+            <span className="text-[10px] text-white/30">weekly goal ${Math.round(targetProfit).toLocaleString()}</span>
+          </div>
+          <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/[0.08]">
+            <div
+              className={`h-full rounded-full transition-all ${isAtMax ? 'bg-rose-500' : isGreen ? 'bg-emerald-500' : 'bg-rose-500/60'}`}
+              style={{ width: isAtMax ? '100%' : `${pnlPct}%` }}
+            />
+          </div>
+          <p className="text-[10px] text-white/30">
+            {todayTrades} trade{todayTrades !== 1 ? 's' : ''} today
+            {isAtMax && ' · daily loss limit hit'}
+          </p>
+        </div>
+      )}
+
+      {/* Streak context */}
+      {streakLine && (
+        <p className={`text-[11px] leading-relaxed ${streaks.currentType === 'win' ? 'text-emerald-300/70' : 'text-amber-300/70'}`}>
+          {streakLine}
+        </p>
+      )}
+
+      {/* Top discipline alert */}
+      {topAlert && (
+        <div className={`rounded-lg border px-2.5 py-2 ${topAlert.type === 'warning' ? 'border-rose-400/20 bg-rose-500/[0.06]' : 'border-amber-400/20 bg-amber-500/[0.06]'}`}>
+          <p className={`text-[11px] leading-relaxed font-semibold ${topAlert.type === 'warning' ? 'text-rose-200/80' : 'text-amber-200/80'}`}>{topAlert.title}</p>
+          <p className="text-[11px] text-white/45 mt-0.5">{topAlert.message}</p>
+        </div>
+      )}
+    </div>
+  );
+}
 
 
 export default function Dashboard() {
@@ -44,11 +179,20 @@ export default function Dashboard() {
 
   const accountSize = toFiniteNumber(settings?.account_size, 50000);
   const targetProfitDollars = toFiniteNumber(settings?.target_profit_dollars, 500);
-  const maxDollars = toFiniteNumber(settings?.max_dollars, 250);
+  const maxDollars = toFiniteNumber(getTodayMaxDailyLoss(settings), 250);
 
   // ── Analytics (pure functions, no extra queries) ──────────────────────────
   const allStats      = useMemo(() => calcCoreStats(trades),     [trades]);
   const todayStats    = useMemo(() => calcTodayStats(trades),    [trades]);
+  const thisWeekPnL   = useMemo(() => {
+    const now = new Date();
+    const dow = now.getDay(); // 0=Sun
+    const daysFromMonday = dow === 0 ? 6 : dow - 1;
+    const monday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - daysFromMonday);
+    return trades
+      .filter((t) => t.entry_time && new Date(t.entry_time) >= monday)
+      .reduce((sum, t) => sum + Number(t.pnl ?? t.total_pnl ?? 0), 0);
+  }, [trades]);
   const greenDayStats = useMemo(() => calcGreenDayStats(trades), [trades]);
   const streaks       = useMemo(() => calcStreaks(trades),        [trades]);
   const disciplineSnapshot = useMemo(
@@ -121,6 +265,7 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-5">
+      <DailyTargetBanner todayPnL={todayStats.totalPnL} settings={settings} />
       <DashboardHeader
         currentBalance={currentBalance}
         totalPnL={allStats.totalPnL}
@@ -139,6 +284,8 @@ export default function Dashboard() {
         totalTradingDays={greenDayStats.totalDays}
         currentStreak={streaks.currentStreak}
         currentStreakType={streaks.currentType}
+        bestWinStreak={streaks.bestWin}
+        bestLossStreak={streaks.bestLoss}
       />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
@@ -146,7 +293,7 @@ export default function Dashboard() {
           <DisciplineCoachCard
             snapshot={disciplineSnapshot}
             dailyGoal={{
-              todayPnL: todayStats.totalPnL,
+              todayPnL: thisWeekPnL,
               targetProfit: targetProfitDollars,
               maxDailyLoss,
             }}
@@ -157,6 +304,14 @@ export default function Dashboard() {
           <DayPanel day={selectedDay} trades={trades} onClose={() => setSelectedDay(null)} />
         ) : (
           <div className="space-y-5">
+            <TodayFocusCard
+              todayStats={todayStats}
+              weekPnL={thisWeekPnL}
+              targetProfit={targetProfitDollars}
+              maxDailyLoss={maxDailyLoss}
+              streaks={streaks}
+              alerts={disciplineSnapshot.alerts ?? []}
+            />
             <Suspense
               fallback={
                 <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-4 space-y-3" style={{ height: 210 }}>

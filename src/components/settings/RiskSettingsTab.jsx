@@ -3,11 +3,9 @@ import { toast } from 'sonner';
 import { Input } from '@/components/ui/input';
 import Field from '@/components/settings/Field';
 import SimpleListManager from '@/components/settings/SimpleListManager';
-import { DEFAULT_EXIT_REASONS } from '@/lib/constants/exitReasons';
-import { DEFAULT_MARKET_ENVIRONMENTS } from '@/lib/constants/marketEnvironments';
-import { DEFAULT_STOP_LOSS_REASONS } from '@/lib/constants/stopLossReasons';
 import { DEFAULT_MISTAKES } from '@/lib/constants/mistakes';
 import { DEFAULT_LEARNINGS } from '@/lib/constants/learnings';
+import { DEFAULT_WHAT_WORKED } from '@/lib/constants/whatWorked';
 import { DEFAULT_INFORMATIVE_IMAGE_CATEGORIES } from '@/lib/constants/informativeImageCategories';
 
 const DEFAULT_ENTRY_PRESETS = [
@@ -118,27 +116,11 @@ export default function RiskSettingsTab({
       </div>
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-        <Field label="Exit reasons" hint="Options shown in the Reason for Exit dropdown when logging a trade.">
+        <Field label="What Worked" hint="Positive keywords shown in the Reflection section's What Worked toggle list. Tag what you executed well on each trade.">
           <SimpleListManager
-            items={Array.isArray(settings?.exit_reasons) ? settings.exit_reasons : DEFAULT_EXIT_REASONS}
-            placeholder="Add an exit reason…"
-            onChange={(reasons) => saveListField('exit_reasons', reasons)}
-          />
-        </Field>
-
-        <Field label="Market environments" hint="Options shown in the Market Environment dropdown when logging a trade.">
-          <SimpleListManager
-            items={Array.isArray(settings?.market_environments) ? settings.market_environments : DEFAULT_MARKET_ENVIRONMENTS}
-            placeholder="Add a market environment…"
-            onChange={(environments) => saveListField('market_environments', environments)}
-          />
-        </Field>
-
-        <Field label="Stop loss reasons" hint="Options shown in the Stop Loss Reason dropdown when logging a trade.">
-          <SimpleListManager
-            items={Array.isArray(settings?.stop_loss_reasons) ? settings.stop_loss_reasons : DEFAULT_STOP_LOSS_REASONS}
-            placeholder="Add a stop loss reason…"
-            onChange={(reasons) => saveListField('stop_loss_reasons', reasons)}
+            items={Array.isArray(settings?.what_worked_keywords) ? settings.what_worked_keywords : DEFAULT_WHAT_WORKED}
+            placeholder="Add a keyword…"
+            onChange={(items) => saveListField('what_worked_keywords', items)}
           />
         </Field>
 

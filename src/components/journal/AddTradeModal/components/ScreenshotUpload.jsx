@@ -49,7 +49,7 @@ const ScreenshotPreview = ({ id, index, onRemove, onView, url, status }) => {
   );
 };
 
-const ScreenshotUpload = ({ screenshotIds, uploading, onUpload, onRemove }) => {
+const ScreenshotUpload = ({ screenshotIds, uploading, onUpload, onRemove, autoFilledFrom = null }) => {
   const fileInputRef = React.useRef(null);
   const [lightboxUrl, setLightboxUrl] = React.useState(null);
   const { urlsById, statusById } = useScreenshotIdsUrls(screenshotIds);
@@ -101,7 +101,9 @@ const ScreenshotUpload = ({ screenshotIds, uploading, onUpload, onRemove }) => {
 
       {screenshotIds.length > 0 && (
         <p className="text-[10px] text-white/40">
-          {screenshotIds.length} screenshot(s) added
+          {autoFilledFrom
+            ? `Shared from earlier ${autoFilledFrom} trade today`
+            : `${screenshotIds.length} screenshot(s) added`}
         </p>
       )}
 

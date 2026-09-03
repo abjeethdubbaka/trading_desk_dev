@@ -24,6 +24,35 @@ function formatExpectedR(profile) {
   return `${hasMin ? min.toFixed(1) : '-'}R -> ${hasTarget ? target.toFixed(1) : '-'}R -> ${hasStretch ? stretch.toFixed(1) : '-'}R`;
 }
 
+const GRADE_STYLES = {
+  a_plus: { label: 'A+', className: 'border-emerald-400/40 bg-emerald-500/15 text-emerald-200' },
+  a: { label: 'A', className: 'border-cyan-400/40 bg-cyan-500/15 text-cyan-200' },
+  b: { label: 'B', className: 'border-amber-400/40 bg-amber-500/15 text-amber-200' },
+  c: { label: 'C', className: 'border-rose-400/40 bg-rose-500/15 text-rose-200' },
+};
+
+function GradeCriteriaBlock({ gradeCriteria }) {
+  const rows = ['a_plus', 'a', 'b', 'c']
+    .map((key) => ({ key, value: gradeCriteria?.[key], ...GRADE_STYLES[key] }))
+    .filter((row) => row.value);
+
+  if (rows.length === 0) return null;
+
+  return (
+    <div className="mt-3 rounded-lg border border-white/10 bg-black/20 p-2.5">
+      <p className="mb-1.5 text-[10px] uppercase tracking-[0.12em] text-white/45">Grade Criteria</p>
+      <div className="space-y-1.5">
+        {rows.map(({ key, label, className, value }) => (
+          <p key={key} className="flex items-start gap-2 text-xs text-white/80">
+            <span className={`flex-shrink-0 rounded border px-1.5 py-0.5 text-[9px] font-bold ${className}`}>{label}</span>
+            <span>{value}</span>
+          </p>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function CriteriaBlock({ icon: Icon, title, items, toneClassName }) {
   if (!Array.isArray(items) || items.length === 0) return null;
 
@@ -82,6 +111,8 @@ export default function PlaybookReferenceCard({ entry }) {
       {entry.description ? (
         <p className="mt-2.5 text-xs text-white/80">{entry.description}</p>
       ) : null}
+
+      <GradeCriteriaBlock gradeCriteria={entry.grade_criteria} />
 
       {entry.has_sl_exit_plan !== false && (
         <div className="mt-3 grid grid-cols-1 gap-2 md:grid-cols-2 xl:grid-cols-3">

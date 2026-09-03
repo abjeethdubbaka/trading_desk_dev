@@ -119,6 +119,35 @@ export function createMediaAdapter(db) {
   };
 }
 
+export function createDailyReviewsAdapter(db) {
+  return {
+    async list() {
+      const snap = await getDocs(
+        query(collection(db, 'dailyReviews'), orderBy('date', 'desc'))
+      );
+      return snap.docs.map((d) => ({ ...d.data(), id: d.id }));
+    },
+    async create(data) {
+      const clean = addCreateTimestamps(data);
+      const ref = await addDoc(collection(db, 'dailyReviews'), clean);
+      return { ...clean, id: ref.id };
+    },
+    async get(id) {
+      const snap = await getDoc(doc(db, 'dailyReviews', id));
+      return snap.exists() ? { ...snap.data(), id: snap.id } : null;
+    },
+    async update(id, data) {
+      const clean = addUpdateTimestamp({ ...data });
+      await updateDoc(doc(db, 'dailyReviews', id), clean);
+      return this.get(id);
+    },
+    async delete(id) {
+      await deleteDoc(doc(db, 'dailyReviews', id));
+      return true;
+    },
+  };
+}
+
 // Minimal implementations for other collections
 export function createMinimalAdapters() {
   return {

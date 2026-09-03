@@ -4,7 +4,7 @@
  * Settings page composition.
  */
 
-import React, { useCallback } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useSettings } from '@/lib/context/SettingsContext';
 import { useAuth } from '@/lib/context/AuthContext';
@@ -30,25 +30,38 @@ export default function SettingsPage() {
   const fieldDrafts = useSettingsFieldDrafts({ settings, updateFields });
   const maintenanceActions = useSettingsMaintenanceActions({ signOut, refetch, confirmFn: confirm });
 
+  const [hasDailyTargetsDraft, setHasDailyTargetsDraft] = useState(false);
+  const dailyTargetsDraftRef = useRef(null);
+
+  const onDailyTargetsDraft = useCallback((patch) => {
+    dailyTargetsDraftRef.current = { ...dailyTargetsDraftRef.current, ...patch };
+    setHasDailyTargetsDraft(true);
+  }, []);
+
   const handleSave = useCallback(async () => {
+    if (dailyTargetsDraftRef.current) {
+      updateFields(dailyTargetsDraftRef.current);
+    }
     if (fieldDrafts.hasLocalDraftChanges) {
       fieldDrafts.commitDraftFields(SETTINGS_INPUT_FIELDS);
     }
 
     try {
       await savePending();
+      dailyTargetsDraftRef.current = null;
+      setHasDailyTargetsDraft(false);
       toast.success('Settings saved successfully!');
     } catch (error) {
       toast.error(`Failed to save: ${error.message}`);
     }
-  }, [fieldDrafts, savePending]);
+  }, [fieldDrafts, savePending, updateFields]);
 
   return (
     <div className="space-y-6 w-full">
       <SettingsHeader
         handleSave={handleSave}
         isSaving={isSaving}
-        hasChanges={hasPendingChanges || fieldDrafts.hasLocalDraftChanges}
+        hasChanges={hasPendingChanges || fieldDrafts.hasLocalDraftChanges || hasDailyTargetsDraft}
         user={user}
         handleSignOut={maintenanceActions.handleSignOut}
       />
@@ -68,6 +81,7 @@ export default function SettingsPage() {
             clearAllDrafts={fieldDrafts.clearAllDrafts}
             isLoading={isLoading}
             riskMeterSettings={fieldDrafts.riskMeterSettings}
+            onDailyTargetsDraft={onDailyTargetsDraft}
           />
         </TabsContent>
 
@@ -92,6 +106,8 @@ export default function SettingsPage() {
             handleClearAndReinit={maintenanceActions.handleClearAndReinit}
             handleClearLocalCache={maintenanceActions.handleClearLocalCache}
             isReEnriching={maintenanceActions.isReEnrichingTrades}
+            handleFixImportDates={maintenanceActions.handleFixImportDates}
+            isFixingDates={maintenanceActions.isFixingDates}
           />
         </TabsContent>
       </Tabs>

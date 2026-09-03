@@ -25,6 +25,9 @@ export default defineConfig({
           if (id.includes('recharts') || id.includes('d3-')) return 'vendor-charts';
           if (id.includes('react-router') || id.includes('/react-dom/') || id.includes('/react/')) return 'vendor-react';
           if (id.includes('@tanstack')) return 'vendor-query';
+          if (id.includes('lucide-react')) return 'vendor-icons';
+          if (id.includes('date-fns')) return 'vendor-dates';
+          if (id.includes('radix-ui') || id.includes('@radix')) return 'vendor-radix';
           return undefined;
         },
       },

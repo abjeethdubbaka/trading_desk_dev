@@ -13,6 +13,7 @@ import {
 import KeywordToggleGroup from './KeywordToggleGroup';
 import { DEFAULT_MISTAKES } from '@/lib/constants/mistakes';
 import { DEFAULT_LEARNINGS } from '@/lib/constants/learnings';
+import { DEFAULT_WHAT_WORKED } from '@/lib/constants/whatWorked';
 
 const STEP_1_ITEMS = [
   { key: 'smoothVWAPPullback', label: 'Price pulls into VWAP smoothly' },
@@ -122,6 +123,23 @@ const IMPROVEMENT_OPTIONS = [
   { value: 'other', label: 'Other' },
 ];
 
+const OUTCOME_PROMPTS = {
+  win: {
+    border: 'border-emerald-400/25',
+    bg: 'bg-emerald-500/[0.07]',
+    dot: 'bg-emerald-400',
+    label: 'Nice trade',
+    text: 'What specifically worked? Lock in the pattern so you can repeat it.',
+  },
+  loss: {
+    border: 'border-rose-400/25',
+    bg: 'bg-rose-500/[0.07]',
+    dot: 'bg-rose-400',
+    label: 'Loss logged',
+    text: 'Was your entry criteria fully met? Note what you\'d change before the next setup.',
+  },
+};
+
 const NotesFields = ({
   setupType,
   setupGrade,
@@ -129,18 +147,41 @@ const NotesFields = ({
   reflectionAnswers,
   mistakeOptions = DEFAULT_MISTAKES,
   learningOptions = DEFAULT_LEARNINGS,
+  whatWorkedOptions = DEFAULT_WHAT_WORKED,
+  outcome = null,
   onReflectionChange,
   onBreakoutChecklistChange,
   onBreakoutMetaChange
 }) => {
   const isVWAPPullback = (setupType || '').toLowerCase().trim() === 'vwap pullback';
   const showLegacyVWAPChecklist = isVWAPPullback;
+  const prompt = outcome ? OUTCOME_PROMPTS[outcome] : null;
 
   return (
     <>
       {/* Always show reflection section */}
       <div className="space-y-3 border border-white/20 rounded-lg p-4 bg-white/5">
         <p className="text-sm font-semibold text-white">Reflection</p>
+
+        {prompt && (
+          <div className={`flex items-start gap-2 rounded-lg border ${prompt.border} ${prompt.bg} px-3 py-2`}>
+            <div className={`mt-1 h-1.5 w-1.5 flex-shrink-0 rounded-full ${prompt.dot}`} />
+            <p className="text-[11px] text-white/65 leading-relaxed">
+              <span className="font-semibold text-white/80">{prompt.label} — </span>
+              {prompt.text}
+            </p>
+          </div>
+        )}
+
+        <div className="space-y-2">
+          <Label className="text-xs text-emerald-300/80">What Worked</Label>
+          <KeywordToggleGroup
+            options={whatWorkedOptions}
+            value={reflectionAnswers?.what_worked}
+            onChange={(next) => onReflectionChange('what_worked', next)}
+            emptyHint="No keywords configured yet — add some in Settings."
+          />
+        </div>
 
         <div className="space-y-2">
           <Label className="text-xs text-white/80">Mistakes</Label>

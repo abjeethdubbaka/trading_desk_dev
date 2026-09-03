@@ -3,10 +3,11 @@ import { BookPlus, CheckCircle2, ExternalLink, Image, Shield, ShieldAlert, Trend
 import { cn } from '@/lib/utils/general';
 import MultiImageLightbox from '@/components/ui/MultiImageLightbox';
 import { formatDate, toExpectedRLabel } from './playbookFormHelpers';
-import { CriteriaSection, MetricsPill, PlaybookCardActions } from './PlaybookCardParts';
+import { ConditionsPanel, CriteriaSection, GradeCriteriaPanel, MetricsPill, PlaybookCardActions, TriggerSpecPanel } from './PlaybookCardParts';
 
 export default function PlaybookCard({
   entry,
+  setupStats = null,
   onEdit,
   onDuplicate,
   onToggleActive,
@@ -36,7 +37,19 @@ export default function PlaybookCard({
       />
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h3 className="text-base font-semibold text-white/95">{entry.name}</h3>
+          <div className="flex items-center gap-2">
+            <h3 className="text-base font-semibold text-white/95">{entry.name}</h3>
+            {entry.priority && entry.priority !== 2 && (
+              <span className={cn(
+                'rounded-full border px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide',
+                entry.priority === 1
+                  ? 'border-rose-400/40 bg-rose-500/15 text-rose-200'
+                  : 'border-white/20 bg-white/10 text-white/55',
+              )}>
+                P{entry.priority}
+              </span>
+            )}
+          </div>
           {Array.isArray(entry.timeframe) && entry.timeframe.length > 0 ? (
             <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
               {entry.timeframe.map((tf) => (
@@ -87,10 +100,27 @@ export default function PlaybookCard({
           label="Last Reviewed"
           value={entry.last_reviewed_at ? formatDate(entry.last_reviewed_at) : 'Not reviewed'}
         />
+        {setupStats && setupStats.trades > 0 ? (
+          <div className="rounded-xl border border-violet-500/20 bg-violet-500/[0.06] px-3 py-2.5">
+            <p className="text-[9px] uppercase tracking-widest text-white/40">Actual Edge</p>
+            <p className={cn('mt-1 text-sm font-semibold', setupStats.winRate >= 50 ? 'text-emerald-300' : setupStats.winRate >= 40 ? 'text-amber-300' : 'text-rose-300')}>
+              {setupStats.winRate.toFixed(0)}% WR
+            </p>
+            <p className="text-[9px] text-white/30">{setupStats.trades} trades · {setupStats.avgR.toFixed(1)}R avg</p>
+          </div>
+        ) : (
+          <div className="rounded-xl border border-white/8 bg-white/[0.02] px-3 py-2.5">
+            <p className="text-[9px] uppercase tracking-widest text-white/25">Actual Edge</p>
+            <p className="mt-1 text-xs text-white/25">No trades yet</p>
+          </div>
+        )}
       </div>
 
       {entry.has_sl_exit_plan !== false && (
         <div className="mt-3 grid grid-cols-1 gap-2 lg:grid-cols-2">
+          <ConditionsPanel conditions={entry.setup_conditions} />
+          <GradeCriteriaPanel gradeCriteria={entry.grade_criteria} />
+          <TriggerSpecPanel triggerSpec={entry.trigger_spec} setupStats={setupStats} />
           <CriteriaSection
             label="Entry Criteria"
             items={entry.entry_criteria}

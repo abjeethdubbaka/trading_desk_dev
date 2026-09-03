@@ -327,6 +327,7 @@ const TREND_METRICS = [
   { key: 'totalPnL', label: 'P&L', fmt: (v) => `${v >= 0 ? '+' : '-'}$${Math.abs(v).toFixed(0)}`, color: (v) => v >= 0 ? 'text-emerald-400' : 'text-rose-400', higherIsBetter: true },
   { key: 'winRate', label: 'Win %', fmt: (v) => `${v.toFixed(0)}%`, color: (v) => v >= 50 ? 'text-emerald-400' : 'text-amber-400', higherIsBetter: true },
   { key: 'avgR', label: 'Avg R', fmt: (v) => `${v.toFixed(1)}R`, color: (v) => v >= 1 ? 'text-purple-400' : 'text-amber-400', higherIsBetter: true },
+  { key: 'profitFactor', label: 'PF', fmt: (v) => v >= 99 ? '∞' : v.toFixed(1), color: (v) => v >= 1.5 ? 'text-emerald-400' : v >= 1 ? 'text-amber-400' : 'text-rose-400', higherIsBetter: true },
   { key: 'totalTrades', label: 'Trades', fmt: (v) => String(Math.round(v)), color: () => 'text-white/70', higherIsBetter: null },
 ];
 

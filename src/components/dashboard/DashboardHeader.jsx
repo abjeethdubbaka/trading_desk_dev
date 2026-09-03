@@ -60,6 +60,8 @@ export default function DashboardHeader({
   totalTradingDays = 0,
   currentStreak = 0,
   currentStreakType = null,
+  bestWinStreak = 0,
+  bestLossStreak = 0,
 }) {
   const pnlPos   = totalPnL >= 0;
   const todayPos = todayPnL >= 0;
@@ -144,13 +146,16 @@ export default function DashboardHeader({
           </Metric>
           <Sep />
 
-          <Metric label="Streak" minWidth="min-w-[80px]">
+          <Metric label="Streak" minWidth="min-w-[110px]">
             {currentStreak > 0 && currentStreakType ? (
               <>
                 <span className={cn('font-mono text-xl font-bold', currentStreakType === 'win' ? 'text-emerald-400' : 'text-rose-400')}>
                   {currentStreak}{currentStreakType === 'win' ? 'W' : 'L'}
                 </span>
-                <div className="mt-0.5 text-[10px] text-white/35">{currentStreakType === 'win' ? 'on fire' : 'step back?'}</div>
+                <div className="mt-0.5 text-[10px] text-white/35">
+                  {currentStreakType === 'win' ? 'on fire' : 'step back?'}
+                  {bestWinStreak > 0 && <span className="ml-1.5 text-white/20">best {bestWinStreak}W / {bestLossStreak}L</span>}
+                </div>
               </>
             ) : (
               <span className="font-mono text-xl font-bold text-white/20">—</span>

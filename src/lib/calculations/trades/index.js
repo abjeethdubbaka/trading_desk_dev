@@ -25,6 +25,7 @@ export {
 export { computeEmotionStats, computePlanAdherence } from './analytics/behavior.js';
 export {
   analyzeMistakePatterns,
+  analyzeWhatWorked,
   buildWeeklyReview,
   computeTradeSetupQuality,
   calcDisciplineSavings,

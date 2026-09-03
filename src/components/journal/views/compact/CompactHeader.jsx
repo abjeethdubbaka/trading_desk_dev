@@ -92,15 +92,6 @@ export function CompactHeader({
       <div className={cn('w-[110px] flex-shrink-0', columns?.setup ? 'hidden xl:block' : 'hidden')}>
         <SortableHeader label="Setup" sortKey="setup" {...sortProps} />
       </div>
-      <div className={cn('w-[110px] flex-shrink-0', columns?.exitReason ? 'hidden xl:block' : 'hidden')}>
-        <ColLabel>Exit Reason</ColLabel>
-      </div>
-      <div className={cn('w-[120px] flex-shrink-0', columns?.stopLossReason ? 'hidden xl:block' : 'hidden')}>
-        <ColLabel>S/L Reason</ColLabel>
-      </div>
-      <div className={cn('w-[120px] flex-shrink-0', columns?.marketEnvironment ? 'hidden xl:block' : 'hidden')}>
-        <ColLabel>M/E</ColLabel>
-      </div>
 
       <div className={cn('w-[120px] flex-shrink-0', columns?.emotions ? 'hidden xl:block' : 'hidden')}>
         <ColLabel>Emotions</ColLabel>

@@ -1,8 +1,9 @@
-import React, { useCallback, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { createPageUrl } from './utils';
 import { PAGE_PRELOADERS } from './pages.config';
 import { useElectron } from '@/lib/hooks/useElectron';
+import { useSettings } from '@/lib/context/SettingsContext';
 import {
   LayoutDashboard,
   BookOpen,
@@ -20,6 +21,7 @@ import {
   // ScanSearch, // only used by the commented-out Screenshot Analysis nav item
   Images,
   Wallet,
+  ClipboardList,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import LiveClock from '@/components/ui/LiveClock';
@@ -28,9 +30,100 @@ import { formatAnalysisTimer, useAnalysisTimer } from '@/lib/context/AnalysisTim
 import { useTrades } from '@/lib/hooks/useTrades';
 import { useExpenses } from '@/lib/hooks/useFinance';
 import { useAutoBackup } from '@/lib/hooks/useBackup';
+import { getDailyTargetsWeek1, getDailyTargetPurposesWeek1 } from '@/lib/config/dailyTargets';
+import { getTodayMaxDailyLoss } from '@/lib/config/dailyLossLimits';
 
 // AI assistant not in use — flow commented out, not deleted, in case it's revived later.
 // const ChatDock = lazy(() => import('@/components/chat/ChatDock'));
+
+// ── Daily target schedule (mirrors Dashboard.jsx defaults) ───────────────────
+const DOW_LABELS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
+
+function getTodayTarget(settings) {
+  const now = new Date();
+  const dow = now.getDay();
+  if (dow === 0 || dow === 6) return null;
+  const dayIndex = dow - 1;
+  const targets  = getDailyTargetsWeek1(settings);
+  const purposes = getDailyTargetPurposesWeek1(settings);
+  return { amount: targets[dayIndex] ?? 0, purpose: purposes[dayIndex] ?? '', dayIndex };
+}
+
+function getGreeting() {
+  const h = new Date().getHours();
+  if (h < 12) return 'Good morning';
+  if (h < 17) return 'Good afternoon';
+  return 'Good evening';
+}
+
+function DailyTargetLaunchModal({ target, weekTotal, maxDailyLoss, onDismiss }) {
+  const { amount, purpose, dayIndex } = target;
+  return (
+    <div
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-md"
+      onClick={onDismiss}
+    >
+      <div
+        className="relative mx-4 w-full max-w-sm rounded-2xl border border-violet-500/25 bg-[#11131e] p-8 shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <button
+          type="button"
+          onClick={onDismiss}
+          className="absolute right-3 top-3 rounded p-1 text-white/20 hover:text-white/50 transition-colors"
+        >
+          <X className="h-4 w-4" />
+        </button>
+
+        <p className="text-[10px] font-semibold uppercase tracking-widest text-violet-300/55">
+          {getGreeting()} · {DOW_LABELS[dayIndex]}
+        </p>
+
+        <p className="mt-3 text-sm text-white/40">Today's target</p>
+        <p className="mt-0.5 text-5xl font-bold tracking-tight text-white/95">
+          ${amount.toLocaleString()}
+        </p>
+        {purpose && (
+          <p className="mt-1.5 text-sm text-white/35">{purpose}</p>
+        )}
+
+        {maxDailyLoss > 0 && (
+          <div className="mt-3 flex items-center justify-between rounded-xl border border-rose-500/20 bg-rose-500/[0.06] px-4 py-2.5">
+            <span className="text-xs text-rose-200/60">Today's loss limit</span>
+            <span className="text-sm font-semibold text-rose-300">${maxDailyLoss.toLocaleString()}</span>
+          </div>
+        )}
+
+        <div className="mt-5 rounded-xl border border-white/[0.07] bg-white/[0.03] px-4 py-3">
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-white/35">Weekly total</span>
+            <span className="text-xs font-semibold text-white/55">${weekTotal.toLocaleString()}</span>
+          </div>
+          <div className="mt-2.5 flex gap-1.5">
+            {[0, 1, 2, 3, 4].map((i) => (
+              <div
+                key={i}
+                className={cn(
+                  'h-1.5 flex-1 rounded-full',
+                  i === dayIndex ? 'bg-violet-400' : i < dayIndex ? 'bg-white/30' : 'bg-white/10',
+                )}
+              />
+            ))}
+          </div>
+          <p className="mt-1.5 text-[10px] text-white/25">Day {dayIndex + 1} of 5 this week</p>
+        </div>
+
+        <button
+          type="button"
+          onClick={onDismiss}
+          className="mt-5 w-full rounded-xl bg-violet-600 py-3 text-sm font-semibold text-white transition-colors hover:bg-violet-500"
+        >
+          Let's go →
+        </button>
+      </div>
+    </div>
+  );
+}
 
 const navItems = [
   {
@@ -83,6 +176,12 @@ const navItems = [
     page: 'DosAndDonts',
   },
   {
+    name: 'Daily Review',
+    description: 'Review one trade per day — findings, lessons, and next-time commitments.',
+    icon: ClipboardList,
+    page: 'DailyTradeReview',
+  },
+  {
     name: 'Performance',
     description: 'Analyze edge quality across timing, setup, and behavior.',
     icon: BarChart3,
@@ -117,13 +216,42 @@ const navItems = [
 
 export default function Layout({ children, currentPageName }) {
   const [mobileOpen, setMobileOpen] = useState(false);
+  // Defer notification badge queries until after first paint so they don't
+  // compete with settings + the initial page load on startup.
+  const [alertsReady, setAlertsReady] = useState(false);
+  useEffect(() => {
+    const id = setTimeout(() => setAlertsReady(true), 150);
+    return () => clearTimeout(id);
+  }, []);
   useAutoBackup();
+
+  // ── Launch modal ────────────────────────────────────────────────────────────
+  const { settings } = useSettings();
+  const todayTarget = useMemo(() => getTodayTarget(settings), [settings]);
+  const weekTotal = useMemo(() => {
+    if (!todayTarget) return 0;
+    return getDailyTargetsWeek1(settings).reduce((s, v) => s + (Number(v) || 0), 0);
+  }, [todayTarget, settings]);
+  const todayMaxDailyLoss = useMemo(() => getTodayMaxDailyLoss(settings), [settings]);
+
+  const [showLaunchModal, setShowLaunchModal] = useState(() => {
+    try {
+      return localStorage.getItem('dailyTargetShown') !== new Date().toISOString().slice(0, 10);
+    } catch {
+      return false;
+    }
+  });
+
+  const dismissLaunchModal = useCallback(() => {
+    try { localStorage.setItem('dailyTargetShown', new Date().toISOString().slice(0, 10)); } catch { /* noop */ }
+    setShowLaunchModal(false);
+  }, []);
 
   const { isElectron, closeApp } = useElectron();
 
-  const { data: allTrades = [] } = useTrades();
-  const { data: allExpenses = [] } = useExpenses();
   const todayISO = new Date().toISOString().slice(0, 10);
+  const { data: allTrades = [] } = useTrades({ enabled: alertsReady });
+  const { data: allExpenses = [] } = useExpenses({ enabled: alertsReady });
   const todayTrades = allTrades.filter(t => (t.entry_time || t.date || '').slice(0, 10) === todayISO);
   const alertPages = {
     Journal: todayTrades.length > 0 && todayTrades.some(t => !t.notes?.trim()),
@@ -238,7 +366,6 @@ export default function Layout({ children, currentPageName }) {
             </div>
             <div className="whitespace-nowrap opacity-0 group-hover/nav:opacity-100 transition-opacity duration-150">
               <h1 className="text-lg font-bold tracking-tight">TradeDesk</h1>
-              <p className="text-[10px] uppercase tracking-[0.2em] text-white/40">Execution OS</p>
             </div>
           </div>
         </div>
@@ -344,6 +471,15 @@ export default function Layout({ children, currentPageName }) {
         <ChatDock isOpen={isChatOpen} onToggle={() => setIsChatOpen((prev) => !prev)} />
       </Suspense>
       */}
+
+      {showLaunchModal && todayTarget && todayTarget.amount > 0 && (
+        <DailyTargetLaunchModal
+          target={todayTarget}
+          weekTotal={weekTotal}
+          maxDailyLoss={todayMaxDailyLoss}
+          onDismiss={dismissLaunchModal}
+        />
+      )}
     </div>
   );
 }

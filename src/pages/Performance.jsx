@@ -7,7 +7,8 @@
 
 import React, { useDeferredValue, useMemo, useState } from 'react';
 import { startOfWeek, startOfMonth, startOfYear, subMonths } from 'date-fns';
-import { Brain, Clock3, Compass, Layers3, Radar, Sparkles } from 'lucide-react';
+import { Brain, Clock3, Compass, Layers3, Radar, Sparkles, TrendingUp, TrendingDown } from 'lucide-react';
+import { analyzeEdgeFactors } from '@/lib/ml/winPredictor';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import EmotionMatrix from '@/components/performance/EmotionMatrix';
 import PerformanceByDayOfWeek from '@/components/performance/PerformanceByDayOfWeek';
@@ -30,6 +31,7 @@ import { useTrades } from '@/lib/hooks/useTrades';
 import { useTradesWithQuality } from '@/lib/hooks/useTradesWithQuality';
 import {
   analyzeMistakePatterns,
+  analyzeWhatWorked,
   buildEquityCurve,
   buildStrategyEngineSnapshot,
   buildWeeklyReview,
@@ -218,7 +220,7 @@ const TIER_VIEW_OPTIONS = [
 export default function PerformancePage() {
   const [period, setPeriod] = useState('all');
   const [viewTier, setViewTier] = useState('overall');
-  const { settings } = useSettings();
+  const { settings, updateFields } = useSettings();
   const accountSize = toFiniteNumber(settings?.account_size, 50000);
   const tierPreset = viewTier !== 'overall' ? ACCOUNT_TIERS[viewTier] : null;
   const tierRiskAmounts = settings?.tier_risk_amounts || {};
@@ -287,18 +289,7 @@ export default function PerformancePage() {
     [deferredSettings, deferredTrades]
   );
   const byHoldBucket = useMemo(() => perfByHoldDurationBuckets(deferredTrades, 5), [deferredTrades]);
-  const byExitReason = useMemo(
-    () => perfByCategory(deferredTrades, (trade) => trade?.exit_reason),
-    [deferredTrades]
-  );
-  const byStopLossReason = useMemo(
-    () => perfByCategory(deferredTrades, (trade) => trade?.stop_loss_reason),
-    [deferredTrades]
-  );
-  const byMarketEnvironment = useMemo(
-    () => perfByCategory(deferredTrades, (trade) => trade?.market_condition),
-    [deferredTrades]
-  );
+
   const byOverallRating = useMemo(
     () => perfByCategory(deferredTrades, (trade) => (trade?.overall_rating ? `${trade.overall_rating}★` : null)),
     [deferredTrades]
@@ -308,7 +299,9 @@ export default function PerformancePage() {
     [deferredTrades]
   );
   const weeklyReview = useMemo(() => buildWeeklyReview(deferredTrades, [7, 14]), [deferredTrades]);
-  const mistakeInsights = useMemo(() => analyzeMistakePatterns(deferredTrades, 4), [deferredTrades]);
+  const mistakeInsights   = useMemo(() => analyzeMistakePatterns(deferredTrades, 4), [deferredTrades]);
+  const whatWorkedInsights = useMemo(() => analyzeWhatWorked(deferredTrades, 6),     [deferredTrades]);
+  const edgeFactors        = useMemo(() => analyzeEdgeFactors(deferredTrades, 5),    [deferredTrades]);
   const disciplineSavings = useMemo(() => {
     if (viewTier !== 'overall') {
       return calcDisciplineSavings(periodTrades, playbookEntries, riskLimit);
@@ -374,6 +367,14 @@ export default function PerformancePage() {
     () => [...byDay].filter((row) => row.trades > 0).sort((a, b) => b.totalPnL - a.totalPnL)[0] ?? null,
     [byDay]
   );
+  const bestDayOfWeek = useMemo(
+    () => [...byDay].filter((row) => row.trades >= 3).sort((a, b) => b.winRate - a.winRate)[0] ?? null,
+    [byDay]
+  );
+  const worstDayOfWeek = useMemo(
+    () => [...byDay].filter((row) => row.trades >= 3).sort((a, b) => a.winRate - b.winRate)[0] ?? null,
+    [byDay]
+  );
   const timingTopBucket = useMemo(
     () =>
       [...byHoldBucket].filter((row) => row.trades > 0).sort((a, b) => b.totalPnL - a.totalPnL)[0] ??
@@ -392,9 +393,7 @@ export default function PerformancePage() {
     () => [...byPrice].filter((row) => row.trades > 0).sort((a, b) => b.totalPnL - a.totalPnL)[0] ?? null,
     [byPrice]
   );
-  const driversBestExitReason = byExitReason[0] ?? null;
-  const driversWorstExitReason = byExitReason[byExitReason.length - 1] ?? null;
-  const driversBestMarketEnvironment = byMarketEnvironment[0] ?? null;
+
   const driversTopImprovementArea = useMemo(
     () => [...byImprovementArea].sort((a, b) => b.trades - a.trades)[0] ?? null,
     [byImprovementArea]
@@ -412,9 +411,9 @@ export default function PerformancePage() {
   if (isLoading) {
     return (
       <div className="space-y-5">
-        {/* StatPill row: 8 pills, grid-cols-2 → 4 → 8 */}
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 xl:grid-cols-8">
-          {Array.from({ length: 8 }).map((_, i) => (
+        {/* StatPill row: 11 pills, grid-cols-2 → 3 → 11 */}
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-11">
+          {Array.from({ length: 11 }).map((_, i) => (
             <div key={i} className="rounded-xl border border-white/10 bg-white/[0.03] p-3 space-y-2">
               <Skeleton className="h-2 w-14 rounded-full" />
               <Skeleton className="h-5 w-18 rounded" />
@@ -463,7 +462,7 @@ export default function PerformancePage() {
 
   return (
     <div className="space-y-5">
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-9">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-11">
         <StatPill
           label="Total P&L"
           value={`${stats.totalPnL >= 0 ? '+' : ''}$${Math.abs(stats.totalPnL).toFixed(0)}`}
@@ -501,9 +500,44 @@ export default function PerformancePage() {
           value={greenDayStats.totalDays > 0 ? `${greenDayStats.greenDayPct.toFixed(0)}%` : '--'}
           color={greenDayStats.greenDayPct >= 60 ? 'text-emerald-400' : greenDayStats.greenDayPct >= 45 ? 'text-amber-400' : 'text-rose-400'}
         />
+        <StatPill
+          label="Best Day"
+          value={bestDayOfWeek ? `${bestDayOfWeek.short} ${bestDayOfWeek.winRate.toFixed(0)}%` : '--'}
+          color="text-emerald-400"
+        />
+        <StatPill
+          label="Worst Day"
+          value={worstDayOfWeek ? `${worstDayOfWeek.short} ${worstDayOfWeek.winRate.toFixed(0)}%` : '--'}
+          color="text-rose-400"
+        />
       </div>
 
       <WeeklyReviewCard reviews={weeklyReview} trades={periodTrades} initialBalance={accountSize} />
+
+      {/* Account type toggle (Demo / Funded) */}
+      <div className="flex items-center gap-3">
+        <span className="text-xs text-white/40 font-medium uppercase tracking-wider">Account</span>
+        <div className="flex items-center gap-1 rounded-lg border border-white/10 bg-white/[0.03] p-1">
+          {[
+            { value: 'demo', label: 'Demo', activeClass: 'bg-cyan-500/15 text-cyan-200 border border-cyan-400/30' },
+            { value: 'funded', label: 'Funded', activeClass: 'bg-amber-500/15 text-amber-200 border border-amber-400/30' },
+          ].map((opt) => (
+            <button
+              key={opt.value}
+              type="button"
+              onClick={() => updateFields({ account_type: opt.value })}
+              className={cn(
+                'rounded px-4 py-1 text-xs font-semibold transition-colors',
+                currentAccountType === opt.value
+                  ? opt.activeClass
+                  : 'text-white/35 hover:text-white/60'
+              )}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
+      </div>
 
       {/* Tier + Period filters */}
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -630,6 +664,94 @@ export default function PerformancePage() {
             riskLimit={riskLimit}
             label={viewTier === 'overall' ? 'Risk Discipline · All tiers combined' : undefined}
           />
+
+          {/* What Worked patterns */}
+          {whatWorkedInsights.topWorked.length > 0 && (
+            <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/[0.04] p-4 space-y-3">
+              <div className="flex items-center gap-2">
+                <TrendingUp className="h-4 w-4 text-emerald-400" />
+                <p className="text-sm font-semibold text-white">What Worked</p>
+                <span className="ml-auto text-[10px] text-white/30">{whatWorkedInsights.totalEntries} tags across {periodTrades.length} trades</span>
+              </div>
+              <div className="space-y-2">
+                {whatWorkedInsights.topWorked.map((item) => (
+                  <div key={item.text} className="flex items-center gap-3 rounded-xl border border-white/6 bg-white/[0.03] px-3 py-2">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-white/85 truncate">{item.text}</p>
+                      <p className="text-[10px] text-white/35">{item.count}× tagged</p>
+                    </div>
+                    <div className="flex items-center gap-3 flex-shrink-0 text-right">
+                      <div>
+                        <p className={cn('text-sm font-bold font-mono', item.winRate >= 60 ? 'text-emerald-400' : item.winRate >= 45 ? 'text-amber-400' : 'text-rose-400')}>
+                          {item.winRate}%
+                        </p>
+                        <p className="text-[9px] uppercase tracking-wider text-white/30">win rate</p>
+                      </div>
+                      <div>
+                        <p className={cn('text-sm font-bold font-mono', item.avgPnL >= 0 ? 'text-emerald-400' : 'text-rose-400')}>
+                          {item.avgPnL >= 0 ? '+' : ''}${item.avgPnL}
+                        </p>
+                        <p className="text-[9px] uppercase tracking-wider text-white/30">avg P&L</p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* ML edge factor analysis */}
+          {edgeFactors && (edgeFactors.edges.length > 0 || edgeFactors.risks.length > 0) && (
+            <div className="rounded-2xl border border-violet-500/20 bg-violet-500/[0.04] p-4 space-y-3">
+              <div className="flex items-center gap-2">
+                <Brain className="h-4 w-4 text-violet-400" />
+                <p className="text-sm font-semibold text-white">Edge Analysis · Your Data</p>
+                <span className="ml-auto text-[10px] text-white/30">baseline {edgeFactors.baseline}% WR · {edgeFactors.totalTrades} trades</span>
+              </div>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                {edgeFactors.edges.length > 0 && (
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-1.5">
+                      <TrendingUp className="h-3 w-3 text-emerald-400" />
+                      <p className="text-[10px] font-semibold uppercase tracking-wider text-emerald-400/70">Edge Boosters</p>
+                    </div>
+                    {edgeFactors.edges.map((e) => (
+                      <div key={`${e.label}:${e.value}`} className="flex items-center justify-between gap-2 rounded-lg border border-emerald-500/15 bg-emerald-500/[0.06] px-2.5 py-2">
+                        <div className="min-w-0">
+                          <p className="text-[11px] font-semibold text-white/80 truncate">{e.value}</p>
+                          <p className="text-[9px] text-white/35">{e.label} · {e.count} trades</p>
+                        </div>
+                        <div className="flex-shrink-0 text-right">
+                          <p className="text-sm font-bold text-emerald-400 font-mono">{e.winRate}%</p>
+                          <p className="text-[9px] text-emerald-500/60">+{e.delta}pp</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {edgeFactors.risks.length > 0 && (
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-1.5">
+                      <TrendingDown className="h-3 w-3 text-rose-400" />
+                      <p className="text-[10px] font-semibold uppercase tracking-wider text-rose-400/70">Risk Signals</p>
+                    </div>
+                    {edgeFactors.risks.map((e) => (
+                      <div key={`${e.label}:${e.value}`} className="flex items-center justify-between gap-2 rounded-lg border border-rose-500/15 bg-rose-500/[0.06] px-2.5 py-2">
+                        <div className="min-w-0">
+                          <p className="text-[11px] font-semibold text-white/80 truncate">{e.value}</p>
+                          <p className="text-[9px] text-white/35">{e.label} · {e.count} trades</p>
+                        </div>
+                        <div className="flex-shrink-0 text-right">
+                          <p className="text-sm font-bold text-rose-400 font-mono">{e.winRate}%</p>
+                          <p className="text-[9px] text-rose-500/60">{e.delta}pp</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
         </TabsContent>
 
         <TabsContent value="timing" className="mt-4 space-y-4">
@@ -725,33 +847,7 @@ export default function PerformancePage() {
             hint="See which exit reasons, stop conditions, market environments, and ratings correlate with your best and worst outcomes."
             toneClasses="bg-rose-500/25"
           >
-            <InsightChip
-              label="Best Exit Reason"
-              value={
-                driversBestExitReason
-                  ? `${driversBestExitReason.category} (${formatCompactCurrency(driversBestExitReason.totalPnL)})`
-                  : '--'
-              }
-              tone="text-emerald-200"
-            />
-            <InsightChip
-              label="Worst Exit Reason"
-              value={
-                driversWorstExitReason && driversWorstExitReason !== driversBestExitReason
-                  ? `${driversWorstExitReason.category} (${formatCompactCurrency(driversWorstExitReason.totalPnL)})`
-                  : '--'
-              }
-              tone="text-red-300"
-            />
-            <InsightChip
-              label="Best Market"
-              value={
-                driversBestMarketEnvironment
-                  ? `${driversBestMarketEnvironment.category} (${formatCompactCurrency(driversBestMarketEnvironment.totalPnL)})`
-                  : '--'
-              }
-              tone="text-rose-200"
-            />
+
             <InsightChip
               label="Top Improvement Area"
               value={
@@ -764,24 +860,7 @@ export default function PerformancePage() {
           </TabHero>
 
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-            <CategoricalBreakdownCard
-              title="By Exit Reason"
-              hint="Which exit triggers make and lose you money."
-              data={byExitReason}
-              emptyMessage="Log an exit reason on your trades to see this breakdown."
-            />
-            <CategoricalBreakdownCard
-              title="By Stop Loss Reason"
-              hint="Why your stops get hit, and how costly each reason is."
-              data={byStopLossReason}
-              emptyMessage="Log a stop loss reason on your trades to see this breakdown."
-            />
-            <CategoricalBreakdownCard
-              title="By Market Environment"
-              hint="Which market conditions you trade best and worst in."
-              data={byMarketEnvironment}
-              emptyMessage="Log a market environment on your trades to see this breakdown."
-            />
+
             <CategoricalBreakdownCard
               title="By Overall Rating"
               hint="Does how you rated the trade actually line up with the result?"

@@ -1,9 +1,11 @@
 import React, { useMemo, useState } from 'react';
 import { useConfirm } from '@/components/ui/ConfirmDialog';
 import { toast } from 'sonner';
-import { BookPlus, RefreshCw } from 'lucide-react';
+import { BookPlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { usePlaybook } from '@/lib/hooks/usePlaybook';
+import { useTrades } from '@/lib/hooks/useTrades';
+import { perfBySetupType } from '@/lib/calculations/trades';
 import { createBlankPlaybookEntry } from '@/lib/playbook/utils';
 import PlaybookCard from './PlaybookCard';
 import EntryEditorDialog from './EntryEditorDialog';
@@ -19,7 +21,6 @@ export default function StrategyPlaybookBuilder() {
     duplicateEntry,
     toggleEntryActive,
     markEntryReviewed,
-    seedFromSetupTypes,
   } = usePlaybook();
 
   const [confirm, confirmDialog] = useConfirm();
@@ -28,6 +29,14 @@ export default function StrategyPlaybookBuilder() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [editingEntryId, setEditingEntryId] = useState('');
   const [formState, setFormState] = useState(toFormState(createBlankPlaybookEntry()));
+
+  const { data: allTrades = [] } = useTrades();
+  const setupStatsMap = useMemo(() => {
+    const rows = perfBySetupType(allTrades);
+    // Keyed case-insensitively so "VWAP Pullback" trades still match a
+    // "vwap pullback" Playbook entry name.
+    return new Map(rows.map((r) => [String(r.setup || '').trim().toLowerCase(), r]));
+  }, [allTrades]);
 
   const filteredEntries = useMemo(() => playbookEntries, [playbookEntries]);
 
@@ -117,33 +126,11 @@ export default function StrategyPlaybookBuilder() {
     }
   };
 
-  const handleSeed = async () => {
-    try {
-      const seededCount = await seedFromSetupTypes();
-      if (seededCount > 0) {
-        toast.success(`Seeded ${seededCount} setup(s) into playbook`);
-      } else {
-        toast.info('All current setup types are already in the playbook');
-      }
-    } catch (error) {
-      toast.error(`Unable to seed setups: ${error?.message || 'Unknown error'}`);
-    }
-  };
-
   return (
     <div className="space-y-5">
       <div className="rounded-2xl border border-white/10 bg-gradient-to-r from-[#161a29]/95 via-[#13131e]/95 to-[#101624]/95 p-4 shadow-[0_20px_60px_-40px_rgba(6,182,212,0.45)]">
         <div className="flex flex-wrap items-center justify-end gap-2">
           <div className="flex items-center gap-2">
-            <Button
-              variant="ghost"
-              className="h-9 border border-white/15 bg-white/[0.03] px-3 text-xs hover:bg-white/[0.08]"
-              onClick={handleSeed}
-              disabled={isSaving}
-            >
-              <RefreshCw className="mr-1.5 h-4 w-4" />
-              Seed From Existing Setups
-            </Button>
             <Button
               className="h-9 border border-emerald-200/40 bg-emerald-400/90 px-3 text-xs font-semibold text-black hover:bg-emerald-300"
               onClick={openCreateDialog}
@@ -175,6 +162,7 @@ export default function StrategyPlaybookBuilder() {
             <PlaybookCard
               key={entry.id}
               entry={entry}
+              setupStats={setupStatsMap.get(String(entry.name || '').trim().toLowerCase()) ?? null}
               onEdit={openEditDialog}
               onDuplicate={handleDuplicate}
               onToggleActive={handleToggleActive}

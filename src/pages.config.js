@@ -63,6 +63,7 @@ const Reports = lazy(() => import('./pages/Reports'));
 const InformativeImages = lazy(() => import('./pages/InformativeImages'));
 const Playbook = lazy(() => import('./pages/Playbook'));
 const Finance = lazy(() => import('./pages/Finance'));
+const DailyTradeReview = lazy(() => import('./pages/DailyTradeReview'));
 import __Layout from './Layout.jsx';
 
 // Module preloaders — call these on nav hover to warm the chunk before the user clicks
@@ -80,6 +81,7 @@ export const PAGE_PRELOADERS = {
   InformativeImages:  () => import('./pages/InformativeImages'),
   Playbook:           () => import('./pages/Playbook'),
   Finance:            () => import('./pages/Finance'),
+  DailyTradeReview:   () => import('./pages/DailyTradeReview'),
 };
 
 export const PAGES = {
@@ -96,6 +98,7 @@ export const PAGES = {
     "InformativeImages": InformativeImages,
     "Playbook": Playbook,
     "Finance": Finance,
+    "DailyTradeReview": DailyTradeReview,
 }
 
 export const pagesConfig = {

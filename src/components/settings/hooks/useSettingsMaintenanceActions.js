@@ -5,8 +5,19 @@ import { db } from '@/lib/db';
 
 const settingsService = createSettingsService(db);
 
+function fixDateYear(iso, targetYear) {
+  if (!iso) return null;
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return null;
+  if (d.getFullYear() === targetYear) return null; // already correct
+  if (d.getFullYear() >= 2010) return null; // looks intentional, leave alone
+  d.setFullYear(targetYear);
+  return d.toISOString();
+}
+
 export function useSettingsMaintenanceActions({ signOut, refetch, confirmFn }) {
   const [isReEnrichingTrades, setIsReEnrichingTrades] = useState(false);
+  const [isFixingDates, setIsFixingDates] = useState(false);
 
   const confirm = useCallback(async (opts) => {
     if (confirmFn) return confirmFn(opts);
@@ -72,6 +83,46 @@ export function useSettingsMaintenanceActions({ signOut, refetch, confirmFn }) {
     if (ok) signOut();
   }, [confirm, signOut]);
 
+  const handleFixImportDates = useCallback(async () => {
+    if (isFixingDates) return;
+    const ok = await confirm({
+      title: 'Fix imported trade dates?',
+      description: 'Trades with a year before 2010 (e.g. 2001 from a bad import) will have their year updated to the current year. This cannot be undone.',
+      confirmLabel: 'Fix dates',
+      destructive: false,
+    });
+    if (!ok) return;
+
+    setIsFixingDates(true);
+    try {
+      const trades = await db.trades.list();
+      const targetYear = new Date().getFullYear();
+      let updated = 0;
+
+      for (const trade of trades) {
+        const patches = {};
+        const fe = fixDateYear(trade.entry_time, targetYear);
+        const fx = fixDateYear(trade.exit_time, targetYear);
+        if (fe) patches.entry_time = fe;
+        if (fx) patches.exit_time = fx;
+        if (Object.keys(patches).length > 0) {
+          await db.trades.update(trade.id, patches);
+          updated++;
+        }
+      }
+
+      if (updated > 0) {
+        toast.success(`Fixed dates on ${updated} trade${updated === 1 ? '' : 's'}.`);
+      } else {
+        toast.info('No trades needed a date fix.');
+      }
+    } catch (error) {
+      toast.error(`Failed to fix dates: ${error?.message || 'Unknown error'}`);
+    } finally {
+      setIsFixingDates(false);
+    }
+  }, [isFixingDates, confirm]);
+
   const handleClearLocalCache = useCallback(async () => {
     const ok = await confirm({
       title: 'Delete all local trades?',
@@ -91,5 +142,7 @@ export function useSettingsMaintenanceActions({ signOut, refetch, confirmFn }) {
     handleClearAndReinit,
     handleSignOut,
     handleClearLocalCache,
+    isFixingDates,
+    handleFixImportDates,
   };
 }

@@ -114,6 +114,25 @@ export default function FloatPositionSizer({ historyData, onCalculationSaved = (
         </div>
       )}
 
+      {/* Daily loss limit indicator */}
+      {controller.maxDailyLoss > 0 && (
+        <div className={`flex items-center justify-between gap-3 rounded-xl border px-4 py-2.5 text-xs ${
+          controller.todayPnL <= -controller.maxDailyLoss
+            ? 'border-rose-500/35 bg-rose-500/10'
+            : controller.todayPnL < 0
+              ? 'border-amber-500/25 bg-amber-500/[0.06]'
+              : 'border-white/10 bg-white/[0.03]'
+        }`}>
+          <span className="text-white/40">Daily loss limit</span>
+          <div className="flex items-center gap-1.5">
+            <span className={`font-mono font-semibold ${controller.todayPnL < 0 ? 'text-rose-300' : 'text-white/60'}`}>
+              {controller.todayPnL >= 0 ? '+' : '-'}${Math.abs(controller.todayPnL).toFixed(0)}
+            </span>
+            <span className="text-white/25">/ ${controller.maxDailyLoss.toFixed(0)}</span>
+          </div>
+        </div>
+      )}
+
       <Card className="border-white/10 bg-gradient-to-br from-[#1a1a24] to-[#131c2a] shadow-[0_10px_30px_-18px_rgba(59,130,246,0.5)]">
         <CardContent className="p-6 space-y-6">
           <MemoizedFloatInputForm
@@ -168,6 +187,7 @@ export default function FloatPositionSizer({ historyData, onCalculationSaved = (
             exitStrategy={controller.playbookExitStrategy ?? controller.exitStrategy}
             playbookSetupName={controller.playbookExitStrategy ? (controller.selectedSetup?.name ?? null) : null}
             onApplyStop={controller.updateCustomStop}
+            onApplyEntry={controller.updateEntryPrice}
           />
         </div>
       )}

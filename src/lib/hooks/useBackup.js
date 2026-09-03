@@ -134,6 +134,10 @@ export function useAutoBackup() {
 
     if (!shouldRunAutoBackup()) return;
 
+    // Delay auto-backup until the app has settled — avoids competing with
+    // settings + initial page queries on startup.
+    let timerId;
+
     const run = async () => {
       try {
         const [trades, settings, dosAndDonts] = await Promise.all([
@@ -164,6 +168,7 @@ export function useAutoBackup() {
       }
     };
 
-    run();
+    timerId = setTimeout(run, 8000);
+    return () => clearTimeout(timerId);
   }, []);
 }

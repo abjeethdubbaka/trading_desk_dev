@@ -37,7 +37,7 @@ export default function DailyGoalBar({
       )}
     >
       <div className="flex items-center justify-between text-xs">
-        <span className="font-medium text-white/45">Daily goal</span>
+        <span className="font-medium text-white/45">Weekly goal</span>
         <div className="flex items-center gap-3">
           {hitMax ? <span className="animate-pulse font-semibold text-red-400">Stop trading - max loss hit</span> : null}
           {!hitMax && hitTarget ? <span className="font-semibold text-emerald-400">Goal reached</span> : null}

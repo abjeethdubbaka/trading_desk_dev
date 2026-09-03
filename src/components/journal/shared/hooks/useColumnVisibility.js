@@ -3,12 +3,9 @@ import { useCallback, useState } from 'react';
 const STORAGE_KEY = 'journal.columns.v1';
 
 export const OPTIONAL_COLUMNS = [
-  { key: 'setup',             label: 'Setup' },
-  { key: 'emotions',          label: 'Emotions' },
-  { key: 'exitReason',        label: 'Exit Reason' },
-  { key: 'stopLossReason',    label: 'S/L Reason' },
-  { key: 'marketEnvironment', label: 'M/E' },
-  { key: 'overallRating',     label: 'Rating' },
+  { key: 'setup',         label: 'Setup' },
+  { key: 'emotions',      label: 'Emotions' },
+  { key: 'overallRating', label: 'Rating' },
 ];
 
 const DEFAULT = Object.fromEntries(OPTIONAL_COLUMNS.map((c) => [c.key, true]));

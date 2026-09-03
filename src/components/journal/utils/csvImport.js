@@ -188,6 +188,15 @@ const resolveMissingYear = (monthText, dayOfMonth, options = {}) => {
   return parsedBaseYear;
 };
 
+const resolveNumericYear = (yearPart, baseYear) => {
+  if (!yearPart) return baseYear;
+  if (yearPart.length <= 2) {
+    const yy = Number(yearPart);
+    return yy <= 49 ? 2000 + yy : 1900 + yy;
+  }
+  return Number(yearPart);
+};
+
 const parseDateToIso = (value, options = {}) => {
   if (value === null || value === undefined) return null;
   const raw = String(value).trim();
@@ -206,10 +215,35 @@ const parseDateToIso = (value, options = {}) => {
   }
 
   let normalized = raw;
-  const monthDayWithTimeMatch = raw.match(
-    /^([A-Za-z]{3,9})\s+(\d{1,2})(?:,)?\s+(\d{1,2}:\d{2}(?:\s*[AaPp][Mm])?)$/
+
+  const baseYear = (() => {
+    const y = Number(options?.missingYearBase);
+    return Number.isFinite(y) ? y : new Date().getFullYear();
+  })();
+
+  // Numeric M/D or M/D/YY (with optional time) — use missingYearBase when year absent or 2-digit.
+  const numericDateMatch = raw.match(
+    /^(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?(?:\s+(.+))?$/
   );
-  const monthDayOnlyMatch = raw.match(
+  // Dot-separated D.M.YY (day-first, e.g. "01.09.26" = Sep 1) — different source
+  // format from the slash M/D/Y style above, so day and month are swapped.
+  const dotDateMatch = raw.match(
+    /^(\d{1,2})\.(\d{1,2})(?:\.(\d{2,4}))?(?:\s+(.+))?$/
+  );
+  if (numericDateMatch) {
+    const [, month, day, yearPart, rest] = numericDateMatch;
+    const year = resolveNumericYear(yearPart, baseYear);
+    normalized = `${month}/${day}/${year}${rest ? ' ' + rest : ''}`;
+  } else if (dotDateMatch) {
+    const [, day, month, yearPart, rest] = dotDateMatch;
+    const year = resolveNumericYear(yearPart, baseYear);
+    normalized = `${month}/${day}/${year}${rest ? ' ' + rest : ''}`;
+  }
+
+  const monthDayWithTimeMatch = normalized.match(
+    /^([A-Za-z]{3,9})\s+(\d{1,2})(?:,)?\s+(\d{1,2}:\d{2}(?::\d{2})?(?:\s*[AaPp][Mm])?)$/
+  );
+  const monthDayOnlyMatch = normalized.match(
     /^([A-Za-z]{3,9})\s+(\d{1,2})(?:,)?$/
   );
 
@@ -399,9 +433,14 @@ const parsePastedTableRows = (rawText = '') => {
   }
 
   const headers = tokens.slice(0, PASTED_TABLE_HEADERS.length);
-  const headerMatches = headers.every((header, index) => (
-    normalizeKey(header) === normalizeKey(PASTED_TABLE_HEADERS[index])
-  ));
+  // Order-independent: match by the set of recognized column names rather than
+  // position, since exported tables don't always list columns in the same order
+  // (e.g. Symbol/Side before Open Date/Close Date). Row values are already looked
+  // up by header name below, so matching order doesn't matter beyond this check.
+  const expectedKeys = new Set(PASTED_TABLE_HEADERS.map((header) => normalizeKey(header)));
+  const headerKeys = headers.map((header) => normalizeKey(header));
+  const headerMatches = headerKeys.length === expectedKeys.size
+    && headerKeys.every((key) => expectedKeys.has(key));
 
   if (!headerMatches) {
     return null;

@@ -10,7 +10,7 @@ import { getFirestore } from 'firebase/firestore';
 import { firebaseConfig } from '@/config/firebaseEnv.js';
 import { createTradesAdapter } from './trades.js';
 import { createSettingsAdapter, createSettingsPresetsAdapter } from './settings.js';
-import { createCalcHistoryAdapter, createWatchlistAdapter, createMediaAdapter, createMinimalAdapters } from './collections.js';
+import { createCalcHistoryAdapter, createWatchlistAdapter, createMediaAdapter, createMinimalAdapters, createDailyReviewsAdapter } from './collections.js';
 import { createDosAndDontsAdapter } from './dosAndDonts.js';
 import { createInformativeImagesAdapter } from './informativeImages.js';
 import { createFinanceAdapter } from './finance.js';
@@ -30,6 +30,7 @@ const minimalAdapters = createMinimalAdapters();
 const finance = createFinanceAdapter(db);
 const dosAndDonts = createDosAndDontsAdapter(db);
 const informativeImages = createInformativeImagesAdapter(db);
+const dailyReviews = createDailyReviewsAdapter(db);
 
 // ─── Export ───────────────────────────────────────────────────────────────────
 
@@ -44,6 +45,7 @@ export const firebaseSimpleAdapter = {
   finance,
   dosAndDonts,
   informativeImages,
+  dailyReviews,
   ...minimalAdapters
 };
 

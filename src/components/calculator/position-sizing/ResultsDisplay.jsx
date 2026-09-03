@@ -32,6 +32,7 @@ export default function ResultsDisplay({
   exitStrategy,
   playbookSetupName = null,
   onApplyStop,
+  onApplyEntry,
 }) {
   const {
     timerDurationSeconds,
@@ -165,24 +166,48 @@ export default function ResultsDisplay({
                   if (!Number.isFinite(entry) || entry <= 0 || !Number.isFinite(stop) || stop <= 0 || entry === stop) return null;
                   const riskPct = (Math.abs(entry - stop) / entry) * 100;
                   if (Math.abs(riskPct - SWEET_MID) < 0.15) return null;
-                  const suggested = entry + (isLong ? -1 : 1) * entry * (SWEET_MID / 100);
+                  const suggestedStop = entry + (isLong ? -1 : 1) * entry * (SWEET_MID / 100);
+                  const sweetMidFraction = SWEET_MID / 100;
+                  const suggestedEntry = isLong
+                    ? stop / (1 - sweetMidFraction)
+                    : stop / (1 + sweetMidFraction);
                   return (
-                    <div>
-                      <p className="text-[9px] uppercase tracking-widest text-white/35">Suggested Stop</p>
-                      <div className="mt-0.5 flex items-center gap-2">
-                        <span className="text-sm font-semibold font-mono text-white/70">${suggested.toFixed(2)}</span>
-                        {onApplyStop && (
-                          <button
-                            type="button"
-                            onClick={() => onApplyStop(suggested.toFixed(2))}
-                            className="rounded border border-white/12 bg-white/[0.04] px-1.5 py-0.5 text-[9px] text-white/50 hover:bg-white/10 hover:text-white/80 transition-colors"
-                          >
-                            Apply
-                          </button>
-                        )}
+                    <>
+                      <div>
+                        <p className="text-[9px] uppercase tracking-widest text-white/35">Suggested Stop</p>
+                        <div className="mt-0.5 flex items-center gap-2">
+                          <span className="text-sm font-semibold font-mono text-white/70">${suggestedStop.toFixed(2)}</span>
+                          {onApplyStop && (
+                            <button
+                              type="button"
+                              onClick={() => onApplyStop(suggestedStop.toFixed(2))}
+                              className="rounded border border-white/12 bg-white/[0.04] px-1.5 py-0.5 text-[9px] text-white/50 hover:bg-white/10 hover:text-white/80 transition-colors"
+                            >
+                              Apply
+                            </button>
+                          )}
+                        </div>
+                        <p className="mt-0.5 text-[9px] text-white/30">{SWEET_MID}% risk · sweet spot</p>
                       </div>
-                      <p className="mt-0.5 text-[9px] text-white/30">{SWEET_MID}% risk · sweet spot</p>
-                    </div>
+                      {suggestedEntry > 0 && Number.isFinite(suggestedEntry) && (
+                        <div>
+                          <p className="text-[9px] uppercase tracking-widest text-white/35">Suggested Entry</p>
+                          <div className="mt-0.5 flex items-center gap-2">
+                            <span className="text-sm font-semibold font-mono text-white/70">${suggestedEntry.toFixed(2)}</span>
+                            {onApplyEntry && (
+                              <button
+                                type="button"
+                                onClick={() => onApplyEntry(suggestedEntry.toFixed(2))}
+                                className="rounded border border-white/12 bg-white/[0.04] px-1.5 py-0.5 text-[9px] text-white/50 hover:bg-white/10 hover:text-white/80 transition-colors"
+                              >
+                                Apply
+                              </button>
+                            )}
+                          </div>
+                          <p className="mt-0.5 text-[9px] text-white/30">{SWEET_MID}% risk · sweet spot</p>
+                        </div>
+                      )}
+                    </>
                   );
                 })()}
               </div>

@@ -84,6 +84,51 @@ function normalizeExamples(input) {
   return input.map((example) => normalizeExample(example)).filter(Boolean);
 }
 
+function normalizeSetupConditions(input) {
+  const source = input && typeof input === 'object' && !Array.isArray(input)
+    ? input
+    : {};
+
+  return {
+    structure: toTrimmedString(source.structure),
+    ema_context: toTrimmedString(source.ema_context),
+    volume: toTrimmedString(source.volume),
+    market_context: toTrimmedString(source.market_context),
+    time: toTrimmedString(source.time),
+    entry_type: toTrimmedString(source.entry_type),
+  };
+}
+
+function normalizeGradeCriteria(input) {
+  const source = input && typeof input === 'object' && !Array.isArray(input)
+    ? input
+    : {};
+
+  return {
+    a_plus: toTrimmedString(source.a_plus),
+    a: toTrimmedString(source.a),
+    b: toTrimmedString(source.b),
+    c: toTrimmedString(source.c),
+  };
+}
+
+function normalizeTriggerSpec(input) {
+  const source = input && typeof input === 'object' && !Array.isArray(input)
+    ? input
+    : {};
+
+  return {
+    entry_trigger: toTrimmedString(source.entry_trigger),
+    trigger_level: toTrimmedString(source.trigger_level),
+    trigger_event: toTrimmedString(source.trigger_event),
+    order: toTrimmedString(source.order),
+    expiry_bars: toOptionalNumber(source.expiry_bars),
+    abort_if: toTrimmedString(source.abort_if),
+    loss_r: toOptionalNumber(source.loss_r),
+    win_rate: toOptionalNumber(source.win_rate),
+  };
+}
+
 function normalizeExpectedRProfile(input) {
   const source = input && typeof input === 'object' && !Array.isArray(input)
     ? input
@@ -120,8 +165,12 @@ export function createBlankPlaybookEntry() {
     steps: [],
     examples: [],
     images: [],
+    setup_conditions: { structure: '', ema_context: '', volume: '', market_context: '', time: '', entry_type: '' },
+    grade_criteria: { a_plus: '', a: '', b: '', c: '' },
+    trigger_spec: { entry_trigger: '', trigger_level: '', trigger_event: '', order: '', expiry_bars: null, abort_if: '', loss_r: null, win_rate: null },
     expected_r_profile: { min: null, min_percent: null, target: null, target_percent: null, stretch: null, stretch_percent: null },
     risk_level: 'normal',
+    priority: 2,
     is_active: true,
     created_at: now,
     updated_at: now,
@@ -138,8 +187,6 @@ export function normalizePlaybookEntry(entry) {
   const normalizedName = toTrimmedString(source.name);
 
   return {
-    ...base,
-    ...source,
     id: toTrimmedString(source.id) || base.id,
     name: normalizedName,
     description: toTrimmedString(source.description),
@@ -160,8 +207,12 @@ export function normalizePlaybookEntry(entry) {
       : [],
     examples: normalizeExamples(source.examples),
     images: Array.isArray(source.images) ? source.images.filter((s) => typeof s === 'string' && s.length > 0) : [],
+    setup_conditions: normalizeSetupConditions(source.setup_conditions),
+    grade_criteria: normalizeGradeCriteria(source.grade_criteria),
+    trigger_spec: normalizeTriggerSpec(source.trigger_spec),
     expected_r_profile: normalizeExpectedRProfile(source.expected_r_profile || source.expectedRProfile),
     risk_level: ['half', 'normal', 'oneandahalf', 'double'].includes(source.risk_level) ? source.risk_level : 'normal',
+    priority: [1, 2, 3].includes(Number(source.priority)) ? Number(source.priority) : 2,
     is_active: source.is_active !== false,
     created_at: toTrimmedString(source.created_at) || base.created_at,
     updated_at: toTrimmedString(source.updated_at) || base.updated_at,
@@ -202,6 +253,9 @@ export function normalizePlaybookEntries(entries) {
       return left.is_active ? -1 : 1;
     }
 
+    const priorityDiff = (left.priority ?? 2) - (right.priority ?? 2);
+    if (priorityDiff !== 0) return priorityDiff;
+
     return Date.parse(right.updated_at || 0) - Date.parse(left.updated_at || 0);
   });
 }
@@ -232,29 +286,6 @@ export function mergeSetupTypesWithPlaybook(currentSetupTypes, playbookEntries) 
     ...activePlaybookNames,
     ...preservedNonPlaybookSetupTypes,
   ]);
-}
-
-export function createPlaybookEntryFromSetupName(setupName) {
-  const nextEntry = createBlankPlaybookEntry();
-  const normalizedSetupName = toTrimmedString(setupName);
-  const now = new Date().toISOString();
-
-  return normalizePlaybookEntry({
-    ...nextEntry,
-    name: normalizedSetupName,
-    description: `Execution playbook for ${normalizedSetupName}`,
-    has_sl_exit_plan: true,
-    entry_criteria: [`Define ${normalizedSetupName} entry trigger`],
-    exit_criteria: ['Define primary exit signal'],
-    invalidations: ['Define invalidation level before entry'],
-    expected_r_profile: {
-      min: 1,
-      target: 2,
-      stretch: 3,
-    },
-    created_at: now,
-    updated_at: now,
-  });
 }
 
 export function toCriteriaTextareaValue(items) {

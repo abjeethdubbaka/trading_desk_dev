@@ -2,6 +2,7 @@
  * Local rule-based discipline/consistency coach helpers.
  * Phase 1: deterministic scoring + soft alerts (no hard blocks).
  */
+import { getTodayMaxDailyLoss } from '@/lib/config/dailyLossLimits';
 
 function toDate(trade) {
   return new Date(trade?.entry_time ?? trade?.created_date ?? trade?.created_at ?? 0);
@@ -63,7 +64,7 @@ export function buildDisciplineSnapshot(trades = [], settings = {}) {
   const recent = getRecentTrades(trades, 20);
   const today = getTodayTrades(trades);
 
-  const maxDailyLoss = Number(settings?.max_dollars || 0);
+  const maxDailyLoss = getTodayMaxDailyLoss(settings);
   const maxDailyTrades = Number(settings?.max_daily_trades || 0);
   const requireNotes = Boolean(settings?.journal_preferences?.require_notes);
 

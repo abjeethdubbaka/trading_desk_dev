@@ -2,15 +2,16 @@ import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Sigma, Plus, RotateCcw, CheckCircle2, BookOpen, Loader2 } from 'lucide-react';
+import { Sigma, Plus, RotateCcw, BookOpen, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import MultiImageLightbox from '@/components/ui/MultiImageLightbox';
 import { FUTURES_CONTRACTS } from '@/lib/calculations/trades';
 
 const RISK_LEVEL_META = {
-  half:   { label: '½ Size', color: 'text-amber-300',   bg: 'bg-amber-500/10 border-amber-500/25' },
-  normal: { label: 'Normal', color: 'text-emerald-300', bg: 'bg-emerald-500/10 border-emerald-500/25' },
-  double: { label: '2× Size', color: 'text-rose-300',   bg: 'bg-rose-500/10 border-rose-500/25' },
+  half:         { label: '½ Size', color: 'text-amber-300',   bg: 'bg-amber-500/10 border-amber-500/25' },
+  normal:       { label: 'Normal', color: 'text-emerald-300', bg: 'bg-emerald-500/10 border-emerald-500/25' },
+  oneandahalf: { label: '1.5× Size', color: 'text-cyan-300',  bg: 'bg-cyan-500/10 border-cyan-500/25' },
+  double:       { label: '2× Size', color: 'text-rose-300',   bg: 'bg-rose-500/10 border-rose-500/25' },
 };
 
 export default function FloatInputForm({
@@ -51,6 +52,14 @@ export default function FloatInputForm({
   const activeSetups = playbookEntries.filter((e) => e.is_active !== false);
   const riskMeta = RISK_LEVEL_META[selectedSetup?.risk_level] ?? null;
   const setupImages = Array.isArray(selectedSetup?.images) ? selectedSetup.images : [];
+  const setupConditionRows = [
+    ['Structure', selectedSetup?.setup_conditions?.structure],
+    ['EMA Context', selectedSetup?.setup_conditions?.ema_context],
+    ['Volume', selectedSetup?.setup_conditions?.volume],
+    ['Market Context', selectedSetup?.setup_conditions?.market_context],
+    ['Time', selectedSetup?.setup_conditions?.time],
+    ['Entry Type', selectedSetup?.setup_conditions?.entry_type],
+  ].filter(([, value]) => value);
 
   const baseRisk = Number.isFinite(Number(baseRiskAmount)) && Number(baseRiskAmount) > 0 ? Number(baseRiskAmount) : null;
   const effectiveRisk = baseRisk != null ? baseRisk * riskMultiplier : null; // used in risk badge
@@ -153,36 +162,21 @@ export default function FloatInputForm({
                 </div>
               )}
 
-              {/* Row 2: stop loss rules */}
-              {selectedSetup.stop_loss_management?.length > 0 && (
+              {/* Row 2: setup conditions */}
+              {setupConditionRows.length > 0 && (
                 <div className="space-y-0.5">
-                  <p className="text-[9px] uppercase tracking-widest text-violet-300/60 mb-1">Stop Loss Rules</p>
-                  {selectedSetup.stop_loss_management.slice(0, 4).map((rule, i) => (
+                  <p className="text-[9px] uppercase tracking-widest text-violet-300/60 mb-1">Setup Conditions</p>
+                  {setupConditionRows.map(([label, value], i) => (
                     <div key={i} className="flex items-start gap-1.5">
                       <span className="mt-1.5 h-1 w-1 rounded-full bg-violet-400/50 flex-shrink-0" />
-                      <span className="text-[10px] text-white/65 leading-snug">{rule}</span>
+                      <span className="text-[10px] text-white/65 leading-snug">
+                        <span className="text-white/40">{label}:</span> {value}
+                      </span>
                     </div>
                   ))}
-                  {selectedSetup.stop_loss_management.length > 4 && (
-                    <p className="text-[9px] text-white/35 pl-2.5">+{selectedSetup.stop_loss_management.length - 4} more</p>
-                  )}
                 </div>
               )}
 
-              {/* Row 3: entry criteria */}
-              {selectedSetup.entry_criteria?.length > 0 && (
-                <div className="space-y-0.5">
-                  {selectedSetup.entry_criteria.slice(0, 5).map((criterion, i) => (
-                    <div key={i} className="flex items-start gap-1.5">
-                      <CheckCircle2 className="w-3 h-3 mt-0.5 flex-shrink-0 text-emerald-400/70" />
-                      <span className="text-[10px] text-white/70 leading-snug">{criterion}</span>
-                    </div>
-                  ))}
-                  {selectedSetup.entry_criteria.length > 5 && (
-                    <p className="text-[9px] text-white/45 pl-4.5">+{selectedSetup.entry_criteria.length - 5} more</p>
-                  )}
-                </div>
-              )}
               <MultiImageLightbox
                 isOpen={lbOpen}
                 images={setupImages}
@@ -313,10 +307,13 @@ export default function FloatInputForm({
             <Button
               onClick={onAddToJournal}
               disabled={!canAddToJournal || isSavingTrade}
-              className="h-11 px-4 flex-shrink-0 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 disabled:cursor-not-allowed"
+              className="h-11 px-4 flex-shrink-0 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 disabled:cursor-not-allowed gap-1.5"
               title="Save trade with this exit price"
             >
-              {isSavingTrade ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+              {isSavingTrade
+                ? <Loader2 className="w-4 h-4 animate-spin" />
+                : <><Plus className="w-4 h-4" /><span className="text-xs font-semibold">Log Trade</span></>
+              }
             </Button>
           )}
           {typeof onReset === 'function' && (

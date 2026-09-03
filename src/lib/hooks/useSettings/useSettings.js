@@ -5,7 +5,7 @@
  */
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useCallback, useRef, useEffect } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { createSettingsService } from '../../services/SettingsService.js';
 import { db } from '../../db/index.js';
 import { settingsKeys } from '../../utils/queryKeys';
@@ -17,6 +17,17 @@ import {
 } from '../../config/accountTypes.js';
 
 const isPlainObject = (value) => value && typeof value === 'object' && !Array.isArray(value);
+
+const SETTINGS_LS_KEY = 'tradedesk_settings_cache_v1';
+function readSettingsCache() {
+  try {
+    const raw = localStorage.getItem(SETTINGS_LS_KEY);
+    return raw ? JSON.parse(raw) : undefined;
+  } catch { return undefined; }
+}
+function writeSettingsCache(settings) {
+  try { localStorage.setItem(SETTINGS_LS_KEY, JSON.stringify(settings)); } catch {}
+}
 
 const areValuesEqual = (left, right) => {
   if (left === right) return true;
@@ -62,6 +73,9 @@ export function useSettings(options = {}) {
     queryKey: settingsKeys.detail(),
     queryFn: () => settingsService.get(),
     staleTime: 1000 * 60 * 5, // 5 minutes
+    // Serve cached settings instantly while the Firestore fetch runs in background.
+    // Written on every successful save, cleared on schema-breaking changes via the key suffix.
+    placeholderData: readSettingsCache,
     ...queryOptions
   });
 
@@ -86,8 +100,9 @@ export function useSettings(options = {}) {
       return settingsService.save(convertedUpdates);
     },
     onSuccess: (newSettings) => {
-      // Update cache
+      // Update React Query cache and localStorage fast-read cache
       queryClient.setQueryData(settingsKeys.detail(), newSettings);
+      writeSettingsCache(newSettings);
       
       // Save custom modifications for the current tier
       const currentTierId = detectTierFromSettings(newSettings);
@@ -218,6 +233,11 @@ export function useSettings(options = {}) {
 
   // Check if there are pending changes
   const hasPendingChanges = Object.keys(pendingUpdatesRef.current).length > 0;
+
+  // Seed localStorage cache whenever fresh data arrives from Firestore
+  useEffect(() => {
+    if (settings && !isLoading) writeSettingsCache(settings);
+  }, [settings, isLoading]);
 
   // Flush pending saves on unmount
   useEffect(() => {

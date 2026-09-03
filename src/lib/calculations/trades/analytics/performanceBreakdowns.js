@@ -113,16 +113,24 @@ export function perfBySetupType(trades = []) {
         wins: 0,
         rSum: 0,
         rCount: 0,
+        lossRSum: 0,
+        lossRCount: 0,
       };
     }
 
-    groups[key].totalPnL += trade?.pnl ?? 0;
+    const pnl = trade?.pnl ?? 0;
+    groups[key].totalPnL += pnl;
     groups[key].trades += 1;
-    if ((trade?.pnl ?? 0) > 0) groups[key].wins += 1;
+    if (pnl > 0) groups[key].wins += 1;
 
     if (trade?.r_multiple != null) {
       groups[key].rSum += trade.r_multiple;
       groups[key].rCount += 1;
+
+      if (pnl < 0) {
+        groups[key].lossRSum += trade.r_multiple;
+        groups[key].lossRCount += 1;
+      }
     }
   }
 
@@ -133,6 +141,7 @@ export function perfBySetupType(trades = []) {
       trades: group.trades,
       winRate: pct(group.wins, group.trades),
       avgR: group.rCount > 0 ? round(group.rSum / group.rCount, 2) : 0,
+      avgLossR: group.lossRCount > 0 ? round(group.lossRSum / group.lossRCount, 2) : null,
       avgPnL: group.trades > 0 ? round(group.totalPnL / group.trades, 2) : 0,
     }))
     .sort((a, b) => b.trades - a.trades);

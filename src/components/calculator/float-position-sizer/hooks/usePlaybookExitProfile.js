@@ -11,6 +11,7 @@ export function usePlaybookExitProfile(selectedSetupId, playbookEntries) {
   );
 
   const riskMultiplier = selectedSetup?.risk_level === 'half' ? 0.5
+    : selectedSetup?.risk_level === 'oneandahalf' ? 1.5
     : selectedSetup?.risk_level === 'double' ? 2
     : 1;
 

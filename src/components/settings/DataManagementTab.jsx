@@ -1,6 +1,7 @@
 import React from 'react';
 import PasteTradesCard from '@/components/settings/PasteTradesCard';
 import BackupRestoreCard from '@/components/settings/BackupRestoreCard';
+import StrategiesBackupCard from '@/components/settings/StrategiesBackupCard';
 
 export default function DataManagementTab({
   handleReEnrichTrades,
@@ -10,12 +11,16 @@ export default function DataManagementTab({
   accountTier = 'custom',
   onImportPastedTrades,
   isImportingPastedTrades = false,
+  handleFixImportDates,
+  isFixingDates = false,
 }) {
   return (
     <div className="space-y-4">
       <h2 className="text-sm font-semibold text-white/70">Data management</h2>
 
       <BackupRestoreCard />
+
+      <StrategiesBackupCard />
 
       <PasteTradesCard
         accountTier={accountTier}
@@ -51,6 +56,19 @@ export default function DataManagementTab({
         >
           <span className="text-sm font-semibold text-red-300">Clear local cache</span>
           <span className="text-xs text-white/40">Removes localStorage - Firebase data stays safe</span>
+        </button>
+
+        <button
+          onClick={handleFixImportDates}
+          disabled={isFixingDates}
+          className="flex flex-col items-start gap-1 bg-amber-500/8 hover:bg-amber-500/12 disabled:opacity-60 disabled:cursor-not-allowed border border-amber-500/20 rounded-xl p-4 transition-colors text-left"
+        >
+          <span className="text-sm font-semibold text-amber-300">
+            {isFixingDates ? 'Fixing dates...' : 'Fix Import Dates'}
+          </span>
+          <span className="text-xs text-white/40">
+            Updates trades with a pre-2010 year (e.g. 2001 from bad import) to the current year
+          </span>
         </button>
       </div>
     </div>

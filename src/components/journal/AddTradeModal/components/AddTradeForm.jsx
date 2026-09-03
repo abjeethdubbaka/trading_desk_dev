@@ -9,7 +9,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Loader2, Star } from 'lucide-react';
+import { AlertTriangle, Info, Lightbulb, Loader2, Star } from 'lucide-react';
 import { cn } from "@/lib/utils";
 import DirectionToggle from './DirectionToggle';
 import PriceFields from './PriceFields';
@@ -40,12 +40,13 @@ export default function AddTradeForm({
     screenshotIds,
     uploading,
     setupTypeOptions = DEFAULT_SETUP_TYPE_OPTIONS,
-    exitReasonOptions = [],
-    marketEnvironmentOptions = [],
-    stopLossReasonOptions = [],
     selectedPlaybookEntry = null,
+    tradeNudges = [],
+    winPrediction = null,
     mistakeOptions = [],
     learningOptions = [],
+    whatWorkedOptions = [],
+    autoScreenshotSymbol = null,
     loading,
     handleSubmit,
     updateField,
@@ -56,6 +57,14 @@ export default function AddTradeForm({
     handleBreakoutMetaChange,
   } = controller;
   const selectedCapValue = formData.float_category || formData.share_float_range || 'none';
+
+  const tradeOutcome = (() => {
+    const entry = Number(formData.entry_price);
+    const exit  = Number(formData.exit_price);
+    if (!entry || !exit) return null;
+    const rawPnl = formData.direction === 'short' ? entry - exit : exit - entry;
+    return rawPnl > 0 ? 'win' : 'loss';
+  })();
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6 mt-4">
@@ -83,6 +92,31 @@ export default function AddTradeForm({
           value={formData.direction}
           onChange={(value) => updateField('direction', value)}
         />
+      </div>
+
+      <div className="space-y-2">
+        <Label>Entry Type</Label>
+        <div className="flex gap-2">
+          {['Market', 'Limit', 'Stop'].map((type) => {
+            const active = formData.entry_order_type === type;
+            return (
+              <button
+                key={type}
+                type="button"
+                onClick={() => updateField('entry_order_type', active ? '' : type)}
+                className={cn(
+                  'flex-1 rounded-lg border py-2 text-xs font-semibold transition-colors',
+                  type === 'Market' && active && 'border-cyan-400/40 bg-cyan-500/15 text-cyan-200',
+                  type === 'Limit'  && active && 'border-emerald-400/40 bg-emerald-500/15 text-emerald-200',
+                  type === 'Stop'   && active && 'border-amber-400/40 bg-amber-500/15 text-amber-200',
+                  !active && 'border-white/10 bg-white/[0.03] text-white/40 hover:border-white/20 hover:text-white/65',
+                )}
+              >
+                {type}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       <PriceFields
@@ -118,9 +152,18 @@ export default function AddTradeForm({
 
       {(() => {
         const playbookSLPlan = selectedPlaybookEntry?.has_sl_exit_plan === true;
-        const slOptions = playbookSLPlan ? (selectedPlaybookEntry.stop_loss_management || []) : stopLossReasonOptions;
-        const slMoveOptions = playbookSLPlan ? (selectedPlaybookEntry.stop_loss_move || []) : [];
-        const exitOptions = playbookSLPlan ? (selectedPlaybookEntry.exit_criteria || []) : exitReasonOptions;
+        const slOptions = selectedPlaybookEntry?.stop_loss_management || [];
+        const slMoveOptions = selectedPlaybookEntry?.stop_loss_move || [];
+        const exitOptions = selectedPlaybookEntry?.exit_criteria || [];
+        const gradeCriteria = selectedPlaybookEntry?.grade_criteria;
+        const gradeOptions = [
+          ['A+', gradeCriteria?.a_plus],
+          ['A', gradeCriteria?.a],
+          ['B', gradeCriteria?.b],
+          ['C', gradeCriteria?.c],
+        ]
+          .filter(([, description]) => description)
+          .map(([value, description]) => ({ value, label: `${value} — ${description}` }));
 
         const setupTypeSelect = (
           <div className="space-y-2">
@@ -138,30 +181,11 @@ export default function AddTradeForm({
           </div>
         );
 
-        const marketEnvSelect = (
-          <div className="space-y-2">
-            <Label>Market Env</Label>
-            <Select value={formData.market_condition || ''} onValueChange={(value) => updateField('market_condition', value)}>
-              <SelectTrigger className="bg-white/5 border-white/10">
-                <SelectValue placeholder="What was the market like?" />
-              </SelectTrigger>
-              <SelectContent className="bg-[#1a1a24] border-white/10">
-                {marketEnvironmentOptions.map((env) => (
-                  <SelectItem key={env} value={env}>{env}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        );
-
         if (playbookSLPlan) {
           const entryOptions = selectedPlaybookEntry.entry_criteria || [];
           return (
             <div className="space-y-3">
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                {setupTypeSelect}
-                {marketEnvSelect}
-              </div>
+              <div>{setupTypeSelect}</div>
 
               {/* Step 1: Entry */}
               <div className="space-y-1.5">
@@ -182,7 +206,7 @@ export default function AddTradeForm({
               {formData.entry_criteria_used && (
                 <div className="space-y-1.5">
                   <Label className="text-violet-200/80">Stop Loss</Label>
-                  <Select value={formData.stop_loss_reason || ''} onValueChange={(value) => updateField('stop_loss_reason', value)}>
+                  <Select value={formData.stop_loss_used || ''} onValueChange={(value) => updateField('stop_loss_used', value)}>
                     <SelectTrigger className="bg-violet-500/[0.06] border-violet-400/20">
                       <SelectValue placeholder="Which SL rule did you use?" />
                     </SelectTrigger>
@@ -192,7 +216,7 @@ export default function AddTradeForm({
                       ))}
                     </SelectContent>
                   </Select>
-                  {formData.stop_loss_reason && (
+                  {formData.stop_loss_used && (
                     <Input
                       type="number"
                       step="0.01"
@@ -206,7 +230,7 @@ export default function AddTradeForm({
               )}
 
               {/* Step 3: SL Move + Exit — revealed after stop loss */}
-              {formData.stop_loss_reason && (
+              {formData.stop_loss_used && (
                 <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
                   <div className="space-y-1.5">
                     <Label className="text-amber-200/80">SL Move</Label>
@@ -223,7 +247,7 @@ export default function AddTradeForm({
                   </div>
                   <div className="space-y-1.5">
                     <Label className="text-cyan-200/80">Exit</Label>
-                    <Select value={formData.exit_reason || ''} onValueChange={(value) => updateField('exit_reason', value)}>
+                    <Select value={formData.exit_used || ''} onValueChange={(value) => updateField('exit_used', value)}>
                       <SelectTrigger className="bg-cyan-500/[0.06] border-cyan-400/20">
                         <SelectValue placeholder="Which exit rule did you follow?" />
                       </SelectTrigger>
@@ -236,14 +260,44 @@ export default function AddTradeForm({
                   </div>
                 </div>
               )}
+
+              {/* Step 4: Grade — revealed after exit, using the setup's Grade Criteria */}
+              {formData.exit_used && gradeOptions.length > 0 && (
+                <div className="space-y-1.5">
+                  <Label className="text-fuchsia-200/80">Grade</Label>
+                  <Select value={formData.setup_grade || ''} onValueChange={(value) => updateField('setup_grade', value)}>
+                    <SelectTrigger className="bg-fuchsia-500/[0.06] border-fuchsia-400/20">
+                      <SelectValue placeholder="How would you grade this execution?" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-[#1a1a24] border-white/10">
+                      {gradeOptions.map((opt) => (
+                        <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
             </div>
           );
         }
 
+        const hasSetupSelected = Boolean(formData.setup_type);
         return (
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            {setupTypeSelect}
-            {marketEnvSelect}
+          <div className="space-y-3">
+            <div>{setupTypeSelect}</div>
+            {hasSetupSelected && (
+              <div className="space-y-1.5">
+                <Label className="text-violet-200/80">Stop Loss</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  value={formData.stop_loss || ''}
+                  onChange={(e) => updateField('stop_loss', e.target.value)}
+                  placeholder="SL price"
+                  className="bg-violet-500/[0.06] border-violet-400/20"
+                />
+              </div>
+            )}
           </div>
         );
       })()}
@@ -278,6 +332,7 @@ export default function AddTradeForm({
           uploading={uploading}
           onUpload={handleUploadFiles}
           onRemove={handleRemoveById}
+          autoFilledFrom={autoScreenshotSymbol}
         />
       </div>
 
@@ -316,35 +371,119 @@ export default function AddTradeForm({
         reflectionAnswers={formData.reflection_answers}
         mistakeOptions={mistakeOptions}
         learningOptions={learningOptions}
+        whatWorkedOptions={whatWorkedOptions}
+        outcome={tradeOutcome}
         onReflectionChange={handleReflectionChange}
         onBreakoutChecklistChange={handleBreakoutChecklistChange}
         onBreakoutMetaChange={handleBreakoutMetaChange}
       />
 
       <div className="space-y-2">
-        <Label>O/R</Label>
-        <div className="flex h-10 items-center gap-1 rounded-md border border-white/10 bg-white/5 px-3">
-          {[1, 2, 3, 4, 5].map((star) => {
-            const filled = Number(formData.overall_rating) >= star;
+        <div className="flex items-center gap-2">
+          <Label>Rating</Label>
+          <span className="rounded-full border border-cyan-400/25 bg-cyan-500/10 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-cyan-300">
+            Auto
+          </span>
+        </div>
+        <div className="flex items-center gap-3 rounded-md border border-white/10 bg-white/5 px-3 py-2">
+          <div className="flex items-center gap-0.5">
+            {[1, 2, 3, 4, 5].map((star) => {
+              const filled = Number(formData.overall_rating) >= star;
+              return (
+                <button
+                  key={star}
+                  type="button"
+                  onClick={() => updateField('overall_rating', formData.overall_rating === star ? null : star)}
+                  className="p-0.5"
+                  title={`${star} star${star === 1 ? '' : 's'}`}
+                >
+                  <Star
+                    className={cn(
+                      'w-4 h-4 transition-colors',
+                      filled ? 'fill-amber-400 text-amber-400' : 'text-white/20'
+                    )}
+                  />
+                </button>
+              );
+            })}
+          </div>
+          <p className="text-[11px] text-white/35 leading-tight">
+            {formData.overall_rating === 5 && 'All criteria met · clean execution'}
+            {formData.overall_rating === 4 && 'All criteria met · area to improve'}
+            {formData.overall_rating === 3 && 'Partial criteria met'}
+            {formData.overall_rating === 2 && 'Setup only · missing criteria'}
+            {formData.overall_rating === 1 && 'No entry / SL / exit criteria'}
+            {!formData.overall_rating && 'Fill in setup + criteria to auto-rate'}
+          </p>
+        </div>
+      </div>
+
+      {winPrediction && winPrediction.confidence !== 'low' && (
+        <div className={cn(
+          'flex items-center justify-between gap-3 rounded-xl border px-3 py-2.5',
+          winPrediction.probability >= 55
+            ? 'border-emerald-400/25 bg-emerald-500/[0.07]'
+            : winPrediction.probability >= 45
+            ? 'border-amber-400/20 bg-amber-500/[0.06]'
+            : 'border-rose-400/20 bg-rose-500/[0.06]'
+        )}>
+          <div className="min-w-0">
+            <p className="text-[10px] font-semibold uppercase tracking-wider text-white/35">Your Edge · This Context</p>
+            <p className={cn(
+              'mt-0.5 text-sm font-bold',
+              winPrediction.probability >= 55 ? 'text-emerald-300' : winPrediction.probability >= 45 ? 'text-amber-300' : 'text-rose-300'
+            )}>
+              {winPrediction.probability}% historical win rate
+            </p>
+          </div>
+          <span className="rounded-full border border-white/10 bg-white/[0.06] px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-white/35">
+            {winPrediction.confidence} conf
+          </span>
+        </div>
+      )}
+
+      {tradeNudges.length > 0 && (
+        <div className="space-y-2">
+          {tradeNudges.map((nudge) => {
+            const isWarning = nudge.level === 'warning';
+            const isCaution = nudge.level === 'caution';
+            const Icon = isWarning ? AlertTriangle : isCaution ? Info : Lightbulb;
             return (
-              <button
-                key={star}
-                type="button"
-                onClick={() => updateField('overall_rating', formData.overall_rating === star ? null : star)}
-                className="p-0.5"
-                title={`${star} star${star === 1 ? '' : 's'}`}
+              <div
+                key={nudge.id}
+                className={cn(
+                  'flex items-start gap-2.5 rounded-xl border px-3 py-2.5',
+                  isWarning
+                    ? 'border-amber-400/25 bg-amber-500/[0.07]'
+                    : isCaution
+                    ? 'border-cyan-400/20 bg-cyan-500/[0.06]'
+                    : 'border-violet-400/20 bg-violet-500/[0.06]'
+                )}
               >
-                <Star
+                <Icon
                   className={cn(
-                    'w-4 h-4 transition-colors',
-                    filled ? 'fill-amber-400 text-amber-400' : 'text-white/25'
+                    'mt-0.5 h-3.5 w-3.5 flex-shrink-0',
+                    isWarning ? 'text-amber-400' : isCaution ? 'text-cyan-400' : 'text-violet-400'
                   )}
                 />
-              </button>
+                <div className="min-w-0">
+                  <p
+                    className={cn(
+                      'text-[11px] font-semibold leading-tight',
+                      isWarning ? 'text-amber-200' : isCaution ? 'text-cyan-200' : 'text-violet-200'
+                    )}
+                  >
+                    {nudge.title}
+                  </p>
+                  <p className="mt-0.5 text-[11px] leading-relaxed text-white/50">
+                    {nudge.message}
+                  </p>
+                </div>
+              </div>
             );
           })}
         </div>
-      </div>
+      )}
 
       <div className="flex justify-end gap-3 pt-4 border-t border-white/10">
         <Button

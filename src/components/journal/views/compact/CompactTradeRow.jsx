@@ -195,20 +195,6 @@ export function CompactTradeRow({
           />
         </div>
 
-        {/* Exit Reason */}
-        <div className={cn('w-[110px] flex-shrink-0', columns?.exitReason ? 'hidden xl:block' : 'hidden')}>
-          <span className="text-[10px] text-white/40 truncate">{trade.exit_reason || '-'}</span>
-        </div>
-
-        {/* Stop Loss Reason */}
-        <div className={cn('w-[120px] flex-shrink-0', columns?.stopLossReason ? 'hidden xl:block' : 'hidden')}>
-          <span className="text-[10px] text-white/40 truncate">{trade.stop_loss_reason || '-'}</span>
-        </div>
-
-        {/* Market Environment */}
-        <div className={cn('w-[120px] flex-shrink-0', columns?.marketEnvironment ? 'hidden xl:block' : 'hidden')}>
-          <span className="text-[10px] text-white/40 truncate">{trade.market_condition || '-'}</span>
-        </div>
 
         {/* Emotions */}
         <div className={cn('w-[120px] flex-shrink-0', columns?.emotions ? 'hidden xl:block' : 'hidden')}>

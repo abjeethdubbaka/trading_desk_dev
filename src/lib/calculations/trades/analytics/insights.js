@@ -403,6 +403,45 @@ const collectPatternCounts = (values = []) => {
   });
 };
 
+export function analyzeWhatWorked(trades = [], limit = 6) {
+  if (!trades.length) return { topWorked: [], totalEntries: 0 };
+
+  const entries = [];
+  for (const trade of trades) {
+    const worked = pickReflectionList([trade?.reflection_answers?.what_worked]);
+    const date = toTradeDate(trade);
+    const pnl = trade?.pnl ?? 0;
+    worked.forEach((text) => entries.push({ text, date, pnl, win: pnl > 0 }));
+  }
+
+  const map = new Map();
+  entries.forEach(({ text, date, pnl, win }) => {
+    const normalized = normalizeInsightText(text);
+    if (!normalized) return;
+    if (!map.has(normalized)) {
+      map.set(normalized, { text, count: 0, wins: 0, totalPnL: 0, lastSeen: null });
+    }
+    const e = map.get(normalized);
+    e.count++;
+    if (win) e.wins++;
+    e.totalPnL += pnl;
+    if (date && (!e.lastSeen || date.toISOString() > e.lastSeen)) e.lastSeen = date.toISOString();
+  });
+
+  const topWorked = [...map.values()]
+    .map((e) => ({
+      text: e.text,
+      count: e.count,
+      winRate: e.count > 0 ? Math.round((e.wins / e.count) * 100) : 0,
+      avgPnL: e.count > 0 ? Math.round(e.totalPnL / e.count) : 0,
+      lastSeen: e.lastSeen,
+    }))
+    .sort((a, b) => b.count - a.count || b.winRate - a.winRate)
+    .slice(0, limit);
+
+  return { topWorked, totalEntries: entries.length };
+}
+
 export function analyzeMistakePatterns(trades = [], limit = 5) {
   const mistakes = [];
   const fixes = [];
@@ -426,7 +465,7 @@ export function analyzeMistakePatterns(trades = [], limit = 5) {
   };
 }
 
-const RISK_LEVEL_MULTIPLIER = { half: 0.5, normal: 1.0, double: 2.0 };
+const RISK_LEVEL_MULTIPLIER = { half: 0.5, normal: 1.0, oneandahalf: 1.5, double: 2.0 };
 
 /**
  * For each losing trade, compares the actual loss against the max allowed loss

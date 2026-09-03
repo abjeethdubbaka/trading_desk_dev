@@ -5,6 +5,7 @@ import { useTradingContext } from '@/lib/context/TradingContext';
 import { useTrades, useTradesMutation } from '@/lib/hooks/useTrades';
 import { usePlaybook } from '@/lib/hooks/usePlaybook';
 import { useAnalysisTimer } from '@/lib/context/AnalysisTimerContext';
+import { getTodayMaxDailyLoss } from '@/lib/config/dailyLossLimits';
 import { clearCalculatorState, loadCalculatorState, saveCalculatorState } from '../statePersistence';
 import { usePlaybookExitProfile } from './usePlaybookExitProfile';
 import { usePositionCalculation } from './usePositionCalculation';
@@ -33,7 +34,7 @@ export function useFloatPositionSizerController({ historyData, onCalculationSave
 
   const { data: allTrades = [] } = useTrades();
 
-  const todayTradeCount = useMemo(() => {
+  const todayTrades = useMemo(() => {
     const start = new Date();
     start.setHours(0, 0, 0, 0);
     const end = new Date();
@@ -41,8 +42,15 @@ export function useFloatPositionSizerController({ historyData, onCalculationSave
     return allTrades.filter((t) => {
       const d = new Date(t.entry_time || t.created_date || 0);
       return d >= start && d <= end;
-    }).length;
+    });
   }, [allTrades]);
+
+  const todayTradeCount = todayTrades.length;
+  const todayPnL = useMemo(
+    () => todayTrades.reduce((sum, t) => sum + (Number(t.pnl) || 0), 0),
+    [todayTrades],
+  );
+  const maxDailyLoss = useMemo(() => getTodayMaxDailyLoss(settings), [settings]);
 
   const [symbol, setSymbol] = useState(() => String(initialState.symbol || ''));
   const [entryPrice, setEntryPrice] = useState(() => String(initialState.entryPrice || ''));
@@ -139,7 +147,7 @@ export function useFloatPositionSizerController({ historyData, onCalculationSave
     calculation,
     selectedSetup,
     createTrade,
-    maxDollars: settings?.max_dollars,
+    maxDollars: maxDailyLoss,
     allTrades,
   });
 
@@ -297,6 +305,8 @@ export function useFloatPositionSizerController({ historyData, onCalculationSave
     playbookExitStrategy,
     todayTradeCount,
     maxDailyTrades,
+    todayPnL,
+    maxDailyLoss,
     isFutures,
     futuresPreset,
     setFuturesPreset,

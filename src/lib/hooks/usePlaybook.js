@@ -6,7 +6,6 @@ import {
   normalizePlaybookEntry,
   getPlaybookEntryBySetupName,
   mergeSetupTypesWithPlaybook,
-  createPlaybookEntryFromSetupName,
 } from '@/lib/playbook/utils';
 
 export function usePlaybook() {
@@ -131,28 +130,54 @@ export function usePlaybook() {
     return nextEntries.find((entry) => entry.id === normalizedId) || null;
   }, [persistEntries, playbookEntries]);
 
-  const seedFromSetupTypes = useCallback(async () => {
-    const configuredSetups = Array.isArray(settings?.journal_preferences?.default_setup_types)
-      ? settings.journal_preferences.default_setup_types
-      : [];
-
-    const existingNameKeys = new Set(playbookEntries.map((entry) => entry.name.toLowerCase()));
-    const entriesToSeed = configuredSetups
-      .filter((setup) => {
-        const normalizedName = String(setup || '').trim().toLowerCase();
-        return normalizedName && !existingNameKeys.has(normalizedName);
-      })
-      .map((setup) => createPlaybookEntryFromSetupName(setup));
-
-    if (entriesToSeed.length === 0) return 0;
-
-    await persistEntries([...playbookEntries, ...entriesToSeed]);
-    return entriesToSeed.length;
-  }, [persistEntries, playbookEntries, settings?.journal_preferences?.default_setup_types]);
-
   const getEntryBySetupName = useCallback((setupName) => (
     getPlaybookEntryBySetupName(playbookEntries, setupName)
   ), [playbookEntries]);
+
+  // Bulk import (e.g. from an exported strategies file): entries matching an
+  // existing setup by name (case-insensitive) are updated in place, everything
+  // else is created. Runs as a single persistEntries call/write.
+  const importEntries = useCallback(async (rawEntries) => {
+    const incoming = Array.isArray(rawEntries) ? rawEntries : [];
+    if (incoming.length === 0) return { created: 0, updated: 0 };
+
+    const now = new Date().toISOString();
+    const nextEntries = [...playbookEntries];
+    let created = 0;
+    let updated = 0;
+
+    incoming.forEach((rawEntry) => {
+      const name = String(rawEntry?.name || '').trim();
+      if (!name) return;
+
+      // Loss (R) / Win Rate are this account's own live trade performance, not
+      // portable strategy config — never let an imported file overwrite them.
+      const raw = rawEntry?.trigger_spec
+        ? { ...rawEntry, trigger_spec: { ...rawEntry.trigger_spec, loss_r: null, win_rate: null } }
+        : rawEntry;
+
+      const nameKey = name.toLowerCase();
+      const existingIndex = nextEntries.findIndex((entry) => entry.name.toLowerCase() === nameKey);
+
+      if (existingIndex >= 0) {
+        const existing = nextEntries[existingIndex];
+        // Fully replace with the imported version — only identity/history carry over.
+        nextEntries[existingIndex] = normalizePlaybookEntry({
+          ...raw,
+          id: existing.id,
+          created_at: existing.created_at,
+          updated_at: now,
+        });
+        updated += 1;
+      } else {
+        nextEntries.push(normalizePlaybookEntry({ ...raw, id: undefined, created_at: now, updated_at: now }));
+        created += 1;
+      }
+    });
+
+    await persistEntries(nextEntries);
+    return { created, updated };
+  }, [persistEntries, playbookEntries]);
 
   return {
     playbookEntries,
@@ -164,8 +189,8 @@ export function usePlaybook() {
     duplicateEntry,
     toggleEntryActive,
     markEntryReviewed,
-    seedFromSetupTypes,
     getEntryBySetupName,
+    importEntries,
   };
 }
 

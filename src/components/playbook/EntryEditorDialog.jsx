@@ -208,7 +208,7 @@ export default function EntryEditorDialog({
 
         <div className="space-y-4">
           {/* Name row — always visible */}
-          <div className={cn('grid grid-cols-1 gap-3', hasSLExit ? 'md:grid-cols-3' : '')}>
+          <div className={cn('grid grid-cols-1 gap-3', hasSLExit ? 'md:grid-cols-4' : '')}>
             <div className="space-y-1.5">
               <Label>Setup Name *</Label>
               <Input
@@ -275,6 +275,31 @@ export default function EntryEditorDialog({
                     })}
                   </div>
                 </div>
+                <div className="space-y-1.5">
+                  <Label>Priority</Label>
+                  <div className="grid grid-cols-3 gap-1 rounded-lg border border-white/12 bg-white/[0.03] p-1">
+                    {[
+                      { value: 1, label: '1', color: 'border-rose-400/40 bg-rose-500/15 text-rose-200' },
+                      { value: 2, label: '2', color: 'border-amber-400/40 bg-amber-500/15 text-amber-200' },
+                      { value: 3, label: '3', color: 'border-white/25 bg-white/10 text-white/60' },
+                    ].map(({ value, label, color }) => {
+                      const isActive = (formState.priority || 2) === value;
+                      return (
+                        <button
+                          key={value}
+                          type="button"
+                          onClick={() => setFormState((prev) => ({ ...prev, priority: value }))}
+                          className={cn(
+                            'rounded px-2 py-1.5 text-[11px] font-semibold transition-colors',
+                            isActive ? `border ${color}` : 'text-white/40 hover:text-white/70',
+                          )}
+                        >
+                          {label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
               </>
             )}
           </div>
@@ -322,6 +347,106 @@ export default function EntryEditorDialog({
                   placeholder="What this setup is, where it performs best, and when to skip it."
                   className="min-h-[80px] w-full rounded-xl border border-white/12 bg-white/[0.03] px-3 py-2 text-sm text-white outline-none placeholder:text-white/35 focus:border-emerald-300/40"
                 />
+              </div>
+
+              {/* Setup Conditions */}
+              <div className="rounded-xl border border-white/10 bg-black/20 p-3 space-y-2.5">
+                <p className="text-[10px] uppercase tracking-[0.14em] text-white/45">Setup Conditions</p>
+                <div className="grid grid-cols-1 gap-2.5 md:grid-cols-2">
+                  {[
+                    { key: 'condition_structure', label: 'Structure', placeholder: 'Price prints above premarket high, 15-min close back below' },
+                    { key: 'condition_ema_context', label: 'EMA Context', placeholder: 'Price extended above 9 EMA, EMA flattening/curling down' },
+                    { key: 'condition_volume', label: 'Volume', placeholder: 'High volume spike on breakout attempt, then collapse' },
+                    { key: 'condition_market_context', label: 'Market Context', placeholder: 'Not fighting a strong upward trend' },
+                    { key: 'condition_time', label: 'Time', placeholder: 'Best before 11:30 AM ET' },
+                    { key: 'condition_entry_type', label: 'Entry Type', placeholder: 'Market order at open of next 15-min candle after trigger close' },
+                  ].map(({ key, label, placeholder }) => (
+                    <div key={key} className="space-y-1">
+                      <p className="text-[9px] uppercase tracking-widest text-white/35">{label}</p>
+                      <Input
+                        value={formState[key]}
+                        onChange={(event) => setFormState((prev) => ({ ...prev, [key]: event.target.value }))}
+                        placeholder={placeholder}
+                        className="bg-white/[0.03] border-white/12 h-8 text-sm"
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Grade Criteria */}
+              <div className="rounded-xl border border-white/10 bg-black/20 p-3 space-y-2.5">
+                <p className="text-[10px] uppercase tracking-[0.14em] text-white/45">Grade Criteria</p>
+                <div className="grid grid-cols-1 gap-2.5 md:grid-cols-2">
+                  {[
+                    { key: 'grade_a_plus', label: 'A+', color: 'text-emerald-300/80', placeholder: 'Strong bearish engulfing candle on 15-min, rejection obvious' },
+                    { key: 'grade_a', label: 'A', color: 'text-cyan-300/80', placeholder: 'Clean close below high with volume confirmation' },
+                    { key: 'grade_b', label: 'B', color: 'text-amber-300/80', placeholder: 'Weak close, small body — half size' },
+                    { key: 'grade_c', label: 'C', color: 'text-rose-300/80', placeholder: 'Price still making new highs — do not take' },
+                  ].map(({ key, label, color, placeholder }) => (
+                    <div key={key} className="space-y-1">
+                      <p className={cn('text-[9px] uppercase tracking-widest', color)}>{label}</p>
+                      <Input
+                        value={formState[key]}
+                        onChange={(event) => setFormState((prev) => ({ ...prev, [key]: event.target.value }))}
+                        placeholder={placeholder}
+                        className="bg-white/[0.03] border-white/12 h-8 text-sm"
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Trigger Spec */}
+              <div className="rounded-xl border border-white/10 bg-black/20 p-3 space-y-2.5">
+                <p className="text-[10px] uppercase tracking-[0.14em] text-white/45">Trigger Spec</p>
+                <div className="grid grid-cols-1 gap-2.5 md:grid-cols-2">
+                  {[
+                    { key: 'entry_trigger', label: 'Entry Trigger', placeholder: '15-min close back below premarket high' },
+                    { key: 'trigger_level', label: 'Trigger Level', placeholder: 'Premarket high' },
+                    { key: 'trigger_event', label: 'Trigger Event', placeholder: 'Candle close' },
+                    { key: 'order', label: 'Order', placeholder: 'Market order at open of next 15-min candle' },
+                    { key: 'abort_if', label: 'Abort If', placeholder: 'Price reclaims trigger level before entry' },
+                  ].map(({ key, label, placeholder }) => (
+                    <div key={key} className="space-y-1">
+                      <p className="text-[9px] uppercase tracking-widest text-white/35">{label}</p>
+                      <Input
+                        value={formState[key]}
+                        onChange={(event) => setFormState((prev) => ({ ...prev, [key]: event.target.value }))}
+                        placeholder={placeholder}
+                        className="bg-white/[0.03] border-white/12 h-8 text-sm"
+                      />
+                    </div>
+                  ))}
+                </div>
+                <div className="grid grid-cols-3 gap-2.5">
+                  <div className="space-y-1">
+                    <p className="text-[9px] uppercase tracking-widest text-white/35">Expiry (bars)</p>
+                    <Input
+                      type="number"
+                      step="1"
+                      value={formState.expiry_bars}
+                      onChange={(event) => setFormState((prev) => ({ ...prev, expiry_bars: event.target.value }))}
+                      placeholder="3"
+                      className="bg-white/[0.03] border-white/12 h-8 text-sm"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-[9px] uppercase tracking-widest text-white/35">Loss (R)</p>
+                    <div className="flex h-8 items-center rounded-lg border border-white/12 bg-white/[0.03] px-2.5 text-sm text-white/40">
+                      From Performance
+                    </div>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-[9px] uppercase tracking-widest text-white/35">Win Rate (%)</p>
+                    <div className="flex h-8 items-center rounded-lg border border-white/12 bg-white/[0.03] px-2.5 text-sm text-white/40">
+                      From Performance
+                    </div>
+                  </div>
+                </div>
+                <p className="text-[10px] text-white/30">
+                  Loss (R) and Win Rate are calculated automatically from this setup's trade history once you've logged trades — they aren't editable here.
+                </p>
               </div>
 
               {/* Expected R & Exit Allocation */}
