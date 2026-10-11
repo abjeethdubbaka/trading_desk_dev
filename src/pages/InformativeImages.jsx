@@ -5,7 +5,8 @@
  * category and a short note, browsable and filterable for quick recall.
  */
 
-import React, { useMemo, useState } from 'react';
+import { useLocalImages } from '@/lib/hooks/useLocalImages';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Images, Plus } from 'lucide-react';
 import { toast } from 'sonner';
 import { useConfirm } from '@/components/ui/ConfirmDialog';
@@ -16,6 +17,10 @@ import ImageCard from '@/components/informative-images/ImageCard';
 import { useInformativeImages } from '@/lib/hooks/useInformativeImages';
 import { cn } from '@/lib/utils';
 
+// The category the gallery opens on, rather than showing everything at once.
+// Falls back to "All" whenever this category isn't present in the data.
+const DEFAULT_CATEGORY = 'Bottom Long';
+
 const TYPE_FILTERS = [
   { value: 'all', label: 'All' },
   { value: 'setup', label: 'Setup' },
@@ -24,9 +29,10 @@ const TYPE_FILTERS = [
 
 export default function InformativeImagesPage() {
   const { items, isLoading, addItem, isAdding, updateItem, isUpdating, deleteItem } = useInformativeImages();
+  const { remove: removeLocalImage } = useLocalImages();
   const [confirm, confirmDialog] = useConfirm();
   const [selectedType, setSelectedType] = useState('all');
-  const [selectedCategory, setSelectedCategory] = useState('all');
+  const [selectedCategory, setSelectedCategory] = useState(DEFAULT_CATEGORY);
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
   const [lightboxItem, setLightboxItem] = useState(null);
@@ -46,9 +52,18 @@ export default function InformativeImagesPage() {
     return typeFilteredItems.filter((item) => item.category === selectedCategory);
   }, [typeFilteredItems, selectedCategory]);
 
+  // Self-heal the selection: the default category (and any category that
+  // disappears when the type filter changes) falls back to All so the grid
+  // is never left mysteriously empty on a filter that can't match anything.
+  useEffect(() => {
+    if (categoryOptions.length === 0) return;
+    if (selectedCategory === 'all') return;
+    if (!categoryOptions.includes(selectedCategory)) setSelectedCategory('all');
+  }, [categoryOptions, selectedCategory]);
+
   const handleSelectType = (value) => {
     setSelectedType(value);
-    setSelectedCategory('all');
+    setSelectedCategory(DEFAULT_CATEGORY);
   };
 
   const handleCloseModal = () => {
@@ -81,7 +96,13 @@ export default function InformativeImagesPage() {
     if (!shouldDelete) return;
 
     try {
+      // The files go with the entry: nothing else points at them, and an
+      // orphaned file is invisible clutter in the images folder.
+      const item = items.find((candidate) => candidate.id === id);
       await deleteItem(id);
+      for (const image of (Array.isArray(item?.images) ? item.images : [])) {
+        await removeLocalImage(image);
+      }
       toast.success('Image deleted');
     } catch (error) {
       toast.error(`Failed to delete: ${error.message}`);
@@ -197,6 +218,7 @@ export default function InformativeImagesPage() {
       <MultiImageLightbox
         isOpen={Boolean(lightboxItem)}
         images={Array.isArray(lightboxItem?.images) ? lightboxItem.images : []}
+        title={lightboxItem?.note || ''}
         onClose={() => setLightboxItem(null)}
       />
 

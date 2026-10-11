@@ -1,0 +1,1 @@
+import{r as o}from"./vendor-react-BaaqeNbO.js";import{i as r,j as m}from"./index-DPPDxR10.js";function g(){const{items:a}=r(),e=o.useMemo(()=>new Map(a.map(s=>[s.id,Array.isArray(s.images)?s.images:[]])),[a]);return{resolveImages:o.useCallback(s=>m(s,e),[e]),imagesByGalleryId:e}}export{g as u};

@@ -1,3 +1,4 @@
+import { parseAlertKeywords } from '@/lib/playbook/triggers';
 import {
   createBlankPlaybookEntry,
   normalizePlaybookEntry,
@@ -32,6 +33,7 @@ export function toFormState(entry) {
     name: normalized.name,
     description: normalized.description,
     timeframe: Array.isArray(normalized.timeframe) ? [...normalized.timeframe] : [],
+    direction: normalized.direction || 'both',
     has_sl_exit_plan: normalized.has_sl_exit_plan !== false,
     entry_criteria_items: Array.isArray(normalized.entry_criteria) ? [...normalized.entry_criteria] : [],
     exit_criteria_items: Array.isArray(normalized.exit_criteria) ? [...normalized.exit_criteria] : [],
@@ -52,6 +54,8 @@ export function toFormState(entry) {
         }))
       : [{ title: '', url: '', note: '' }],
     images: Array.isArray(normalized.images) ? normalized.images : [],
+    indicators: Array.isArray(normalized.indicators) ? normalized.indicators : [],
+    alert_keywords_text: (normalized.alert_keywords || []).join(', '),
     condition_structure: normalized.setup_conditions?.structure ?? '',
     condition_ema_context: normalized.setup_conditions?.ema_context ?? '',
     condition_volume: normalized.setup_conditions?.volume ?? '',
@@ -70,9 +74,17 @@ export function toFormState(entry) {
     abort_if: normalized.trigger_spec?.abort_if ?? '',
     loss_r: normalized.trigger_spec?.loss_r ?? '',
     win_rate: normalized.trigger_spec?.win_rate ?? '',
-    risk_level: normalized.risk_level || 'normal',
-    priority: normalized.priority || 2,
+    risk_percent: normalized.risk_percent ?? 100,
     is_active: normalized.is_active !== false,
+    // The Setup Journal prompts, flattened for editing: options are one comma
+    // separated string per prompt, questions are plain strings.
+    journal_template: {
+      fields: (normalized.journal_template?.fields || []).map((field) => ({
+        label: field.label,
+        optionsText: (field.options || []).join(', '),
+      })),
+      questions: (normalized.journal_template?.questions || []).map((question) => question.prompt),
+    },
   };
 }
 
@@ -88,13 +100,6 @@ function normalizeTextareaLines(text) {
     .filter(Boolean);
 }
 
-function normalizeTagsText(text) {
-  return String(text || '')
-    .split(',')
-    .map((item) => item.trim().toLowerCase())
-    .filter(Boolean);
-}
-
 export function toEntryPayload(formState, sourceEntry = null) {
   const now = new Date().toISOString();
   const baseEntry = sourceEntry ? normalizePlaybookEntry(sourceEntry) : createBlankPlaybookEntry();
@@ -105,6 +110,7 @@ export function toEntryPayload(formState, sourceEntry = null) {
     name: String(formState.name || '').trim(),
     description: String(formState.description || '').trim(),
     timeframe: Array.isArray(formState.timeframe) ? formState.timeframe : [],
+    direction: formState.direction || 'both',
     has_sl_exit_plan: formState.has_sl_exit_plan !== false,
     entry_criteria: Array.isArray(formState.entry_criteria_items) ? formState.entry_criteria_items : [],
     exit_criteria: Array.isArray(formState.exit_criteria_items) ? formState.exit_criteria_items : [],
@@ -126,6 +132,8 @@ export function toEntryPayload(formState, sourceEntry = null) {
         note: String(example?.note || '').trim(),
       })),
     images: Array.isArray(formState.images) ? formState.images : [],
+    indicators: Array.isArray(formState.indicators) ? formState.indicators : [],
+    alert_keywords: parseAlertKeywords(formState.alert_keywords_text),
     setup_conditions: {
       structure: String(formState.condition_structure || '').trim(),
       ema_context: String(formState.condition_ema_context || '').trim(),
@@ -140,6 +148,13 @@ export function toEntryPayload(formState, sourceEntry = null) {
       b: String(formState.grade_b || '').trim(),
       c: String(formState.grade_c || '').trim(),
     },
+    journal_template: {
+      fields: (formState.journal_template?.fields || []).map((field) => ({
+        label: field.label,
+        options: String(field.optionsText || '').split(',').map((option) => option.trim()),
+      })),
+      questions: (formState.journal_template?.questions || []).map((prompt) => ({ prompt })),
+    },
     trigger_spec: {
       entry_trigger: String(formState.entry_trigger || '').trim(),
       trigger_level: String(formState.trigger_level || '').trim(),
@@ -150,8 +165,7 @@ export function toEntryPayload(formState, sourceEntry = null) {
       loss_r: toNumberOrNull(formState.loss_r),
       win_rate: toNumberOrNull(formState.win_rate),
     },
-    risk_level: formState.risk_level || 'normal',
-    priority: formState.priority || 2,
+    risk_percent: formState.risk_percent,
     is_active: formState.is_active !== false,
     updated_at: now,
     created_at: baseEntry.created_at || now,

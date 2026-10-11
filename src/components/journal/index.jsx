@@ -11,17 +11,17 @@ export { default as TradeReviewPanel } from './analysis/TradeReviewPanel';
 
 // Toolbar Components
 export { default as JournalToolbar } from './toolbar/JournalToolbar';
-export { default as JournalPagination } from './components/JournalPagination';
+export { default as JournalPagination } from './toolbar/JournalPagination';
 
 // Shared Hooks
-export { useJournalFilters } from './shared/hooks/useJournalFilters';
-export { useTradeEvents } from './shared/hooks/useTradeEvents';
-export { useJournalAnalytics } from './shared/hooks/useJournalAnalytics';
+export { useJournalFilters } from './hooks/useJournalFilters';
+export { useTradeEvents } from './hooks/useTradeEvents';
+export { useJournalAnalytics } from './hooks/useJournalAnalytics';
 export { useJournalTradeManagement } from './hooks/useJournalTradeManagement';
 export { useJournalPagination } from './hooks/useJournalPagination';
-export { useJournalSort } from './shared/hooks/useJournalSort';
-export { useJournalPresets } from './shared/hooks/useJournalPresets';
-export { useJournalSelection } from './shared/hooks/useJournalSelection';
+export { useJournalSort } from './hooks/useJournalSort';
+export { useJournalPresets } from './hooks/useJournalPresets';
+export { useJournalSelection } from './hooks/useJournalSelection';
 
 // Batch-2 Toolbar Components
 export { BulkActionBar } from './toolbar/BulkActionBar';

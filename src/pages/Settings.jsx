@@ -12,6 +12,7 @@ import SettingsHeader from '@/components/settings/SettingsHeader';
 import AccountSettingsTab from '@/components/settings/AccountSettingsTab';
 import RiskSettingsTab from '@/components/settings/RiskSettingsTab';
 import DataManagementTab from '@/components/settings/DataManagementTab';
+import GuardianSettingsTab from '@/components/settings/GuardianSettingsTab';
 import { useTradesMutation } from '@/lib/hooks/useTrades';
 import {
   SETTINGS_INPUT_FIELDS,
@@ -22,13 +23,13 @@ import { useConfirm } from '@/components/ui/ConfirmDialog';
 import { toast } from 'sonner';
 
 export default function SettingsPage() {
-  const { settings, isLoading, isSaving, hasPendingChanges, updateFields, savePending, saveImmediately, refetch } = useSettings();
+  const { settings, isLoading, isSaving, hasPendingChanges, updateFields, savePending, saveImmediately } = useSettings();
   const currentTier = settings?.account_tier || 'custom';
   const { user, signOut } = useAuth();
   const { bulkCreateTrades, isBulkCreating } = useTradesMutation();
   const [confirm, confirmDialog] = useConfirm();
   const fieldDrafts = useSettingsFieldDrafts({ settings, updateFields });
-  const maintenanceActions = useSettingsMaintenanceActions({ signOut, refetch, confirmFn: confirm });
+  const maintenanceActions = useSettingsMaintenanceActions({ signOut, confirmFn: confirm });
 
   const [hasDailyTargetsDraft, setHasDailyTargetsDraft] = useState(false);
   const dailyTargetsDraftRef = useRef(null);
@@ -71,6 +72,7 @@ export default function SettingsPage() {
           <TabsTrigger value="account">Account</TabsTrigger>
           <TabsTrigger value="risk">Defaults</TabsTrigger>
           <TabsTrigger value="data">Data</TabsTrigger>
+          <TabsTrigger value="guardian">Guardian</TabsTrigger>
         </TabsList>
 
         <TabsContent value="account" className="mt-5 max-w-[860px]">
@@ -102,13 +104,11 @@ export default function SettingsPage() {
             accountTier={currentTier}
             onImportPastedTrades={bulkCreateTrades}
             isImportingPastedTrades={isBulkCreating}
-            handleReEnrichTrades={maintenanceActions.handleReEnrichTrades}
-            handleClearAndReinit={maintenanceActions.handleClearAndReinit}
-            handleClearLocalCache={maintenanceActions.handleClearLocalCache}
-            isReEnriching={maintenanceActions.isReEnrichingTrades}
-            handleFixImportDates={maintenanceActions.handleFixImportDates}
-            isFixingDates={maintenanceActions.isFixingDates}
           />
+        </TabsContent>
+
+        <TabsContent value="guardian" className="mt-5 max-w-[960px]">
+          <GuardianSettingsTab />
         </TabsContent>
       </Tabs>
       {confirmDialog}

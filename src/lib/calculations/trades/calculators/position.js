@@ -16,6 +16,26 @@ export const FUTURES_CONTRACTS = {
   '6E':{ name: 'Euro FX',                tickSize: 0.00005, tickValue: 6.25  },
 };
 
+/**
+ * Dollars per full point of price, the way contracts are usually quoted:
+ * MES is $5 a point, ES $50. Ticks are what sizing counts in, so the point
+ * value is entered and the tick value derived from it — one tick is worth
+ * the point value times the tick size.
+ */
+export function toPointValue(tickSize, tickValue) {
+  const size = Number(tickSize);
+  const value = Number(tickValue);
+  if (!(size > 0) || !Number.isFinite(value)) return null;
+  return round(value / size, 6);
+}
+
+export function toTickValue(tickSize, pointValue) {
+  const size = Number(tickSize);
+  const value = Number(pointValue);
+  if (!(size > 0) || !Number.isFinite(value)) return null;
+  return round(value * size, 6);
+}
+
 export function calcFuturesPosition({
   entryPrice,
   direction = 'long',

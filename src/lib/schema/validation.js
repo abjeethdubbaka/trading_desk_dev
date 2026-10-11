@@ -117,6 +117,9 @@ export const ValidationRules = {
 
 // Field validation configurations
 export const FieldValidations = {
+  // Metadata
+  schema_version: [ValidationTypes.NON_NEGATIVE_NUMBER],
+
   // Trade fields
   symbol: [ValidationTypes.REQUIRED, ValidationTypes.SYMBOL],
   entry_price: [ValidationTypes.REQUIRED, ValidationTypes.POSITIVE_NUMBER],
@@ -130,7 +133,14 @@ export const FieldValidations = {
   hold_duration_minutes: [ValidationTypes.NON_NEGATIVE_NUMBER],
   direction: [ValidationTypes.STRING],
   setup_type: [ValidationTypes.STRING],
-  setup_grade: [ValidationTypes.STRING],
+  entry_grade: [ValidationTypes.STRING],
+  sl_grade: [ValidationTypes.STRING],
+  exit_grade: [ValidationTypes.STRING],
+  size_grade: [ValidationTypes.STRING],
+  exit_min_r_taken: [ValidationTypes.BOOLEAN],
+  exit_target_r_taken: [ValidationTypes.BOOLEAN],
+  exit_stretch_r_taken: [ValidationTypes.BOOLEAN],
+  is_oversized: [ValidationTypes.BOOLEAN],
   setup_quality_score: [ValidationTypes.NON_NEGATIVE_NUMBER],
   float_category: [ValidationTypes.STRING],
   share_float: [ValidationTypes.NON_NEGATIVE_NUMBER],
@@ -144,6 +154,7 @@ export const FieldValidations = {
   stop_loss: [ValidationTypes.NON_NEGATIVE_NUMBER],
   stop_loss_reason: [ValidationTypes.STRING],
   target_price: [ValidationTypes.POSITIVE_NUMBER],
+  mfe_price: [ValidationTypes.POSITIVE_NUMBER],
   commission: [ValidationTypes.NON_NEGATIVE_NUMBER],
 
   // Settings fields

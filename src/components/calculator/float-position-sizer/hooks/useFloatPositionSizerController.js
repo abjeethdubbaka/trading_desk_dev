@@ -5,7 +5,8 @@ import { useTradingContext } from '@/lib/context/TradingContext';
 import { useTrades, useTradesMutation } from '@/lib/hooks/useTrades';
 import { usePlaybook } from '@/lib/hooks/usePlaybook';
 import { useAnalysisTimer } from '@/lib/context/AnalysisTimerContext';
-import { getTodayMaxDailyLoss } from '@/lib/config/dailyLossLimits';
+import { getTodayMaxDailyLoss, getTodayRiskAmount } from '@/lib/config/dailyLossLimits';
+import { FUTURES_CONTRACTS } from '@/lib/calculations/trades';
 import { clearCalculatorState, loadCalculatorState, saveCalculatorState } from '../statePersistence';
 import { usePlaybookExitProfile } from './usePlaybookExitProfile';
 import { usePositionCalculation } from './usePositionCalculation';
@@ -15,7 +16,7 @@ export function useFloatPositionSizerController({ historyData, onCalculationSave
   const { selectedSymbol, selectedEntryPrice } = useTradingContext();
   const { createTrade } = useTradesMutation();
   const { settings, refetch: refetchSettings } = useSettings();
-  const { playbookEntries } = usePlaybook();
+  const { playbookEntries, ensureCurrentVersion } = usePlaybook();
   const { resetTimer } = useAnalysisTimer();
   const initialState = useMemo(() => loadCalculatorState() || {}, []);
   const settingsHydratedRef = useRef(false);
@@ -23,7 +24,8 @@ export function useFloatPositionSizerController({ historyData, onCalculationSave
   const lastAppliedTradingSelectionRef = useRef({ symbol: null, entryPrice: null });
 
   const accountSize = settings?.account_size;
-  const riskAmount = settings?.risk_amount;
+  // Half of today's max daily loss, the same Risk amount Settings shows.
+  const riskAmount = useMemo(() => getTodayRiskAmount(settings), [settings]);
   const positionSizingPct = settings?.position_sizing_percent;
   const defaultStopLossPct = settings?.default_stop_loss_percent;
   const targetProfitDollars = settings?.target_profit_dollars;
@@ -62,28 +64,32 @@ export function useFloatPositionSizerController({ historyData, onCalculationSave
   const [comment, setComment] = useState(() => String(initialState.comment || ''));
   const [selectedSetupId, setSelectedSetupId_raw] = useState(() => String(initialState.selectedSetupId || ''));
   const [exitPrice, setExitPrice] = useState('');
-  const [futuresPreset, setFuturesPreset] = useState('ES');
-  const [tickSize, setTickSize] = useState('');
-  const [tickValue, setTickValue] = useState('');
+  // The contract last traded, filled in from the start: a blank tick size
+  // left futures unsized until another contract was picked and back.
+  const [futuresPreset, setFuturesPreset] = useState(() => (
+    FUTURES_CONTRACTS[initialState.futuresPreset] ? initialState.futuresPreset : 'ES'
+  ));
+  const [tickSize, setTickSize] = useState(() => String(
+    initialState.tickSize || FUTURES_CONTRACTS[initialState.futuresPreset]?.tickSize || FUTURES_CONTRACTS.ES.tickSize
+  ));
+  const [tickValue, setTickValue] = useState(() => String(
+    initialState.tickValue || FUTURES_CONTRACTS[initialState.futuresPreset]?.tickValue || FUTURES_CONTRACTS.ES.tickValue
+  ));
 
   const setSelectedSetupId = useCallback((value) => {
     setSelectedSetupId_raw(value);
-    setCalculation((prev) => (prev == null ? prev : { ...prev, _stale: true }));
   }, []);
 
   const clearCalculation = useCallback(() => {
     setCalculation((prev) => (prev == null ? prev : null));
   }, []);
 
-  const markCalculationStale = useCallback(() => {
-    setCalculation((prev) => (prev == null ? prev : { ...prev, _stale: true }));
-  }, []);
-
+  // The calculation follows the inputs on its own, so a changed input is never
+  // stale — the snapshot simply re-sizes.
   const updateSymbol = useCallback((value) => {
     setSymbol((prev) => (prev === value ? prev : value));
     setExitPrice('');
-    clearCalculation();
-  }, [clearCalculation]);
+  }, []);
 
   const updateExitPrice = useCallback((value) => {
     setExitPrice((prev) => (prev === value ? prev : value));
@@ -91,18 +97,15 @@ export function useFloatPositionSizerController({ historyData, onCalculationSave
 
   const updateEntryPrice = useCallback((value) => {
     setEntryPrice((prev) => (prev === value ? prev : value));
-    markCalculationStale();
-  }, [markCalculationStale]);
+  }, []);
 
   const updateCustomStop = useCallback((value) => {
     setCustomStop((prev) => (prev === value ? prev : value));
-    markCalculationStale();
-  }, [markCalculationStale]);
+  }, []);
 
   const updateDirection = useCallback((value) => {
     setDirection((prev) => (prev === value ? prev : value));
-    markCalculationStale();
-  }, [markCalculationStale]);
+  }, []);
 
   const updateComment = useCallback((value) => {
     setComment((prev) => (prev === value ? prev : value));
@@ -113,7 +116,7 @@ export function useFloatPositionSizerController({ historyData, onCalculationSave
     playbookEntries,
   );
 
-  const { handleCalculate } = usePositionCalculation({
+  const { commitCalculation } = usePositionCalculation({
     entryPrice,
     direction,
     setDirection,
@@ -147,8 +150,14 @@ export function useFloatPositionSizerController({ historyData, onCalculationSave
     calculation,
     selectedSetup,
     createTrade,
+    ensureCurrentVersion,
+    // What this setup is meant to risk, so an oversized position is flagged
+    // the same way the journal flags one.
+    expectedRisk: Number(riskAmount) > 0 ? Number(riskAmount) * riskMultiplier : null,
+    commitCalculation,
     maxDollars: maxDailyLoss,
     allTrades,
+    futures: isFutures ? { tickSize, tickValue, preset: futuresPreset } : null,
   });
 
   useEffect(() => {
@@ -244,9 +253,12 @@ export function useFloatPositionSizerController({ historyData, onCalculationSave
       direction,
       calculation,
       selectedSetupId,
+      futuresPreset,
+      tickSize,
+      tickValue,
       updatedAt: new Date().toISOString(),
     });
-  }, [symbol, entryPrice, customStop, comment, direction, calculation, selectedSetupId]);
+  }, [symbol, entryPrice, customStop, comment, direction, calculation, selectedSetupId, futuresPreset, tickSize, tickValue]);
 
   const handleRefreshSettings = useCallback(async () => {
     try {
@@ -290,7 +302,6 @@ export function useFloatPositionSizerController({ historyData, onCalculationSave
     updateExitPrice,
     updateComment,
     updateDirection,
-    handleCalculate,
     handleRefreshSettings,
     handleAddToJournal,
     handleReset,

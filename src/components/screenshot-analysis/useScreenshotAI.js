@@ -1,14 +1,14 @@
 import { useState, useCallback } from 'react';
 import { requestSecureAI, SECURE_AI_KINDS } from '@/lib/ai/services/secureAIBridge';
 
-const OLLAMA_BASE_URL = import.meta.env.VITE_OLLAMA_BASE_URL || 'http://localhost:11434/api/chat';
+const OLLAMA_BASE_URL = import.meta.env?.VITE_OLLAMA_BASE_URL || 'http://localhost:11434/api/chat';
 const OLLAMA_MODEL =
-  import.meta.env.VITE_OLLAMA_SCREENSHOT_MODEL ||
-  import.meta.env.VITE_OLLAMA_MODEL ||
-  import.meta.env.VITE_OLLAMA_CHAT_MODEL;
-const OLLAMA_API_KEY = import.meta.env.VITE_OLLAMA_API_KEY;
-const OLLAMA_TIMEOUT_MS = Number(import.meta.env.VITE_OLLAMA_TIMEOUT_MS || 90000);
-const OLLAMA_CONCURRENCY = Number(import.meta.env.VITE_OLLAMA_CONCURRENCY || 2);
+  import.meta.env?.VITE_OLLAMA_SCREENSHOT_MODEL ||
+  import.meta.env?.VITE_OLLAMA_MODEL ||
+  import.meta.env?.VITE_OLLAMA_CHAT_MODEL;
+const OLLAMA_API_KEY = import.meta.env?.VITE_OLLAMA_API_KEY;
+const OLLAMA_TIMEOUT_MS = Number(import.meta.env?.VITE_OLLAMA_TIMEOUT_MS || 90000);
+const OLLAMA_CONCURRENCY = Number(import.meta.env?.VITE_OLLAMA_CONCURRENCY || 2);
 
 const SYSTEM_PROMPT = `You are an expert trading chart analyst specializing in technical analysis, price action, and trading psychology. Your job is to analyze chart screenshots and extract structured insights.
 

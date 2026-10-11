@@ -1,7 +1,7 @@
 import { useCallback, useState } from 'react';
 import { toast } from 'sonner';
 import { validateTrade } from '@/lib/validation/trades';
-import { TradeCreator } from '../../float-calculator/TradeCreator';
+import { TradeCreator } from '../TradeCreator';
 
 /**
  * Saves the calculator's current symbol/prices as an already-closed trade
@@ -18,8 +18,12 @@ export function useTradeSubmission({
   calculation,
   selectedSetup,
   createTrade,
+  ensureCurrentVersion,
+  expectedRisk,
+  commitCalculation,
   maxDollars,
   allTrades,
+  futures = null, // { tickSize, tickValue, preset } when sizing a futures contract
 }) {
   const [isSavingTrade, setIsSavingTrade] = useState(false);
   const [lossLimitInfo, setLossLimitInfo] = useState(null); // { todayPnL, maxDailyLoss } or null
@@ -51,6 +55,12 @@ export function useTradeSubmission({
 
     setIsSavingTrade(true);
     try {
+      // Stamped with the setup's live rules, exactly as Add Trade does, so a
+      // trade logged from here is attributable to a version too.
+      const liveVersion = selectedSetup && ensureCurrentVersion
+        ? await ensureCurrentVersion(selectedSetup)
+        : null;
+
       const tradeData = await TradeCreator.createTrade({
         symbol: normalizedSymbol,
         entryPrice,
@@ -60,6 +70,10 @@ export function useTradeSubmission({
         calculation,
         stopLoss: customStop || calculation?.stopLossPrice,
         setupType: selectedSetup?.name || null,
+        playbookEntry: selectedSetup,
+        playbookVersion: liveVersion,
+        expectedRisk,
+        futures,
       });
 
       const validation = validateTrade(tradeData);
@@ -69,6 +83,8 @@ export function useTradeSubmission({
       }
 
       await createTrade(tradeData);
+      // Saving is the moment the sizing became a decision worth recording.
+      commitCalculation?.(calculation);
       const pnl = Number(tradeData.pnl) || 0;
       toast.success(`${normalizedSymbol} saved: ${pnl >= 0 ? '+' : ''}$${pnl.toFixed(2)}`);
 
@@ -97,7 +113,7 @@ export function useTradeSubmission({
     } finally {
       setIsSavingTrade(false);
     }
-  }, [symbol, entryPrice, exitPrice, setExitPrice, customStop, direction, comment, calculation, selectedSetup, createTrade, maxDollars, allTrades]);
+  }, [symbol, entryPrice, exitPrice, setExitPrice, customStop, direction, comment, calculation, selectedSetup, createTrade, ensureCurrentVersion, expectedRisk, commitCalculation, maxDollars, allTrades, futures]);
 
   return { isSavingTrade, handleAddToJournal, lossLimitInfo, dismissLossLimitInfo };
 }

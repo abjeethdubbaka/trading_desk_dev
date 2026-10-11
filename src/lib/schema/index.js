@@ -2,19 +2,41 @@
  * Canonical entity shapes, defaults, and query keys
  */
 
+// Bump whenever a trade field is added/renamed/reinterpreted in a way a
+// migration script might need to know about. A trade with no schema_version
+// (or a lower one) predates that change — e.g. version 2 added mfe_price/
+// mfe_r_multiple, so a v1 (or unversioned) trade with mfe_r_multiple ===
+// null genuinely never had that data captured, not a bug.
+// Bump this, and add a one-line note here, whenever a future change needs
+// the same distinction.
+export const CURRENT_TRADE_SCHEMA_VERSION = 2;
+
 // Trade entity schema
 export const TradeSchema = {
   required: [
     'symbol',
-    'entry_price', 
+    'entry_price',
     'quantity',
     'entry_time'
   ],
   optional: [
+    // Metadata
+    'schema_version',
+
     // Basic Trade Info
     'direction',
     'setup_type',
-    'setup_grade',
+    'entry_grade',
+    'sl_grade',
+    'exit_grade',
+    'size_grade',
+    // Whether each of the setup's configured scale-out levels (Min/Target/
+    // Stretch R, from the Playbook's Expected R & Exit Allocation) was
+    // actually taken on this trade.
+    'exit_min_r_taken',
+    'exit_target_r_taken',
+    'exit_stretch_r_taken',
+    'is_oversized',
     'setup_quality_score',
     'custom_setup_type',
     'account_tier',
@@ -26,8 +48,14 @@ export const TradeSchema = {
     'stop_loss_reason',
     'target_price',
     'risk_amount',
+    // Per share (or contract): entry minus stop, independent of size.
+    'risk_per_share',
+    'setup_version',
+    'setup_version_id',
     'position_size_percent',
     'risk_reward_ratio',
+    'mfe_price',
+    'mfe_r_multiple',
     
     // Timing
     'exit_time',
@@ -134,6 +162,9 @@ export const SettingsSchema = {
     'strategy_steps',
     'strategy_steps_by_setup',
     'strategy_playbook',
+    // Categorized rule/pointer lists shown on the Rules page (each category:
+    // { id, name, color, pointers: [{ id, text }] }).
+    'rule_categories',
     'pdt_status',
     
     // Performance Tracking
@@ -221,6 +252,7 @@ export const SettingsSchema = {
     strategy_steps: [],
     strategy_steps_by_setup: {},
     strategy_playbook: [],
+    rule_categories: [],
     pdt_status: 'enabled', // 'enabled', 'disabled', 'pattern_day_trader'
     
     // Performance Tracking

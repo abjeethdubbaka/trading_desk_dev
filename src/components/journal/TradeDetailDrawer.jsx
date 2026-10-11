@@ -1,12 +1,15 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { X, Edit2, Upload, Loader2, Maximize2, AlertCircle } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { X, Edit2, Upload, Loader2, Maximize2, AlertCircle, NotebookPen, GitBranch } from 'lucide-react';
+import { createPageUrl } from '@/utils';
+import { EXIT_LEVELS } from '@/lib/dataPoints/utils';
 import { cn } from '@/lib/utils/general';
-import { PnlBadge, DirectionBadge, RMultipleBadge, EmotionBadge, SetupBadge } from '@/components/ui/TradeBadge';
+import { PnlBadge, DirectionBadge, RMultipleBadge, EmotionBadge, SetupBadge, GradeBadge } from '@/components/ui/TradeBadge';
 import { getTradePnL } from '@/lib/utils/tradeFields';
 import { formatDate, formatTime, formatCurrency } from './utils/formatters';
 import { getTradeNotesText } from './utils/notes';
-import { useScreenshotIdsUrls } from './shared/media/useScreenshotUrls';
-import { imageFileToDataUrl } from './shared/media/imageUtils';
+import { useScreenshotIdsUrls } from './media/useScreenshotUrls';
+import { imageFileToDataUrl } from './media/imageUtils';
 import MultiImageLightbox from '@/components/ui/MultiImageLightbox';
 import { toast } from 'sonner';
 
@@ -55,7 +58,26 @@ function ScreenshotThumb({ id, url, status, onView, onRemove }) {
   );
 }
 
-export function TradeDetailDrawer({ trade, onClose, onEdit, updateTrade }) {
+/** Yes, no, or unanswered — for each rung of the setup's exit ladder. */
+function RungMark({ label, value }) {
+  const answered = typeof value === 'boolean';
+  return (
+    <span
+      className={cn(
+        'inline-flex items-center gap-1 rounded border px-1.5 py-0.5 text-[10px]',
+        !answered ? 'border-white/10 text-white/30'
+          : value ? 'border-emerald-400/30 bg-emerald-500/10 text-emerald-200'
+          : 'border-rose-400/30 bg-rose-500/10 text-rose-200',
+      )}
+      title={`${label}: ${!answered ? 'not answered' : value ? 'reached' : 'not reached'}`}
+    >
+      {label.split(' ')[0]}
+      <span className="font-semibold">{!answered ? '—' : value ? 'Y' : 'N'}</span>
+    </span>
+  );
+}
+
+export function TradeDetailDrawer({ trade, onClose, onEdit, updateTrade, isDebriefed = null }) {
   const [lightbox, setLightbox] = useState(null);
   const fileInputRef = React.useRef(null);
 
@@ -117,9 +139,6 @@ export function TradeDetailDrawer({ trade, onClose, onEdit, updateTrade }) {
   const pnlPct = entryPrice && positionSize
     ? ((pnl / (entryPrice * positionSize)) * 100).toFixed(1)
     : null;
-  const qualityScore = Number(trade?.setup_quality_score);
-  const hasQuality = Number.isFinite(qualityScore);
-
   return (
     <>
       <div className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm" onClick={onClose} />
@@ -180,14 +199,71 @@ export function TradeDetailDrawer({ trade, onClose, onEdit, updateTrade }) {
               <DetailRow label="Take profit">{formatCurrency(trade.take_profit)}</DetailRow>
             )}
             {trade.setup_type && (
-              <DetailRow label="Setup"><SetupBadge setup={trade.setup_type} /></DetailRow>
-            )}
-            {(hasQuality || trade.setup_grade) && (
-              <DetailRow label="Quality">
-                <span className="rounded border border-blue-500/20 bg-blue-500/10 px-1.5 py-0.5 text-[12px] text-blue-300/70">
-                  {hasQuality ? Math.round(qualityScore) : ''}
-                  {trade.setup_grade ? ` ${trade.setup_grade}` : ''}
+              <DetailRow label="Setup">
+                <span className="inline-flex items-center gap-1.5">
+                  <SetupBadge setup={trade.setup_type} />
+                  {trade.setup_version != null && (
+                    <span
+                      className="inline-flex items-center gap-1 rounded border border-white/12 bg-white/[0.04] px-1.5 py-0.5 font-mono text-[10px] text-white/55"
+                      title="The version of this setup's rules that was live when the trade was taken"
+                    >
+                      <GitBranch className="h-3 w-3" />v{trade.setup_version}
+                    </span>
+                  )}
                 </span>
+              </DetailRow>
+            )}
+            {trade.risk_per_share != null && (
+              <DetailRow label="Risk / share">
+                <span className="font-mono">{formatCurrency(trade.risk_per_share)}</span>
+                {trade.risk_amount != null && (
+                  <span className="ml-2 text-[11px] text-white/40">{formatCurrency(trade.risk_amount)} total</span>
+                )}
+              </DetailRow>
+            )}
+            {(trade.mfe_r_multiple != null || trade.mfe_price != null) && (
+              <DetailRow label="MFE">
+                {trade.mfe_r_multiple != null && (
+                  <span className="font-mono text-cyan-200">{Number(trade.mfe_r_multiple) > 0 ? '+' : ''}{trade.mfe_r_multiple}R</span>
+                )}
+                {trade.mfe_price != null && (
+                  <span className="ml-2 text-[11px] text-white/40">at {formatCurrency(trade.mfe_price)}</span>
+                )}
+                {trade.mfe_r_multiple != null && trade.r_multiple != null && Number(trade.mfe_r_multiple) - Number(trade.r_multiple) >= 0.5 && (
+                  <span className="ml-2 text-[11px] text-amber-300/80">
+                    left {(Number(trade.mfe_r_multiple) - Number(trade.r_multiple)).toFixed(1)}R on the table
+                  </span>
+                )}
+              </DetailRow>
+            )}
+            {EXIT_LEVELS.some((level) => typeof trade[`exit_${level.key}_r_taken`] === 'boolean') && (
+              <DetailRow label="Exit ladder">
+                <span className="flex flex-wrap gap-1">
+                  {EXIT_LEVELS.map((level) => (
+                    <RungMark key={level.key} label={level.label} value={trade[`exit_${level.key}_r_taken`]} />
+                  ))}
+                </span>
+              </DetailRow>
+            )}
+            {trade.entry_grade && (
+              <DetailRow label="Entry-Grade"><GradeBadge grade={trade.entry_grade} /></DetailRow>
+            )}
+            {trade.sl_grade && (
+              <DetailRow label="SL-Grade"><GradeBadge grade={trade.sl_grade} /></DetailRow>
+            )}
+            {trade.exit_grade && (
+              <DetailRow label="Exit-Grade"><GradeBadge grade={trade.exit_grade} /></DetailRow>
+            )}
+            {(trade.size_grade || trade.is_oversized) && (
+              <DetailRow label="Size-Grade">
+                <div className="flex items-center gap-1.5">
+                  {trade.size_grade && <GradeBadge grade={trade.size_grade} />}
+                  {trade.is_oversized && (
+                    <span className="rounded border border-rose-500/20 bg-rose-500/10 px-1.5 py-0.5 text-[12px] text-rose-300">
+                      Oversized
+                    </span>
+                  )}
+                </div>
               </DetailRow>
             )}
             {trade.followed_plan !== null && trade.followed_plan !== undefined && (
@@ -210,6 +286,24 @@ export function TradeDetailDrawer({ trade, onClose, onEdit, updateTrade }) {
               </DetailRow>
             )}
           </div>
+
+          {isDebriefed != null && (
+            <Link
+              to={createPageUrl('SetupJournal')}
+              className={cn(
+                'flex items-center justify-between gap-2 rounded-lg border px-3 py-2 text-xs transition-colors',
+                isDebriefed
+                  ? 'border-emerald-400/25 bg-emerald-500/[0.08] text-emerald-200/85 hover:bg-emerald-500/[0.14]'
+                  : 'border-amber-400/25 bg-amber-500/[0.08] text-amber-200/85 hover:bg-amber-500/[0.14]',
+              )}
+            >
+              <span className="inline-flex items-center gap-1.5">
+                <NotebookPen className="h-3.5 w-3.5" />
+                {isDebriefed ? 'Debriefed in Setup Journal' : 'Not debriefed yet'}
+              </span>
+              <span className="text-[11px] opacity-70">{isDebriefed ? 'Open →' : 'Debrief →'}</span>
+            </Link>
+          )}
 
           {notes && (
             <div>

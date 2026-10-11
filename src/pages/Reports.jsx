@@ -2,20 +2,13 @@ import React, { useMemo, useState } from 'react';
 import { addMonths, format, isSameMonth, startOfMonth, subMonths } from 'date-fns';
 import {
   ChevronLeft, ChevronRight, FileBarChart,
-  CheckCircle2, AlertCircle, Target, Brain,
+  Brain, Trophy,
 } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useSettings } from '@/lib/context/SettingsContext';
 import { useTrades } from '@/lib/hooks/useTrades';
 import { useTradesWithQuality } from '@/lib/hooks/useTradesWithQuality';
-import {
-  analyzeMistakePatterns,
-  calcCoreStats,
-  calcDisciplineSavings,
-  computePlanAdherence,
-  perfBySetupType,
-} from '@/lib/calculations/trades';
-import { normalizePlaybookEntries, PLAYBOOK_FIELD } from '@/lib/playbook/utils';
+import { calcCoreStats } from '@/lib/calculations/trades';
 import { cn, toFiniteNumber } from '@/lib/utils/general';
 
 // ─── helpers ────────────────────────────────────────────────────────────────
@@ -28,6 +21,61 @@ function getTradesInMonth(trades, monthDate) {
     const d = new Date(t?.exit_time ?? t?.entry_time ?? t?.created_date ?? 0);
     return d >= start && d < end;
   });
+}
+
+// Self-contained per-month discipline score (0-100) — unlike the dashboard's
+// buildDisciplineSnapshot (which is anchored to "today"), this only looks at
+// the given month's own trades: plan adherence, position sizing discipline,
+// emotional-trade rate, and the longest losing streak within that month.
+function calcMonthlyDisciplineScore(trades = []) {
+  if (!trades.length) return null;
+
+  const total = trades.length;
+
+  const followedCount = trades.filter((t) => t?.followed_plan === true || t?.followed_plan === 'true').length;
+  const deviatedCount = trades.filter((t) => t?.followed_plan === false || t?.followed_plan === 'false').length;
+  const trackedPlan = followedCount + deviatedCount;
+  const planAdherencePct = trackedPlan > 0 ? (followedCount / trackedPlan) * 100 : null;
+
+  const oversizedCount = trades.filter((t) => t?.is_oversized === true).length;
+  const sizingTracked = trades.filter((t) => t?.is_oversized != null).length;
+  const oversizedPct = sizingTracked > 0 ? (oversizedCount / sizingTracked) * 100 : null;
+
+  const emotionalCount = trades.filter((t) => {
+    const emotions = Array.isArray(t?.emotions) ? t.emotions : (t?.emotions ? [t.emotions] : []);
+    return emotions.map((e) => String(e).toLowerCase()).some((e) => ['fomo', 'revenge', 'nervous'].includes(e));
+  }).length;
+  const emotionalPct = (emotionalCount / total) * 100;
+
+  const sorted = [...trades].sort(
+    (a, b) => new Date(a?.exit_time ?? a?.entry_time ?? a?.created_date ?? 0) - new Date(b?.exit_time ?? b?.entry_time ?? b?.created_date ?? 0)
+  );
+  let maxLossStreak = 0;
+  let currentStreak = 0;
+  sorted.forEach((t) => {
+    if (Number(t?.pnl ?? 0) < 0) {
+      currentStreak += 1;
+      maxLossStreak = Math.max(maxLossStreak, currentStreak);
+    } else {
+      currentStreak = 0;
+    }
+  });
+
+  let score = 100;
+  if (planAdherencePct != null) {
+    if (planAdherencePct < 70) score -= 20;
+    else if (planAdherencePct < 85) score -= 10;
+  }
+  if (oversizedPct != null) {
+    if (oversizedPct >= 30) score -= 20;
+    else if (oversizedPct >= 15) score -= 10;
+  }
+  if (emotionalPct >= 30) score -= 15;
+  else if (emotionalPct >= 15) score -= 8;
+  if (maxLossStreak >= 5) score -= 20;
+  else if (maxLossStreak >= 3) score -= 10;
+
+  return Math.max(0, Math.min(100, Math.round(score)));
 }
 
 function grade(stats) {
@@ -63,10 +111,55 @@ function MetricChip({ label, value, color, priorValue, formatFn, higherIsBetter 
       <p className={cn('font-mono text-xl font-bold', color)}>{formatFn(value)}</p>
       {hasPrior && !flat && (
         <p className={cn('text-[10px] font-medium flex items-center gap-0.5', improved ? 'text-emerald-400' : 'text-rose-400')}>
-          {up ? '▲' : '▼'} {formatFn(Math.abs(d))} vs last month
+          {up ? '▲' : '▼'} {formatFn(d)} vs last month
         </p>
       )}
       {hasPrior && flat && <p className="text-[10px] text-white/25">same as last month</p>}
+    </div>
+  );
+}
+
+function MonthlyTargetCard({ totalPnL, monthlyTarget, isCurrentCalendarMonth }) {
+  if (!(monthlyTarget > 0)) return null;
+
+  const pct = Math.min(100, Math.max(0, (totalPnL / monthlyTarget) * 100));
+  const reached = totalPnL >= monthlyTarget;
+  const remaining = Math.max(0, monthlyTarget - totalPnL);
+
+  return (
+    <div className={cn(
+      'rounded-2xl border p-5',
+      reached
+        ? 'border-emerald-400/25 bg-gradient-to-r from-emerald-500/[0.08] to-transparent'
+        : 'border-white/8 bg-[#13131e]',
+    )}>
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div className="flex items-center gap-2">
+          {reached ? (
+            <Trophy className="h-4 w-4 text-emerald-400" />
+          ) : (
+            <FileBarChart className="h-4 w-4 text-white/40" />
+          )}
+          <div>
+            <p className="text-sm font-semibold text-white">
+              {reached ? 'Monthly Target Reached' : 'Monthly Target'}
+            </p>
+            <p className="text-[11px] text-white/40">
+              ${totalPnL.toFixed(0)} of ${monthlyTarget.toLocaleString()}
+              {!reached && isCurrentCalendarMonth && ` · $${remaining.toFixed(0)} to go`}
+            </p>
+          </div>
+        </div>
+        <p className={cn('font-mono text-xl font-bold', reached ? 'text-emerald-400' : 'text-white/60')}>
+          {pct.toFixed(0)}%
+        </p>
+      </div>
+      <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-white/[0.08]">
+        <div
+          className={cn('h-full rounded-full transition-all duration-500', reached ? 'bg-emerald-500' : 'bg-cyan-500')}
+          style={{ width: `${pct}%` }}
+        />
+      </div>
     </div>
   );
 }
@@ -114,160 +207,6 @@ function SummaryCard({ stats, priorStats, monthLabel, hasPrior }) {
           <p key={i} className="text-sm text-white/80 leading-relaxed">{l}</p>
         ))}
       </div>
-    </div>
-  );
-}
-
-function WhatWorkedCard({ bySetup }) {
-  const winners = [...bySetup]
-    .filter((s) => s.totalPnL > 0 && s.trades >= 1)
-    .sort((a, b) => b.totalPnL - a.totalPnL)
-    .slice(0, 3);
-
-  if (!winners.length) return null;
-
-  return (
-    <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/5 p-5 space-y-3">
-      <div className="flex items-center gap-2">
-        <CheckCircle2 className="h-4 w-4 text-emerald-400" />
-        <p className="text-sm font-semibold text-white">What worked</p>
-      </div>
-      <div className="space-y-2">
-        {winners.map((s) => (
-          <div key={s.setup} className="flex items-center justify-between gap-3 rounded-lg border border-white/6 bg-white/[0.03] px-3 py-2.5">
-            <div>
-              <p className="text-sm font-semibold text-white/85">{s.setup}</p>
-              <p className="text-[11px] text-white/45">
-                {s.trades} trade{s.trades !== 1 ? 's' : ''} · {s.winRate.toFixed(0)}% win rate · {s.avgR.toFixed(1)}R avg
-              </p>
-            </div>
-            <p className="font-mono font-bold text-emerald-400 flex-shrink-0">+${s.totalPnL.toFixed(0)}</p>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function WhatHurtCard({ bySetup, mistakeInsights }) {
-  const losers = [...bySetup]
-    .filter((s) => s.totalPnL < 0)
-    .sort((a, b) => a.totalPnL - b.totalPnL)
-    .slice(0, 3);
-
-  const topMistakes = mistakeInsights?.topMistakes?.slice(0, 2) ?? [];
-  if (!losers.length && !topMistakes.length) return null;
-
-  return (
-    <div className="rounded-2xl border border-rose-500/20 bg-rose-500/5 p-5 space-y-3">
-      <div className="flex items-center gap-2">
-        <AlertCircle className="h-4 w-4 text-rose-400" />
-        <p className="text-sm font-semibold text-white">What hurt you</p>
-      </div>
-
-      {losers.length > 0 && (
-        <div className="space-y-2">
-          {losers.map((s) => (
-            <div key={s.setup} className="flex items-center justify-between gap-3 rounded-lg border border-white/6 bg-white/[0.03] px-3 py-2.5">
-              <div>
-                <p className="text-sm font-semibold text-white/85">{s.setup}</p>
-                <p className="text-[11px] text-white/45">
-                  {s.trades} trade{s.trades !== 1 ? 's' : ''} · {s.winRate.toFixed(0)}% win rate · {s.avgR.toFixed(1)}R avg
-                </p>
-              </div>
-              <p className="font-mono font-bold text-rose-400 flex-shrink-0">-${Math.abs(s.totalPnL).toFixed(0)}</p>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {topMistakes.length > 0 && (
-        <div className="space-y-1.5 pt-1">
-          <p className="text-[10px] uppercase tracking-wider text-white/30">Recurring mistakes</p>
-          {topMistakes.map((m, i) => (
-            <p key={i} className="text-[12px] text-white/60 leading-relaxed">
-              <span className="text-rose-300 font-semibold">{m.text}</span>
-              {m.count > 1 && <span className="text-white/35"> — {m.count}× this month</span>}
-            </p>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function DisciplineCard({ savings, riskLimit, planAdherence }) {
-  const { followed, deviated } = planAdherence ?? {};
-  const hasDiscipline = savings?.tradesAnalyzed > 0;
-  const hasPlan = (followed?.totalTrades ?? 0) + (deviated?.totalTrades ?? 0) > 0;
-  if (!hasDiscipline && !hasPlan) return null;
-
-  const compliant = savings?.totalSaved <= 0;
-  const planPct = hasPlan
-    ? Math.round((followed.totalTrades / (followed.totalTrades + deviated.totalTrades)) * 100)
-    : null;
-
-  return (
-    <div className="rounded-2xl border border-white/8 bg-[#13131e] p-5 space-y-4">
-      <div className="flex items-center gap-2">
-        <Target className="h-4 w-4 text-violet-400" />
-        <p className="text-sm font-semibold text-white">Discipline</p>
-      </div>
-
-      {hasDiscipline && (
-        <div className={cn('rounded-xl border p-3', compliant ? 'border-emerald-500/25 bg-emerald-500/6' : 'border-violet-500/25 bg-violet-500/6')}>
-          {compliant ? (
-            <p className="text-sm text-white/80">
-              Every loss stayed within your <span className="text-emerald-300 font-bold">${riskLimit.toFixed(0)}</span> risk limit — great discipline.
-            </p>
-          ) : (
-            <p className="text-sm text-white/80">
-              If you had cut losses based on your limit, you could have saved{' '}
-              <span className="text-violet-300 font-bold">${savings.totalSaved.toFixed(0)}</span>.
-              {' '}<span className="text-white/45">{savings.tradesExceeded} trade{savings.tradesExceeded !== 1 ? 's' : ''} over limit.</span>
-            </p>
-          )}
-
-          {!compliant && savings.bySetup.length > 0 && (
-            <div className="mt-2 space-y-1">
-              {savings.bySetup.map((row) => (
-                <p key={row.setup} className="text-[11px] text-white/50">
-                  <span className="text-white/70 font-medium">{row.setup}</span>
-                  {' '}— {row.count} breach{row.count !== 1 ? 'es' : ''}, ${row.totalSaved.toFixed(0)} over limit
-                </p>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-
-      {hasPlan && planPct != null && (
-        <div className="rounded-xl border border-white/8 bg-white/[0.03] p-3">
-          <div className="flex items-center justify-between mb-2">
-            <p className="text-xs text-white/50">Plan adherence</p>
-            <p className={cn('text-sm font-bold font-mono', planPct >= 70 ? 'text-emerald-400' : planPct >= 50 ? 'text-amber-400' : 'text-rose-400')}>
-              {planPct}%
-            </p>
-          </div>
-          <div className="h-1.5 rounded-full bg-white/10 overflow-hidden">
-            <div
-              className={cn('h-full rounded-full', planPct >= 70 ? 'bg-emerald-400' : planPct >= 50 ? 'bg-amber-400' : 'bg-rose-400')}
-              style={{ width: `${planPct}%` }}
-            />
-          </div>
-          <p className="mt-2 text-[11px] text-white/50 leading-relaxed">
-            {followed.totalTrades} trade{followed.totalTrades !== 1 ? 's' : ''} followed the plan
-            {deviated.totalTrades > 0 && `, ${deviated.totalTrades} deviated`}.
-            {followed.totalTrades > 0 && deviated.totalTrades > 0 && (
-              <span className={cn(followed.totalPnL > deviated.totalPnL ? ' text-emerald-300' : ' text-rose-300')}>
-                {followed.totalPnL > deviated.totalPnL
-                  ? ' Following the plan made you more money.'
-                  : ' Deviating cost you money.'}
-              </span>
-            )}
-          </p>
-        </div>
-      )}
     </div>
   );
 }
@@ -329,9 +268,13 @@ const TREND_METRICS = [
   { key: 'avgR', label: 'Avg R', fmt: (v) => `${v.toFixed(1)}R`, color: (v) => v >= 1 ? 'text-purple-400' : 'text-amber-400', higherIsBetter: true },
   { key: 'profitFactor', label: 'PF', fmt: (v) => v >= 99 ? '∞' : v.toFixed(1), color: (v) => v >= 1.5 ? 'text-emerald-400' : v >= 1 ? 'text-amber-400' : 'text-rose-400', higherIsBetter: true },
   { key: 'totalTrades', label: 'Trades', fmt: (v) => String(Math.round(v)), color: () => 'text-white/70', higherIsBetter: null },
+  { key: 'disciplineScore', label: 'Discipline', fmt: (v) => `${Math.round(v)}`, color: (v) => v >= 80 ? 'text-emerald-400' : v >= 60 ? 'text-amber-400' : 'text-rose-400', higherIsBetter: true },
 ];
 
 function TrendCard({ months }) {
+  // Only months with actual trades are shown — an empty pre-history month
+  // (e.g. before the trader started logging) would otherwise pad the table
+  // with a meaningless "—" column.
   const active = months.filter((m) => m.stats.totalTrades > 0);
   if (active.length < 2) return null;
 
@@ -344,7 +287,7 @@ function TrendCard({ months }) {
           <thead>
             <tr>
               <td className="pb-2 text-white/30 pr-4 w-16"></td>
-              {months.map((m) => (
+              {active.map((m) => (
                 <td key={m.label} className={cn('pb-2 text-center font-semibold', m.isCurrent ? 'text-white' : 'text-white/40')}>
                   {m.label}
                   {m.isCurrent && <span className="ml-1 text-[9px] text-emerald-400/70 uppercase">now</span>}
@@ -356,16 +299,15 @@ function TrendCard({ months }) {
             {TREND_METRICS.map((metric) => (
               <tr key={metric.key} className="border-t border-white/5">
                 <td className="py-2 text-white/40 pr-4">{metric.label}</td>
-                {months.map((m, i) => {
+                {active.map((m, i) => {
                   const val = metric.key === 'totalPnL' ? m.stats[metric.key] :
                     metric.key === 'profitFactor' ? (m.stats[metric.key] === Infinity ? 99 : m.stats[metric.key]) :
                     m.stats[metric.key];
-                  const noTrades = m.stats.totalTrades === 0;
 
-                  // trend arrow vs previous month
+                  // trend arrow vs previous available month
                   let arrow = null;
-                  if (i > 0 && !noTrades && metric.higherIsBetter !== null) {
-                    const prev = months[i - 1].stats[metric.key] ?? 0;
+                  if (i > 0 && metric.higherIsBetter !== null) {
+                    const prev = active[i - 1].stats[metric.key] ?? 0;
                     const d = val - prev;
                     if (Math.abs(d) > 1e-9) {
                       const up = d > 0;
@@ -375,8 +317,8 @@ function TrendCard({ months }) {
                   }
 
                   return (
-                    <td key={m.label} className={cn('py-2 text-center font-mono', m.isCurrent ? 'font-semibold' : 'opacity-50', noTrades ? 'text-white/20' : metric.color(val))}>
-                      {noTrades ? '—' : metric.fmt(val)}{arrow}
+                    <td key={m.label} className={cn('py-2 text-center font-mono', m.isCurrent ? 'font-semibold' : 'opacity-50', metric.color(val))}>
+                      {metric.fmt(val)}{arrow}
                     </td>
                   );
                 })}
@@ -394,7 +336,6 @@ function TrendCard({ months }) {
 export default function ReportsPage() {
   const { settings } = useSettings();
   const riskLimit = toFiniteNumber(settings?.risk_amount, 0);
-  const playbookEntries = useMemo(() => normalizePlaybookEntries(settings?.[PLAYBOOK_FIELD]), [settings]);
   const currentAccountType = settings?.account_type || 'demo';
   const currentTradingType = settings?.trading_type || 'stocks';
 
@@ -428,20 +369,15 @@ export default function ReportsPage() {
       return {
         label: format(m, 'MMM yy'),
         isCurrent: n === 0,
-        stats: calcCoreStats(t),
+        stats: { ...calcCoreStats(t), disciplineScore: calcMonthlyDisciplineScore(t) },
       };
     });
   }, [tradesWithQuality, selectedMonth]);
-  const bySetup = useMemo(() => perfBySetupType(monthTrades), [monthTrades]);
-  const mistakeInsights = useMemo(() => analyzeMistakePatterns(monthTrades, 5), [monthTrades]);
-  const planAdherence = useMemo(() => computePlanAdherence(monthTrades), [monthTrades]);
-  const disciplineSavings = useMemo(
-    () => calcDisciplineSavings(monthTrades, playbookEntries, riskLimit),
-    [monthTrades, playbookEntries, riskLimit]
-  );
-
   const monthLabel = format(selectedMonth, 'MMMM yyyy');
   const isCurrentCalendarMonth = isSameMonth(selectedMonth, new Date());
+  // Same derivation as the "Monthly Target" shown in Settings → Account
+  // (weekly target x avg weeks/month), so the two stay consistent.
+  const monthlyTarget = Math.round(toFiniteNumber(settings?.target_profit_dollars, 0) * (52 / 12));
   const priorStats = trendMonths[2]?.stats; // 1 month ago
   const hasPrior = (priorStats?.totalTrades ?? 0) > 0;
 
@@ -503,11 +439,18 @@ export default function ReportsPage() {
         </div>
       ) : (
         <div className="space-y-4">
+          {/* Monthly target progress */}
+          <MonthlyTargetCard
+            totalPnL={stats.totalPnL}
+            monthlyTarget={monthlyTarget}
+            isCurrentCalendarMonth={isCurrentCalendarMonth}
+          />
+
           {/* Grade + summary */}
           <SummaryCard stats={stats} priorStats={priorStats} monthLabel={monthLabel} hasPrior={hasPrior} />
 
           {/* Key metrics with delta vs last month */}
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             <MetricChip label="Total P&L"
               value={stats.totalPnL} priorValue={hasPrior ? priorStats.totalPnL : null}
               color={stats.totalPnL >= 0 ? 'text-emerald-400' : 'text-rose-400'}
@@ -520,20 +463,7 @@ export default function ReportsPage() {
               value={stats.avgR} priorValue={hasPrior ? priorStats.avgR : null}
               color={stats.avgR >= 1 ? 'text-purple-400' : 'text-amber-400'}
               formatFn={(v) => `${v.toFixed(1)}R`} />
-            <MetricChip label="Trades"
-              value={stats.totalTrades} priorValue={null}
-              color="text-white"
-              formatFn={(v) => String(Math.round(v))} />
           </div>
-
-          {/* What worked / what hurt — side by side */}
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-            <WhatWorkedCard bySetup={bySetup} />
-            <WhatHurtCard bySetup={bySetup} mistakeInsights={mistakeInsights} />
-          </div>
-
-          {/* Discipline */}
-          <DisciplineCard savings={disciplineSavings} riskLimit={riskLimit} planAdherence={planAdherence} />
 
           {/* 3-month trend */}
           <TrendCard months={trendMonths} />

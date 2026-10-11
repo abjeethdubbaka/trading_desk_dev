@@ -6,14 +6,20 @@
  */
 
 import { initializeApp, getApps } from 'firebase/app';
-import { getFirestore } from 'firebase/firestore';
+import { getFirestore } from 'firebase/firestore/lite';
 import { firebaseConfig } from '@/config/firebaseEnv.js';
 import { createTradesAdapter } from './trades.js';
 import { createSettingsAdapter, createSettingsPresetsAdapter } from './settings.js';
 import { createCalcHistoryAdapter, createWatchlistAdapter, createMediaAdapter, createMinimalAdapters, createDailyReviewsAdapter } from './collections.js';
 import { createDosAndDontsAdapter } from './dosAndDonts.js';
 import { createInformativeImagesAdapter } from './informativeImages.js';
+import { createDataPointsAdapter } from './dataPoints.js';
+import { createSetupJournalAdapter } from './setupJournal.js';
+import { createPlaybookVersionsAdapter } from './playbookVersions.js';
 import { createFinanceAdapter } from './finance.js';
+import { createMorningBriefsAdapter } from './morningBriefs.js';
+import { createGuardianDaysAdapter } from './guardianDays.js';
+import { createAlertTriggersAdapter } from './alertTriggers.js';
 
 // Initialize Firebase
 const app  = getApps().length ? getApps()[0] : initializeApp(firebaseConfig);
@@ -30,7 +36,13 @@ const minimalAdapters = createMinimalAdapters();
 const finance = createFinanceAdapter(db);
 const dosAndDonts = createDosAndDontsAdapter(db);
 const informativeImages = createInformativeImagesAdapter(db);
+const dataPoints = createDataPointsAdapter(db);
+const setupJournal = createSetupJournalAdapter(db);
+const playbookVersions = createPlaybookVersionsAdapter(db);
 const dailyReviews = createDailyReviewsAdapter(db);
+const morningBriefs = createMorningBriefsAdapter(db);
+const guardianDays = createGuardianDaysAdapter(db);
+const alertTriggers = createAlertTriggersAdapter(db);
 
 // ─── Export ───────────────────────────────────────────────────────────────────
 
@@ -45,7 +57,13 @@ export const firebaseSimpleAdapter = {
   finance,
   dosAndDonts,
   informativeImages,
+  dataPoints,
+  setupJournal,
+  playbookVersions,
   dailyReviews,
+  morningBriefs,
+  guardianDays,
+  alertTriggers,
   ...minimalAdapters
 };
 

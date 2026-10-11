@@ -5,7 +5,7 @@
  * Single doc (like settings) since it's a bounded, user-curated rule list.
  */
 
-import { doc, getDoc, setDoc, deleteDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, deleteDoc } from 'firebase/firestore/lite';
 import { broadcast, addUpdateTimestamp } from './utils.js';
 
 export function createDosAndDontsAdapter(db) {

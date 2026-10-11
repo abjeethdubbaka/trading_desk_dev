@@ -3,6 +3,7 @@ import { Input } from '@/components/ui/input';
 import AccountTierSelector from '@/components/settings/AccountTierSelector';
 import Field from '@/components/settings/Field';
 import RiskMeter from '@/components/settings/RiskMeter';
+import InfoHint from '@/components/ui/InfoHint';
 import { useSettings } from '@/lib/context/SettingsContext';
 import { ACCOUNT_TIERS } from '@/lib/config/accountTypes';
 import { getDailyTargetsWeek1, getDailyTargetPurposesWeek1, resolveTierKey } from '@/lib/config/dailyTargets';
@@ -42,11 +43,13 @@ export default function AccountSettingsTab({
   }, [currentTierKey]);
 
   const weeklyTarget = localTargets.reduce((s, v) => s + (Number(v) || 0), 0);
+  const monthlyTarget = Math.round(weeklyTarget * (52 / 12));
 
   const todayDow = new Date().getDay(); // 0=Sun, 6=Sat
   const todayIndex = todayDow === 0 || todayDow === 6 ? null : todayDow - 1;
   const todayMaxDailyLoss = Number(localLossLimits[todayIndex ?? 0]) || 0;
   const weeklyLossCap = localLossLimits.reduce((s, v) => s + (Number(v) || 0), 0);
+  const monthlyLossCap = Math.round(weeklyLossCap * (52 / 12));
   const derivedRiskAmount = todayMaxDailyLoss / 2;
 
   const changeDayAmount = (dayIdx, rawValue) => {
@@ -201,13 +204,11 @@ export default function AccountSettingsTab({
 
       {/* ── Daily Targets ──────────────────────────────────────────── */}
       <div className="space-y-3 pt-2">
-        <div>
+        <div className="flex items-center gap-1.5">
           <p className="text-sm font-semibold text-white/75">
             Daily Targets <span className="text-white/35 font-normal">— {ACCOUNT_TIERS[currentTierKey]?.display ?? 'Custom'}</span>
           </p>
-          <p className="mt-0.5 text-xs text-white/35">
-            Target P&L for each trading day (Mon–Fri), shown in the Dashboard launch banner. Targets are saved per account tier, so switching tiers switches targets too.
-          </p>
+          <InfoHint text="Target P&L for each trading day (Mon–Fri), shown in the Dashboard launch banner. Targets are saved per account tier, so switching tiers switches targets too." />
         </div>
 
         <div className="overflow-x-auto">
@@ -243,19 +244,23 @@ export default function AccountSettingsTab({
                 ${weeklyTarget.toLocaleString()}
               </span>
             </div>
+            <div className="flex flex-col justify-center pl-3 border-l border-white/[0.07]">
+              <span className="text-[10px] text-white/25">Monthly Target</span>
+              <span className="text-sm font-semibold text-white/55">
+                ${monthlyTarget.toLocaleString()}
+              </span>
+            </div>
           </div>
         </div>
       </div>
 
       {/* ── Daily Loss Limits ──────────────────────────────────────── */}
       <div className="space-y-3 pt-2">
-        <div>
+        <div className="flex items-center gap-1.5">
           <p className="text-sm font-semibold text-white/75">
             Daily Loss Limits <span className="text-white/35 font-normal">— {ACCOUNT_TIERS[currentTierKey]?.display ?? 'Custom'}</span>
           </p>
-          <p className="mt-0.5 text-xs text-white/35">
-            Max loss cap for each trading day (Mon–Fri), used by the risk meter, discipline coach, and calculator's loss-limit warning. Saved per account tier, same as Daily Targets.
-          </p>
+          <InfoHint text="Max loss cap for each trading day (Mon–Fri), used by the risk meter, discipline coach, and calculator's loss-limit warning. Saved per account tier, same as Daily Targets." />
         </div>
 
         <div className="overflow-x-auto">
@@ -281,6 +286,12 @@ export default function AccountSettingsTab({
               <span className="text-[10px] text-white/25">Weekly Cap</span>
               <span className="text-sm font-semibold text-white/55">
                 ${weeklyLossCap.toLocaleString()}
+              </span>
+            </div>
+            <div className="flex flex-col justify-center pl-3 border-l border-white/[0.07]">
+              <span className="text-[10px] text-white/25">Monthly Cap</span>
+              <span className="text-sm font-semibold text-white/55">
+                ${monthlyLossCap.toLocaleString()}
               </span>
             </div>
           </div>

@@ -1,13 +1,16 @@
-import { useCallback } from 'react';
-import { toast } from 'sonner';
+import { useCallback, useEffect, useRef } from 'react';
 import { calcPosition, calcFuturesPosition } from '@/lib/calculations/trades';
 
 const CALCULATOR_DECISION_EVENT = 'calculator-decision-context';
 
 /**
- * Builds the position-sizing calculation from current inputs and runs it,
- * recording a history entry and broadcasting a decision-context event for
- * the "Calculate" button flow.
+ * Keeps the position-sizing calculation current as the inputs change, so
+ * the snapshot is always what the numbers on screen imply — there is no
+ * Calculate button to press and nothing to go stale.
+ *
+ * Sizing a position and recording it are two different acts. History and
+ * the decision-context event are written by `commitCalculation`, which the
+ * journal save calls, rather than on every keystroke.
  */
 export function usePositionCalculation({
   entryPrice,
@@ -80,90 +83,91 @@ export function usePositionCalculation({
     tickValue,
   ]);
 
-  const runCalculation = useCallback((overrides = {}) => {
-    const calc = isFutures ? calcFuturesPosition : calcPosition;
-    const result = calc(buildCalculationParams(overrides));
-    const normalizedResult = { ...result, _viewSource: 'snapshot' };
-    setCalculation(normalizedResult);
-    resetTimer();
-    return normalizedResult;
-  }, [isFutures, buildCalculationParams, resetTimer, setCalculation]);
+  const previousHadResult = useRef(false);
+  const previousSymbol = useRef(symbol);
 
-  const handleCalculate = useCallback(() => {
-    if (!entryPrice) {
-      toast.error('Enter an entry price');
+  // Live: every change to the inputs re-sizes the position.
+  useEffect(() => {
+    const entry = parseFloat(entryPrice);
+    if (!Number.isFinite(entry) || entry <= 0) {
+      setCalculation(null);
+      previousHadResult.current = false;
       return;
     }
 
-    const entryPriceNum = parseFloat(entryPrice);
-    const stopLossPriceNum = parseFloat(customStop);
+    // Where the stop sits decides the side: a stop above entry is a short.
+    const stop = parseFloat(customStop);
     let effectiveDirection = direction;
-
-    if (stopLossPriceNum && entryPriceNum) {
-      if (stopLossPriceNum > entryPriceNum && direction === 'long') {
-        effectiveDirection = 'short';
-        setDirection('short');
-        toast.info('Auto-detected short (stop > entry)');
-      } else if (stopLossPriceNum < entryPriceNum && direction === 'short') {
-        effectiveDirection = 'long';
-        setDirection('long');
-        toast.info('Auto-detected long (stop < entry)');
-      }
+    if (Number.isFinite(stop) && stop > 0 && stop !== entry) {
+      effectiveDirection = stop > entry ? 'short' : 'long';
+      if (effectiveDirection !== direction) setDirection(effectiveDirection);
     }
 
     try {
-      const result = runCalculation({ direction: effectiveDirection });
-      const normalizedSymbol = String(symbol || '').trim().toUpperCase();
+      const calc = isFutures ? calcFuturesPosition : calcPosition;
+      const result = calc(buildCalculationParams({ direction: effectiveDirection }));
+      setCalculation({ ...result, _viewSource: 'snapshot' });
 
-      const historyItem = {
-        timestamp: new Date().toISOString(),
-        symbol: normalizedSymbol || 'N/A',
-        entryPrice: result.entryPrice,
-        shares: result.shares,
-        stopLossPrice: result.stopLossPrice,
-        targetPrice: result.targetPrice,
-        positionValue: result.positionValue,
-        actualRisk: result.actualRisk,
-        potentialProfit: result.targetProfit,
-        riskLevel: result.riskLevel,
-        requestedRisk: result.requestedRisk,
-        riskUtilizationPct: result.riskUtilizationPct,
-        capReason: result.capReason,
-        riskRewardRatio: 3,
-        direction: result.direction,
-        mode: result.mode,
-      };
-
-      onCalculationSaved?.(historyItem);
-
-      if (typeof window !== 'undefined') {
-        window.dispatchEvent(
-          new CustomEvent(CALCULATOR_DECISION_EVENT, {
-            detail: {
-              source: 'calculator',
-              timestamp: new Date().toISOString(),
-              symbol: normalizedSymbol,
-              direction: result.direction,
-              entry: result.entryPrice,
-              stop: result.stopLossPrice,
-              target: result.targetPrice,
-              max_risk_dollars: result.actualRisk,
-              position_size_shares: result.shares,
-              risk_reward_ratio: result.riskRewardRatio,
-              notes: String(comment || '').trim(),
-            },
-          })
-        );
-      }
-
-      toast.success('Position calculated using static risk settings.');
-      if (result.capReason) {
-        toast.info(`Risk capped by ${result.capReason}`);
-      }
-    } catch (error) {
-      toast.error(error.message);
+      // The analysis timer measures time spent on one idea: it restarts when a
+      // position first appears or the symbol changes, not on every keystroke.
+      const symbolChanged = previousSymbol.current !== symbol;
+      if (!previousHadResult.current || symbolChanged) resetTimer();
+      previousHadResult.current = true;
+      previousSymbol.current = symbol;
+    } catch {
+      setCalculation(null);
+      previousHadResult.current = false;
     }
-  }, [entryPrice, customStop, direction, setDirection, runCalculation, symbol, comment, onCalculationSaved]);
+  }, [buildCalculationParams, entryPrice, customStop, direction, isFutures, symbol, setCalculation, setDirection, resetTimer]);
 
-  return { handleCalculate };
+  /**
+   * Records the position as it stands — to calculator history, and as a
+   * decision-context event for the discipline coach. Called when a trade is
+   * saved to the journal, which is the moment the sizing became a decision.
+   */
+  const commitCalculation = useCallback((result) => {
+    if (!result) return;
+    const normalizedSymbol = String(symbol || '').trim().toUpperCase();
+
+    onCalculationSaved?.({
+      timestamp: new Date().toISOString(),
+      symbol: normalizedSymbol || 'N/A',
+      entryPrice: result.entryPrice,
+      shares: result.shares,
+      stopLossPrice: result.stopLossPrice,
+      targetPrice: result.targetPrice,
+      positionValue: result.positionValue,
+      actualRisk: result.actualRisk,
+      potentialProfit: result.targetProfit,
+      riskLevel: result.riskLevel,
+      requestedRisk: result.requestedRisk,
+      riskUtilizationPct: result.riskUtilizationPct,
+      capReason: result.capReason,
+      riskRewardRatio: result.riskRewardRatio ?? 3,
+      direction: result.direction,
+      mode: result.mode,
+    });
+
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(
+        new CustomEvent(CALCULATOR_DECISION_EVENT, {
+          detail: {
+            source: 'calculator',
+            timestamp: new Date().toISOString(),
+            symbol: normalizedSymbol,
+            direction: result.direction,
+            entry: result.entryPrice,
+            stop: result.stopLossPrice,
+            target: result.targetPrice,
+            max_risk_dollars: result.actualRisk,
+            position_size_shares: result.shares,
+            risk_reward_ratio: result.riskRewardRatio,
+            notes: String(comment || '').trim(),
+          },
+        })
+      );
+    }
+  }, [symbol, comment, onCalculationSaved]);
+
+  return { commitCalculation };
 }

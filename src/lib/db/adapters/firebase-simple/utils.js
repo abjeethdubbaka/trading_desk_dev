@@ -4,7 +4,7 @@
  * Shared utility functions for Firebase Simple adapter.
  */
 
-import { serverTimestamp } from 'firebase/firestore';
+import { serverTimestamp } from 'firebase/firestore/lite';
 
 /** Convert Firestore doc snapshot → plain object with id. */
 export function fromDoc(snap) {

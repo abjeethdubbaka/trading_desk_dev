@@ -97,6 +97,37 @@ export const calculatePerformanceByHourOfDay = (trades) => {
   return Object.values(performance);
 };
 
+// Fixed trading-session windows: pre-market (before 9:45), the open
+// (9:45-10:30), and the rest of the day (10:30-4:00pm). Trades outside all
+// three (after the 4pm close) fall into a trailing "After Hours" bucket so
+// nothing is silently dropped from the totals.
+const TRADING_WINDOWS = [
+  { key: 'premarket', label: 'Pre-Market (before 9:45)', startMinutes: -Infinity, endMinutes: 9 * 60 + 45 },
+  { key: 'open', label: '9:45 - 10:30', startMinutes: 9 * 60 + 45, endMinutes: 10 * 60 + 30 },
+  { key: 'midday', label: '10:30 - 4:00 PM', startMinutes: 10 * 60 + 30, endMinutes: 16 * 60 },
+  { key: 'afterhours', label: 'After 4:00 PM', startMinutes: 16 * 60, endMinutes: Infinity },
+];
+
+export const calculatePerformanceByTradingWindow = (trades) => {
+  const performance = {};
+  TRADING_WINDOWS.forEach((window) => {
+    performance[window.key] = emptyBucket({ key: window.key, label: window.label });
+  });
+
+  trades.forEach((trade) => {
+    if (!trade.entry_time) return;
+    const entryDate = new Date(trade.entry_time);
+    const minutesSinceMidnight = entryDate.getHours() * 60 + entryDate.getMinutes();
+    const window = TRADING_WINDOWS.find(
+      (w) => minutesSinceMidnight >= w.startMinutes && minutesSinceMidnight < w.endMinutes
+    ) || TRADING_WINDOWS[TRADING_WINDOWS.length - 1];
+    accumulate(performance[window.key], trade);
+  });
+
+  Object.values(performance).forEach(calcDerived);
+  return TRADING_WINDOWS.map((window) => performance[window.key]);
+};
+
 export const calculatePerformanceByMonthOfYear = (trades) => {
   const performance = {};
   MONTHS_OF_YEAR.forEach(month => {

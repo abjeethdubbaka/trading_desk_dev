@@ -76,15 +76,13 @@ export function enrichTrade(trade, options = {}) {
   const holdDurationMinutes = getTradeHoldDurationMinutes(trade);
   enriched.hold_duration_minutes = holdDurationMinutes == null ? null : holdDurationMinutes;
 
+  // entry_grade/sl_grade/exit_grade are trader-selected, saved as-is —
+  // enrichment never computes or overwrites it.
   const setupQuality = computeTradeSetupQuality(enriched, { riskLimit });
   if (Number.isFinite(setupQuality?.score)) {
     enriched.setup_quality_score = Math.round(setupQuality.score);
   } else {
     enriched.setup_quality_score = null;
-  }
-
-  if (setupQuality?.grade) {
-    enriched.setup_grade = setupQuality.grade;
   }
 
   // Add timestamps if missing

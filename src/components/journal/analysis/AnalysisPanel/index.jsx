@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { useJournalAnalytics } from '../../shared/hooks/useJournalAnalytics';
+import { useJournalAnalytics } from '../../hooks/useJournalAnalytics';
 import { formatCurrency } from '../../utils/formatters';
 import QualityIndicators from './QualityIndicators';
 import { Filter, BarChart3 } from 'lucide-react';

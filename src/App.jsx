@@ -7,6 +7,7 @@ import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
 import PageNotFound from './lib/components/PageNotFound';
 import { TradingProvider } from './lib/context/TradingContext';
 import { SettingsProvider } from './lib/context/SettingsContext';
+import { LocalImagesProvider } from './lib/hooks/useLocalImages';
 import { AnalysisTimerProvider } from './lib/context/AnalysisTimerContext';
 import { AuthProvider } from './lib/context/AuthContext';
 import { Suspense } from 'react';
@@ -23,23 +24,24 @@ const LayoutWrapper = ({ children, currentPageName }) => Layout ?
   <Layout currentPageName={currentPageName}>{children}</Layout>
   : <>{children}</>;
 
-const App = () => {
-  // Loading fallback for lazy loaded components
-  const LoadingFallback = () => (
-    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#090d15] text-white">
-      <div className="pointer-events-none absolute -left-16 top-0 h-72 w-72 rounded-full bg-emerald-500/20 blur-[100px]" />
-      <div className="pointer-events-none absolute right-0 top-1/3 h-72 w-72 rounded-full bg-cyan-500/15 blur-[110px]" />
-
-      <div className="rounded-2xl border border-white/10 bg-[#111827]/70 px-8 py-7 text-center backdrop-blur-xl">
-        <div className="mx-auto mb-4 flex h-10 w-10 items-center justify-center rounded-xl border border-emerald-400/30 bg-emerald-500/15">
-          <div className="h-5 w-5 animate-spin rounded-full border-2 border-emerald-300/40 border-t-emerald-200" />
-        </div>
-        <p className="text-sm font-semibold tracking-wide text-white/90">Preparing Workspace</p>
-        <p className="mt-1 text-xs text-white/55">Loading modules and data...</p>
-      </div>
+/**
+ * Shown inside the app frame while a page's code arrives. The sidebar stays
+ * put, so this only needs to hold the page's place: a heading bar and a few
+ * blocks, faint enough that a quick load reads as no flash at all.
+ */
+const LoadingFallback = () => (
+  <div className="animate-pulse space-y-4" aria-busy="true" aria-label="Loading page">
+    <div className="h-7 w-48 rounded-lg bg-white/[0.05]" />
+    <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+      <div className="h-24 rounded-xl bg-white/[0.035]" />
+      <div className="h-24 rounded-xl bg-white/[0.035]" />
+      <div className="h-24 rounded-xl bg-white/[0.035]" />
     </div>
-  );
+    <div className="h-64 rounded-xl bg-white/[0.03]" />
+  </div>
+);
 
+const App = () => {
   return (
     <Routes>
       <Route path="/" element={
@@ -77,6 +79,7 @@ function RootApp() {
       <QueryClientProvider client={queryClientInstance}>
         <AuthProvider>
           <SettingsProvider>
+            <LocalImagesProvider>
             <AnalysisTimerProvider>
               <TradingProvider>
                 <Router future={{
@@ -91,6 +94,7 @@ function RootApp() {
                 <Toaster />
               </TradingProvider>
             </AnalysisTimerProvider>
+            </LocalImagesProvider>
           </SettingsProvider>
         </AuthProvider>
       </QueryClientProvider>

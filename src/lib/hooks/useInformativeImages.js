@@ -9,7 +9,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { db } from '@/lib/db';
 
-const INFORMATIVE_IMAGES_QUERY_KEY = ['informativeImages'];
+export const INFORMATIVE_IMAGES_QUERY_KEY = ['informativeImages'];
 
 export function useInformativeImages() {
   const queryClient = useQueryClient();

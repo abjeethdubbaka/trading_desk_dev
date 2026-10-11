@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -9,7 +9,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { AlertTriangle, Info, Lightbulb, Loader2, Star } from 'lucide-react';
+import { AlertTriangle, Info, Lightbulb, Loader2 } from 'lucide-react';
 import { cn } from "@/lib/utils";
 import DirectionToggle from './DirectionToggle';
 import PriceFields from './PriceFields';
@@ -19,6 +19,8 @@ import EmotionsSelect from './EmotionsSelect';
 import NotesFields from './NotesFields';
 import ScreenshotUpload from './ScreenshotUpload';
 import { SETUP_TYPE_OPTIONS as DEFAULT_SETUP_TYPE_OPTIONS } from '../constants/tradeConstants';
+
+const SIMPLE_GRADE_OPTIONS = ['A+', 'A', 'B', 'C', 'D', 'E', 'F'].map((g) => ({ value: g, label: g }));
 
 const CAP_OPTIONS = [
   { value: 'micro', label: 'Micro (<10M)' },
@@ -41,10 +43,14 @@ export default function AddTradeForm({
     uploading,
     setupTypeOptions = DEFAULT_SETUP_TYPE_OPTIONS,
     selectedPlaybookEntry = null,
+    sizeRiskInfo = { actualRisk: null, expectedRisk: null, isOversized: false, riskRatio: null, suggestedSizeGrade: null },
+    ratingBreakdown = { total: 0, factors: [] },
     tradeNudges = [],
     winPrediction = null,
     mistakeOptions = [],
     learningOptions = [],
+    improvementOptions = [],
+    emotionOptions,
     whatWorkedOptions = [],
     autoScreenshotSymbol = null,
     loading,
@@ -57,6 +63,7 @@ export default function AddTradeForm({
     handleBreakoutMetaChange,
   } = controller;
   const selectedCapValue = formData.float_category || formData.share_float_range || 'none';
+  const [showRatingBreakdown, setShowRatingBreakdown] = useState(false);
 
   const tradeOutcome = (() => {
     const entry = Number(formData.entry_price);
@@ -65,6 +72,34 @@ export default function AddTradeForm({
     const rawPnl = formData.direction === 'short' ? entry - exit : exit - entry;
     return rawPnl > 0 ? 'win' : 'loss';
   })();
+
+  // Clears whichever entry/SL/exit criteria (and their grades) were picked
+  // for a now-inapplicable setup — shared by the Setup Type change handler
+  // below and the Direction change handler, since either can invalidate them.
+  const clearSetupSelections = () => {
+    updateField('entry_criteria_used', '');
+    updateField('stop_loss_used', '');
+    updateField('stop_loss_move_used', '');
+    updateField('exit_used', '');
+    updateField('entry_grade', '');
+    updateField('sl_grade', '');
+    updateField('exit_grade', '');
+    updateField('exit_min_r_taken', null);
+    updateField('exit_target_r_taken', null);
+    updateField('exit_stretch_r_taken', null);
+  };
+
+  // If the currently selected setup is direction-locked (Long/Short, not
+  // Both) and no longer matches the trade's new direction, it — and
+  // whichever entry/SL/exit criteria were picked for it — no longer apply.
+  const handleDirectionChange = (value) => {
+    updateField('direction', value);
+    const lockedDirection = selectedPlaybookEntry?.direction;
+    if (lockedDirection && lockedDirection !== 'both' && lockedDirection !== value) {
+      updateField('setup_type', '');
+      clearSetupSelections();
+    }
+  };
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6 mt-4">
@@ -90,7 +125,7 @@ export default function AddTradeForm({
 
         <DirectionToggle
           value={formData.direction}
-          onChange={(value) => updateField('direction', value)}
+          onChange={handleDirectionChange}
         />
       </div>
 
@@ -126,6 +161,7 @@ export default function AddTradeForm({
           stop_loss: formData.stop_loss,
           position_size: formData.position_size,
           fee: formData.fee,
+          mfe_price: formData.mfe_price,
           tick_size: formData.tick_size,
           tick_value: formData.tick_value,
           futures_preset: formData.futures_preset,
@@ -151,24 +187,66 @@ export default function AddTradeForm({
       />
 
       {(() => {
+        // Entry/Exit/Stop Loss criteria come from the Playbook as
+        // { text, grade } items — picking one auto-fills the matching grade
+        // field below (trader can still override it manually afterward).
+        // Stop Loss Move has no grading and stays a plain string list.
+        const toGradedOption = (item) => (
+          typeof item === 'string' ? { text: item, grade: '' } : { text: item?.text || '', grade: item?.grade || '' }
+        );
+
         const playbookSLPlan = selectedPlaybookEntry?.has_sl_exit_plan === true;
-        const slOptions = selectedPlaybookEntry?.stop_loss_management || [];
+        const slOptions = (selectedPlaybookEntry?.stop_loss_management || []).map(toGradedOption);
         const slMoveOptions = selectedPlaybookEntry?.stop_loss_move || [];
-        const exitOptions = selectedPlaybookEntry?.exit_criteria || [];
-        const gradeCriteria = selectedPlaybookEntry?.grade_criteria;
-        const gradeOptions = [
-          ['A+', gradeCriteria?.a_plus],
-          ['A', gradeCriteria?.a],
-          ['B', gradeCriteria?.b],
-          ['C', gradeCriteria?.c],
-        ]
-          .filter(([, description]) => description)
-          .map(([value, description]) => ({ value, label: `${value} — ${description}` }));
+
+        // The setup's Exit Strategy — its Min/Target/Stretch R scale-out
+        // levels from Playbook's "Expected R & Exit Allocation". Only levels
+        // that are actually configured (a positive R value) are shown, so an
+        // unconfigured Stretch level (say) doesn't get its own dropdown.
+        const expectedRProfile = selectedPlaybookEntry?.expected_r_profile || null;
+        const exitAllocationLevels = [
+          { key: 'exit_min_r_taken', label: 'Ex1 — Min R', r: expectedRProfile?.min, percent: expectedRProfile?.min_percent },
+          { key: 'exit_target_r_taken', label: 'Ex2 — Target R', r: expectedRProfile?.target, percent: expectedRProfile?.target_percent },
+          { key: 'exit_stretch_r_taken', label: 'Ex3 — Stretch R', r: expectedRProfile?.stretch, percent: expectedRProfile?.stretch_percent },
+        ].filter((level) => Number.isFinite(Number(level.r)) && Number(level.r) > 0);
+
+        // "Exit Strategy" is a synthetic Exit option (not a Playbook exit
+        // criterion) that only appears once the setup actually has scale-out
+        // levels configured. Only picking it — not any other exit rule —
+        // reveals the "Levels Taken" panel, since picking e.g. "Exit at
+        // VWAP" doesn't mean the trader is running the Min/Target/Stretch plan.
+        const EXIT_STRATEGY_OPTION = 'Exit Strategy';
+        const playbookExitOptions = (selectedPlaybookEntry?.exit_criteria || []).map(toGradedOption);
+        // A setup may already name an exit criterion "Exit Strategy", and an
+        // option list is keyed by its text — so dedupe rather than appending a
+        // second one. The setup's own wording (and grade) wins.
+        const seenExitOptions = new Set();
+        const exitOptions = [
+          ...playbookExitOptions,
+          ...(exitAllocationLevels.length > 0 ? [{ text: EXIT_STRATEGY_OPTION, grade: '' }] : []),
+        ].filter((option) => {
+          const key = option.text;
+          if (!key || seenExitOptions.has(key)) return false;
+          seenExitOptions.add(key);
+          return true;
+        });
+
+        // Switching setups invalidates whichever entry/SL/exit criteria (and
+        // their grades) were picked for the old one — they're option values
+        // from that setup's Playbook and won't necessarily exist for the new
+        // one. Clearing them here (only on an actual user change, not on
+        // initial load/edit) prevents a stale exit_used from silently
+        // keeping panels like "Exit Strategy — Levels Taken" visible for a
+        // setup where Exit was never actually picked.
+        const handleSetupTypeChange = (value) => {
+          updateField('setup_type', value);
+          clearSetupSelections();
+        };
 
         const setupTypeSelect = (
           <div className="space-y-2">
             <Label>Setup Type</Label>
-            <Select value={formData.setup_type} onValueChange={(value) => updateField('setup_type', value)}>
+            <Select value={formData.setup_type} onValueChange={handleSetupTypeChange}>
               <SelectTrigger className="bg-white/5 border-white/10">
                 <SelectValue placeholder="Select setup" />
               </SelectTrigger>
@@ -182,7 +260,12 @@ export default function AddTradeForm({
         );
 
         if (playbookSLPlan) {
-          const entryOptions = selectedPlaybookEntry.entry_criteria || [];
+          const entryOptions = (selectedPlaybookEntry.entry_criteria || []).map(toGradedOption);
+          const selectGradedOption = (options, usedField, gradeField) => (value) => {
+            updateField(usedField, value);
+            const matched = options.find((opt) => opt.text === value);
+            if (matched?.grade) updateField(gradeField, matched.grade);
+          };
           return (
             <div className="space-y-3">
               <div>{setupTypeSelect}</div>
@@ -190,41 +273,93 @@ export default function AddTradeForm({
               {/* Step 1: Entry */}
               <div className="space-y-1.5">
                 <Label className="text-emerald-200/80">Entry</Label>
-                <Select value={formData.entry_criteria_used || ''} onValueChange={(value) => updateField('entry_criteria_used', value)}>
+                <Select
+                  value={formData.entry_criteria_used || ''}
+                  onValueChange={selectGradedOption(entryOptions, 'entry_criteria_used', 'entry_grade')}
+                >
                   <SelectTrigger className="bg-emerald-500/[0.06] border-emerald-400/20">
                     <SelectValue placeholder="Which entry trigger did you follow?" />
                   </SelectTrigger>
                   <SelectContent className="bg-[#1a1a24] border-white/10">
                     {entryOptions.map((opt) => (
-                      <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+                      <SelectItem key={opt.text} value={opt.text}>{opt.text}{opt.grade ? ` (${opt.grade})` : ''}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
+                {formData.entry_criteria_used && (
+                  <Select value={formData.entry_grade || ''} onValueChange={(value) => updateField('entry_grade', value)}>
+                    <SelectTrigger className="bg-emerald-500/[0.06] border-emerald-400/20">
+                      <SelectValue placeholder="Entry-Grade — how well was the entry executed?" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-[#1a1a24] border-white/10">
+                      {SIMPLE_GRADE_OPTIONS.map((opt) => (
+                        <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
               </div>
 
               {/* Step 2: Stop Loss — revealed after entry */}
               {formData.entry_criteria_used && (
                 <div className="space-y-1.5">
-                  <Label className="text-violet-200/80">Stop Loss</Label>
-                  <Select value={formData.stop_loss_used || ''} onValueChange={(value) => updateField('stop_loss_used', value)}>
-                    <SelectTrigger className="bg-violet-500/[0.06] border-violet-400/20">
+                  <Label className="text-indigo-200/80">Stop Loss</Label>
+                  <Select
+                    value={formData.stop_loss_used || ''}
+                    onValueChange={selectGradedOption(slOptions, 'stop_loss_used', 'sl_grade')}
+                  >
+                    <SelectTrigger className="bg-indigo-500/[0.06] border-indigo-400/20">
                       <SelectValue placeholder="Which SL rule did you use?" />
                     </SelectTrigger>
                     <SelectContent className="bg-[#1a1a24] border-white/10">
                       {slOptions.map((opt) => (
-                        <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+                        <SelectItem key={opt.text} value={opt.text}>{opt.text}{opt.grade ? ` (${opt.grade})` : ''}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                   {formData.stop_loss_used && (
-                    <Input
-                      type="number"
-                      step="0.01"
-                      value={formData.stop_loss || ''}
-                      onChange={(e) => updateField('stop_loss', e.target.value)}
-                      placeholder="SL price"
-                      className="bg-violet-500/[0.06] border-violet-400/20"
-                    />
+                    <>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        value={formData.stop_loss || ''}
+                        onChange={(e) => updateField('stop_loss', e.target.value)}
+                        placeholder="SL price"
+                        className="bg-indigo-500/[0.06] border-indigo-400/20"
+                      />
+                      <Select value={formData.sl_grade || ''} onValueChange={(value) => updateField('sl_grade', value)}>
+                        <SelectTrigger className="bg-indigo-500/[0.06] border-indigo-400/20">
+                          <SelectValue placeholder="SL-Grade — how well was the stop managed?" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-[#1a1a24] border-white/10">
+                          {SIMPLE_GRADE_OPTIONS.map((opt) => (
+                            <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      {sizeRiskInfo.isOversized && (
+                        <div className="flex items-center gap-1.5 rounded-lg border border-rose-500/30 bg-rose-500/10 px-2.5 py-1.5 text-xs text-rose-300">
+                          <AlertTriangle className="h-3.5 w-3.5 flex-shrink-0" />
+                          Oversized — ${Math.round(sizeRiskInfo.actualRisk).toLocaleString()} risked vs ${Math.round(sizeRiskInfo.expectedRisk).toLocaleString()} intended for this setup
+                        </div>
+                      )}
+                      <Select value={formData.size_grade || ''} onValueChange={(value) => updateField('size_grade', value)}>
+                        <SelectTrigger className="bg-indigo-500/[0.06] border-indigo-400/20">
+                          <SelectValue placeholder="Size-Grade — how well sized was this position?" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-[#1a1a24] border-white/10">
+                          {SIMPLE_GRADE_OPTIONS.map((opt) => (
+                            <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      {sizeRiskInfo.suggestedSizeGrade && (
+                        <p className="flex items-center gap-1 text-[11px] text-white/40">
+                          <Info className="h-3 w-3 flex-shrink-0" />
+                          Auto-graded {sizeRiskInfo.suggestedSizeGrade} — ${Math.round(sizeRiskInfo.actualRisk).toLocaleString()} risked vs ${Math.round(sizeRiskInfo.expectedRisk).toLocaleString()} intended ({sizeRiskInfo.riskRatio.toFixed(2)}×). Change it above if you disagree.
+                        </p>
+                      )}
+                    </>
                   )}
                 </div>
               )}
@@ -246,37 +381,67 @@ export default function AddTradeForm({
                     </Select>
                   </div>
                   <div className="space-y-1.5">
-                    <Label className="text-cyan-200/80">Exit</Label>
-                    <Select value={formData.exit_used || ''} onValueChange={(value) => updateField('exit_used', value)}>
-                      <SelectTrigger className="bg-cyan-500/[0.06] border-cyan-400/20">
+                    <Label className="text-teal-200/80">Exit</Label>
+                    <Select
+                      value={formData.exit_used || ''}
+                      onValueChange={selectGradedOption(exitOptions, 'exit_used', 'exit_grade')}
+                    >
+                      <SelectTrigger className="bg-teal-500/[0.06] border-teal-400/20">
                         <SelectValue placeholder="Which exit rule did you follow?" />
                       </SelectTrigger>
                       <SelectContent className="bg-[#1a1a24] border-white/10">
                         {exitOptions.map((opt) => (
-                          <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+                          <SelectItem key={opt.text} value={opt.text}>{opt.text}{opt.grade ? ` (${opt.grade})` : ''}</SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
+                    {formData.exit_used && (
+                      <Select value={formData.exit_grade || ''} onValueChange={(value) => updateField('exit_grade', value)}>
+                        <SelectTrigger className="bg-teal-500/[0.06] border-teal-400/20">
+                          <SelectValue placeholder="Exit-Grade — how well was the exit executed?" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-[#1a1a24] border-white/10">
+                          {SIMPLE_GRADE_OPTIONS.map((opt) => (
+                            <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
                   </div>
                 </div>
               )}
 
-              {/* Step 4: Grade — revealed after exit, using the setup's Grade Criteria */}
-              {formData.exit_used && gradeOptions.length > 0 && (
+              {/* Exit Strategy — was each configured scale-out level taken? */}
+              {formData.exit_used === EXIT_STRATEGY_OPTION && exitAllocationLevels.length > 0 && (
                 <div className="space-y-1.5">
-                  <Label className="text-fuchsia-200/80">Grade</Label>
-                  <Select value={formData.setup_grade || ''} onValueChange={(value) => updateField('setup_grade', value)}>
-                    <SelectTrigger className="bg-fuchsia-500/[0.06] border-fuchsia-400/20">
-                      <SelectValue placeholder="How would you grade this execution?" />
-                    </SelectTrigger>
-                    <SelectContent className="bg-[#1a1a24] border-white/10">
-                      {gradeOptions.map((opt) => (
-                        <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <Label className="text-teal-200/80">Exit Strategy — Levels Taken</Label>
+                  <div className={cn(
+                    'grid grid-cols-1 gap-2',
+                    exitAllocationLevels.length === 2 ? 'md:grid-cols-2' : exitAllocationLevels.length >= 3 ? 'md:grid-cols-3' : '',
+                  )}>
+                    {exitAllocationLevels.map((level) => (
+                      <div key={level.key} className="space-y-1">
+                        <p className="text-[10px] text-white/40">
+                          {level.label} ({Number(level.r).toFixed(1)}R{Number.isFinite(Number(level.percent)) && Number(level.percent) > 0 ? ` @ ${Number(level.percent)}%` : ''})
+                        </p>
+                        <Select
+                          value={formData[level.key] === true ? 'yes' : formData[level.key] === false ? 'no' : ''}
+                          onValueChange={(value) => updateField(level.key, value === 'yes')}
+                        >
+                          <SelectTrigger className="bg-teal-500/[0.06] border-teal-400/20">
+                            <SelectValue placeholder="Taken?" />
+                          </SelectTrigger>
+                          <SelectContent className="bg-[#1a1a24] border-white/10">
+                            <SelectItem value="yes">Yes</SelectItem>
+                            <SelectItem value="no">No</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
+
             </div>
           );
         }
@@ -287,15 +452,31 @@ export default function AddTradeForm({
             <div>{setupTypeSelect}</div>
             {hasSetupSelected && (
               <div className="space-y-1.5">
-                <Label className="text-violet-200/80">Stop Loss</Label>
+                <Label className="text-indigo-200/80">Stop Loss</Label>
                 <Input
                   type="number"
                   step="0.01"
                   value={formData.stop_loss || ''}
                   onChange={(e) => updateField('stop_loss', e.target.value)}
                   placeholder="SL price"
-                  className="bg-violet-500/[0.06] border-violet-400/20"
+                  className="bg-indigo-500/[0.06] border-indigo-400/20"
                 />
+                {sizeRiskInfo.isOversized && (
+                  <div className="flex items-center gap-1.5 rounded-lg border border-rose-500/30 bg-rose-500/10 px-2.5 py-1.5 text-xs text-rose-300">
+                    <AlertTriangle className="h-3.5 w-3.5 flex-shrink-0" />
+                    Oversized — ${Math.round(sizeRiskInfo.actualRisk).toLocaleString()} risked vs ${Math.round(sizeRiskInfo.expectedRisk).toLocaleString()} intended
+                  </div>
+                )}
+                <Select value={formData.size_grade || ''} onValueChange={(value) => updateField('size_grade', value)}>
+                  <SelectTrigger className="bg-indigo-500/[0.06] border-indigo-400/20">
+                    <SelectValue placeholder="Size-Grade — how well sized was this position?" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-[#1a1a24] border-white/10">
+                    {SIMPLE_GRADE_OPTIONS.map((opt) => (
+                      <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             )}
           </div>
@@ -362,15 +543,17 @@ export default function AddTradeForm({
       <EmotionsSelect
         value={formData.emotions}
         onChange={(value) => updateField('emotions', value)}
+        options={emotionOptions}
       />
 
       <NotesFields
         setupType={formData.setup_type}
-        setupGrade={formData.setup_grade}
+        setupGrade={formData.entry_grade}
         breakoutChecklist={formData.breakout_checklist}
         reflectionAnswers={formData.reflection_answers}
         mistakeOptions={mistakeOptions}
         learningOptions={learningOptions}
+        improvementOptions={improvementOptions}
         whatWorkedOptions={whatWorkedOptions}
         outcome={tradeOutcome}
         onReflectionChange={handleReflectionChange}
@@ -385,36 +568,48 @@ export default function AddTradeForm({
             Auto
           </span>
         </div>
-        <div className="flex items-center gap-3 rounded-md border border-white/10 bg-white/5 px-3 py-2">
-          <div className="flex items-center gap-0.5">
-            {[1, 2, 3, 4, 5].map((star) => {
-              const filled = Number(formData.overall_rating) >= star;
-              return (
-                <button
-                  key={star}
-                  type="button"
-                  onClick={() => updateField('overall_rating', formData.overall_rating === star ? null : star)}
-                  className="p-0.5"
-                  title={`${star} star${star === 1 ? '' : 's'}`}
-                >
-                  <Star
-                    className={cn(
-                      'w-4 h-4 transition-colors',
-                      filled ? 'fill-amber-400 text-amber-400' : 'text-white/20'
-                    )}
-                  />
-                </button>
-              );
-            })}
+        <div className="rounded-md border border-white/10 bg-white/5 px-3 py-2.5 space-y-2">
+          <div className="flex items-center gap-3">
+            <div className="flex items-baseline gap-0.5">
+              <span className={cn(
+                'text-lg font-bold font-mono',
+                formData.overall_rating >= 7 ? 'text-emerald-400' : formData.overall_rating >= 4 ? 'text-amber-400' : 'text-rose-400'
+              )}>
+                {formData.overall_rating != null ? formData.overall_rating : '—'}
+              </span>
+              <span className="text-xs text-white/30">/10</span>
+            </div>
+            <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-white/10">
+              <div
+                className={cn(
+                  'h-full rounded-full transition-all duration-300',
+                  formData.overall_rating >= 7 ? 'bg-emerald-400' : formData.overall_rating >= 4 ? 'bg-amber-400' : 'bg-rose-400'
+                )}
+                style={{ width: `${Math.min(100, Math.max(0, ((formData.overall_rating || 0) / 10) * 100))}%` }}
+              />
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowRatingBreakdown((prev) => !prev)}
+              className="flex-shrink-0 text-[10px] font-semibold text-cyan-300/80 hover:text-cyan-200 underline decoration-dotted underline-offset-2"
+            >
+              {showRatingBreakdown ? 'Hide' : 'Why?'}
+            </button>
           </div>
-          <p className="text-[11px] text-white/35 leading-tight">
-            {formData.overall_rating === 5 && 'All criteria met · clean execution'}
-            {formData.overall_rating === 4 && 'All criteria met · area to improve'}
-            {formData.overall_rating === 3 && 'Partial criteria met'}
-            {formData.overall_rating === 2 && 'Setup only · missing criteria'}
-            {formData.overall_rating === 1 && 'No entry / SL / exit criteria'}
-            {!formData.overall_rating && 'Fill in setup + criteria to auto-rate'}
-          </p>
+          {showRatingBreakdown ? (
+            <div className="space-y-1 border-t border-white/10 pt-2">
+              {ratingBreakdown.factors.map((factor) => (
+                <div key={factor.label} className="flex items-center justify-between text-[11px]">
+                  <span className="text-white/50">{factor.label} <span className="text-white/25">({factor.detail})</span></span>
+                  <span className="font-mono text-white/75">{factor.score.toFixed(2)} / {factor.weight.toFixed(1)}</span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-[11px] text-white/35 leading-tight">
+              Scored from Entry/Exit/SL/Size-Grade and emotions.
+            </p>
+          )}
         </div>
       </div>
 
@@ -453,24 +648,28 @@ export default function AddTradeForm({
                 key={nudge.id}
                 className={cn(
                   'flex items-start gap-2.5 rounded-xl border px-3 py-2.5',
+                  // Severity ladder uses colors not already claimed as section
+                  // identity elsewhere on this form (emerald=Entry, indigo=Stop
+                  // Loss, amber=SL Move, teal=Exit) so a nudge's color can't be
+                  // mistaken for "which field group is this".
                   isWarning
                     ? 'border-amber-400/25 bg-amber-500/[0.07]'
                     : isCaution
-                    ? 'border-cyan-400/20 bg-cyan-500/[0.06]'
-                    : 'border-violet-400/20 bg-violet-500/[0.06]'
+                    ? 'border-orange-400/20 bg-orange-500/[0.06]'
+                    : 'border-sky-400/20 bg-sky-500/[0.06]'
                 )}
               >
                 <Icon
                   className={cn(
                     'mt-0.5 h-3.5 w-3.5 flex-shrink-0',
-                    isWarning ? 'text-amber-400' : isCaution ? 'text-cyan-400' : 'text-violet-400'
+                    isWarning ? 'text-amber-400' : isCaution ? 'text-orange-400' : 'text-sky-400'
                   )}
                 />
                 <div className="min-w-0">
                   <p
                     className={cn(
                       'text-[11px] font-semibold leading-tight',
-                      isWarning ? 'text-amber-200' : isCaution ? 'text-cyan-200' : 'text-violet-200'
+                      isWarning ? 'text-amber-200' : isCaution ? 'text-orange-200' : 'text-sky-200'
                     )}
                   >
                     {nudge.title}

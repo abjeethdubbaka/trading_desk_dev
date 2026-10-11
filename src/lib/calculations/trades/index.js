@@ -34,4 +34,4 @@ export {
 export { buildStrategyEngineSnapshot } from './analytics/strategyEngine.js';
 export { resolveShareFloatRange } from './shared/shareFloat.js';
 export { calcExitTargets } from './calculators/exits.js';
-export { calcPosition, calcFuturesPosition, FUTURES_CONTRACTS } from './calculators/position.js';
+export { calcPosition, calcFuturesPosition, FUTURES_CONTRACTS, toPointValue, toTickValue } from './calculators/position.js';

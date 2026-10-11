@@ -1,6 +1,8 @@
 import { useMemo } from 'react';
 import { computeTradeSetupQuality } from '@/lib/calculations/trades';
 
+// Only backfills the numeric quality score for display — entry_grade/sl_grade/
+// exit_grade are trader-selected and must never be recomputed or overwritten here.
 export function useTradesWithQuality(trades, riskLimit) {
   return useMemo(() => {
     if (!Array.isArray(trades)) return [];
@@ -11,10 +13,8 @@ export function useTradesWithQuality(trades, riskLimit) {
       const currentScore = Number.isFinite(Number(trade?.setup_quality_score))
         ? Math.round(Number(trade.setup_quality_score))
         : null;
-      const currentGrade = String(trade?.setup_grade || '').trim();
-      const nextGrade = String(quality.grade || '').trim();
-      if (currentScore === normalizedScore && currentGrade === nextGrade) return trade;
-      return { ...trade, setup_quality_score: normalizedScore, setup_grade: nextGrade || trade?.setup_grade || '' };
+      if (currentScore === normalizedScore) return trade;
+      return { ...trade, setup_quality_score: normalizedScore };
     });
   }, [trades, riskLimit]);
 }

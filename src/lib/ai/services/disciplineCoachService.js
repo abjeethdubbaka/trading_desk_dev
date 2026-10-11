@@ -5,9 +5,9 @@ import { requestSecureAI, hasSecureAIBridge, SECURE_AI_KINDS } from './secureAIB
  * Uses a backend endpoint when configured.
  */
 
-const COACH_ENDPOINT = import.meta.env.VITE_DISCIPLINE_COACH_ENDPOINT;
-const COACH_API_KEY = import.meta.env.VITE_DISCIPLINE_COACH_API_KEY;
-const COACH_TIMEOUT_MS = Number(import.meta.env.VITE_DISCIPLINE_COACH_TIMEOUT_MS || 12000);
+const COACH_ENDPOINT = import.meta.env?.VITE_DISCIPLINE_COACH_ENDPOINT;
+const COACH_API_KEY = import.meta.env?.VITE_DISCIPLINE_COACH_API_KEY;
+const COACH_TIMEOUT_MS = Number(import.meta.env?.VITE_DISCIPLINE_COACH_TIMEOUT_MS || 12000);
 
 export function isDisciplineCoachEnabled() {
   return Boolean(COACH_ENDPOINT) || hasSecureAIBridge();

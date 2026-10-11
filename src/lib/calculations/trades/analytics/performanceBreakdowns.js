@@ -115,6 +115,8 @@ export function perfBySetupType(trades = []) {
         rCount: 0,
         lossRSum: 0,
         lossRCount: 0,
+        winRSum: 0,
+        winRCount: 0,
       };
     }
 
@@ -130,6 +132,9 @@ export function perfBySetupType(trades = []) {
       if (pnl < 0) {
         groups[key].lossRSum += trade.r_multiple;
         groups[key].lossRCount += 1;
+      } else if (pnl > 0) {
+        groups[key].winRSum += trade.r_multiple;
+        groups[key].winRCount += 1;
       }
     }
   }
@@ -141,6 +146,8 @@ export function perfBySetupType(trades = []) {
       trades: group.trades,
       winRate: pct(group.wins, group.trades),
       avgR: group.rCount > 0 ? round(group.rSum / group.rCount, 2) : 0,
+      hasR: group.rCount > 0,
+      avgWinR: group.winRCount > 0 ? round(group.winRSum / group.winRCount, 2) : null,
       avgLossR: group.lossRCount > 0 ? round(group.lossRSum / group.lossRCount, 2) : null,
       avgPnL: group.trades > 0 ? round(group.totalPnL / group.trades, 2) : 0,
     }))

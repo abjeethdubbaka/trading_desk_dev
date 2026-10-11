@@ -1,0 +1,1 @@
+import{j as o}from"./vendor-react-BaaqeNbO.js";import{c as r}from"./index-DPPDxR10.js";function a({className:e,...t}){return o.jsx("div",{className:r("animate-pulse rounded bg-white/[0.06]",e),...t})}export{a as S};

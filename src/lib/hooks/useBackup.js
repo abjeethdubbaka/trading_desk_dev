@@ -1,12 +1,10 @@
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { db } from '@/lib/db';
 import { tradeKeys } from './useTrades/queryKeys';
 import { settingsKeys } from '../utils/queryKeys';
 
 const LAST_BACKUP_KEY = 'tradedesk_last_backup';
-const AUTO_BACKUP_RUN_KEY = 'tradedesk_auto_backup_last_run';
-const AUTO_BACKUP_HOUR = 10; // 10 AM
 
 export function getLastBackupInfo() {
   try {
@@ -72,12 +70,26 @@ export function useBackup() {
   const importBackup = useCallback(async (backupData, options = {}) => {
     setIsImporting(true);
     try {
-      const results = { trades: 0, settings: false, dosAndDonts: false };
+      const results = { trades: 0, removed: 0, settings: false, dosAndDonts: false };
 
-      if (options.trades && Array.isArray(backupData.trades) && backupData.trades.length > 0) {
+      if (options.trades && Array.isArray(backupData.trades)) {
+        // A restore puts the account back to the state the file describes, so
+        // the tier's current trades go first. Without this the file's trades
+        // land alongside the existing ones and every trade is counted twice.
+        const currentSettings = await db.settings.get();
+        const accountType = currentSettings?.account_type || 'demo';
+        const existing = await db.trades.list({});
+
+        for (const trade of existing) {
+          if ((trade?.account_type || 'demo') === accountType && trade?.id) {
+            await db.trades.delete(trade.id);
+            results.removed += 1;
+          }
+        }
+
         for (const trade of backupData.trades) {
           const { id: _id, ...tradeData } = trade;
-          await db.trades.create(tradeData);
+          await db.trades.create({ ...tradeData, account_type: tradeData.account_type || accountType });
         }
         results.trades = backupData.trades.length;
         queryClient.invalidateQueries({ queryKey: tradeKeys.lists() });
@@ -104,71 +116,4 @@ export function useBackup() {
   }, [queryClient]);
 
   return { isExporting, isImporting, exportBackup, importBackup };
-}
-
-function shouldRunAutoBackup() {
-  try {
-    const lastRun = localStorage.getItem(AUTO_BACKUP_RUN_KEY);
-    const now = new Date();
-    if (now.getHours() < AUTO_BACKUP_HOUR) return false;
-    if (!lastRun) return true;
-    const last = new Date(lastRun);
-    return last.toDateString() !== now.toDateString();
-  } catch {
-    return false;
-  }
-}
-
-function markAutoBackupRan() {
-  try {
-    localStorage.setItem(AUTO_BACKUP_RUN_KEY, new Date().toISOString());
-  } catch {}
-}
-
-export function useAutoBackup() {
-  const hasTriedRef = useRef(false);
-
-  useEffect(() => {
-    if (hasTriedRef.current) return;
-    hasTriedRef.current = true;
-
-    if (!shouldRunAutoBackup()) return;
-
-    // Delay auto-backup until the app has settled — avoids competing with
-    // settings + initial page queries on startup.
-    let timerId;
-
-    const run = async () => {
-      try {
-        const [trades, settings, dosAndDonts] = await Promise.all([
-          db.trades.list({}),
-          db.settings.get(),
-          db.dosAndDonts.get(),
-        ]);
-
-        const backup = {
-          version: 1,
-          app: 'TradeDesk Pro',
-          exported_at: new Date().toISOString(),
-          trades: trades || [],
-          settings: settings || {},
-          dosAndDonts: dosAndDonts || {},
-        };
-
-        const info = {
-          at: new Date().toISOString(),
-          tradesCount: (trades || []).length,
-          data: backup,
-        };
-
-        localStorage.setItem(LAST_BACKUP_KEY, JSON.stringify({ at: info.at, tradesCount: info.tradesCount }));
-        markAutoBackupRan();
-      } catch {
-        // Silent — auto-backup must not disrupt the user
-      }
-    };
-
-    timerId = setTimeout(run, 8000);
-    return () => clearTimeout(timerId);
-  }, []);
 }

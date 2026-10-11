@@ -1,8 +1,10 @@
 import React from 'react';
-import { Pause, Play, RotateCcw } from 'lucide-react';
+import { Loader2, Pause, Play, Plus, RotateCcw } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import { formatAnalysisTimer, useAnalysisTimer } from '@/lib/context/AnalysisTimerContext';
-import { asMoney, asWholeMoney, SWEET_MID } from './resultsDisplayUtils';
+import { asMoney, SWEET_MID } from './resultsDisplayUtils';
 import { useResultsDisplayCalculations } from './useResultsDisplayCalculations';
 import ExitStrategyLadder from './ExitStrategyLadder';
 
@@ -16,12 +18,11 @@ function StatBlock({ label, value, color = 'text-white', sub = null }) {
   );
 }
 
-export default function ResultsDisplay({
+function ResultsDisplay({
   entryPrice,
   stopLossPrice,
   targetProfit,
   shares,
-  positionValue,
   actualRisk,
   requestedRisk,
   riskUtilizationPct,
@@ -33,7 +34,25 @@ export default function ResultsDisplay({
   playbookSetupName = null,
   onApplyStop,
   onApplyEntry,
+  todayPnL = 0,
+  maxDailyLoss = 0,
+  todayTradeCount = 0,
+  maxDailyTrades = null,
+  exitPrice = '',
+  onExitPriceChange,
+  onAddToJournal,
+  canAddToJournal = false,
+  isSavingTrade = false,
+  // Futures: exits are priced in ticks, worth tick value each per contract.
+  isFutures = false,
+  tickSize,
+  tickValue,
+  stopTicks,
 }) {
+  const hasTradeLimit = maxDailyTrades != null
+    && Number.isFinite(Number(maxDailyTrades))
+    && Number(maxDailyTrades) > 0;
+  const tradeLimit = hasTradeLimit ? Number(maxDailyTrades) : null;
   const {
     timerDurationSeconds,
     hasStarted,
@@ -46,8 +65,6 @@ export default function ResultsDisplay({
   } = useAnalysisTimer();
 
   const {
-    displayTotalProfit,
-    blendedR,
     riskUsageSubtext,
     ladderSegments,
     ladderCheckpoints,
@@ -71,6 +88,10 @@ export default function ResultsDisplay({
     isTimerRunning,
     isExpired,
     remainingSeconds,
+    isFutures,
+    tickSize,
+    tickValue,
+    stopTicks,
   });
 
   const isTimerUrgentBlink = isTimerRunning && remainingSeconds > 0 && remainingSeconds <= 10;
@@ -134,7 +155,7 @@ export default function ResultsDisplay({
 
         {/* Focal numbers + stats */}
         <div className="flex-1 p-4 space-y-4">
-          {/* Position Size | Max Profit | Deployed + At Risk */}
+          {/* Position Size | At Risk */}
           <div className="flex items-start gap-6 flex-wrap">
             <div className="min-w-0">
               <p className="text-[9px] uppercase tracking-[0.18em] text-white/35">Position Size</p>
@@ -144,20 +165,7 @@ export default function ResultsDisplay({
               <p className="mt-1 text-[11px] text-white/30 tracking-wide">shares</p>
             </div>
 
-            {displayTotalProfit != null && (
-              <div className="border-l border-white/10 pl-6 min-w-0">
-                <p className="text-[9px] uppercase tracking-[0.18em] text-white/35">Max Profit</p>
-                <p className="mt-0.5 text-[28px] font-black leading-none tabular-nums text-emerald-300">
-                  +{asMoney(displayTotalProfit)}
-                </p>
-                {blendedR != null && (
-                  <p className="mt-1 text-[11px] text-purple-300/70 tracking-wide">{blendedR.toFixed(2)}R blended</p>
-                )}
-              </div>
-            )}
-
             <div className="border-l border-white/10 pl-6 flex gap-5">
-              <StatBlock label="Deployed" value={asWholeMoney(positionValue)} color="text-white/70" />
               <div className="flex gap-5">
                 <StatBlock label="At Risk" value={asMoney(actualRisk)} color="text-rose-300" sub={riskUsageSubtext} />
                 {(() => {
@@ -212,6 +220,47 @@ export default function ResultsDisplay({
                 })()}
               </div>
             </div>
+
+            {/* Today's standing sits beside the position's own risk: how much
+                is on the line here, against how much is left for the day. */}
+            <div className="ml-auto flex items-center gap-1.5 self-center">
+          {/* How many trades today, against the cap — the other number that
+              decides whether this position should be taken at all. */}
+          <span
+            className={cn(
+              'rounded border px-1.5 py-0.5 font-mono text-[10px] font-semibold tabular-nums',
+              !hasTradeLimit
+                ? 'border-white/10 bg-white/[0.03] text-white/50'
+                : todayTradeCount >= tradeLimit
+                  ? 'border-rose-500/35 bg-rose-500/12 text-rose-300'
+                  : todayTradeCount >= tradeLimit - 1
+                    ? 'border-amber-500/35 bg-amber-500/12 text-amber-300'
+                    : 'border-emerald-500/25 bg-emerald-500/8 text-emerald-300',
+            )}
+            title="Trades taken today against this tier's daily trade cap"
+          >
+            {todayTradeCount}{hasTradeLimit ? `/${tradeLimit}` : ''}T
+          </span>
+
+          {/* Where today stands against the loss cap — the number that decides
+              whether this position should be taken at all. */}
+          {maxDailyLoss > 0 && (
+            <span
+              className={cn(
+                'rounded border px-1.5 py-0.5 font-mono text-[10px] font-semibold',
+                todayPnL <= -maxDailyLoss
+                  ? 'border-rose-500/35 bg-rose-500/10 text-rose-300'
+                  : todayPnL < 0
+                    ? 'border-amber-500/25 bg-amber-500/[0.08] text-amber-300'
+                    : 'border-white/10 bg-white/[0.03] text-white/50',
+              )}
+              title="Today's P&L against this tier's daily loss limit"
+            >
+              {todayPnL >= 0 ? '+' : '-'}${Math.abs(todayPnL).toFixed(0)}
+              <span className="opacity-50"> / ${maxDailyLoss.toFixed(0)}</span>
+            </span>
+          )}
+            </div>
           </div>
         </div>
 
@@ -228,6 +277,38 @@ export default function ResultsDisplay({
         isExpired={isExpired}
         isNearEnd={isNearEnd}
       />
+
+      {/* Closing the trade belongs to the position, not to the sizing form. */}
+      {typeof onAddToJournal === 'function' && (
+        <div className="flex items-center gap-2 border-t border-white/8 bg-white/[0.02] px-4 py-2.5">
+          <span className="text-[10px] uppercase tracking-widest text-white/40">Close at</span>
+          <Input
+            type="text"
+            inputMode="decimal"
+            value={exitPrice}
+            onChange={(event) => onExitPriceChange?.(event.target.value)}
+            onKeyDown={(event) => { if (event.key === 'Enter' && canAddToJournal) onAddToJournal(); }}
+            placeholder="Exit price"
+            className="h-9 w-32 bg-white/5 border-white/10 font-mono text-sm tabular-nums focus-visible:ring-emerald-500/30"
+            disabled={isSavingTrade}
+          />
+          <Button
+            onClick={onAddToJournal}
+            disabled={!canAddToJournal || isSavingTrade}
+            className="h-9 gap-1.5 bg-emerald-600 px-3 text-xs font-semibold hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-40"
+            title="Save this position to the journal as a closed trade"
+          >
+            {isSavingTrade
+              ? <Loader2 className="h-4 w-4 animate-spin" />
+              : <><Plus className="h-4 w-4" />Log Trade</>}
+          </Button>
+          {!canAddToJournal && !isSavingTrade && (
+            <span className="text-[10px] text-white/30">needs a stop and an exit</span>
+          )}
+        </div>
+      )}
     </div>
   );
 }
+
+export default React.memo(ResultsDisplay);

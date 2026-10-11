@@ -68,6 +68,7 @@
       "dist/**/*",
       "public/electron.cjs",
       "public/preload.js",
+      "public/guardian/**/*",
       "node_modules/**/*"
     ],
     "mac": {
@@ -80,6 +81,9 @@
     "linux": {
       "target": "AppImage",
       "category": "Office"
-    }
+    },
+    "asarUnpack": [
+      "public/guardian/worker.ps1"
+    ]
   }
 }

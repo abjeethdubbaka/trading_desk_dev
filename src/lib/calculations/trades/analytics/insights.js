@@ -2,6 +2,7 @@ import { calcCoreStats } from './coreStats.js';
 import { perfBySetupType } from './performanceBreakdowns.js';
 import { pct, round } from '../shared/helpers.js';
 import { getTradePnL } from '../../../utils/tradeFields.js';
+import { getRiskMultiplier, normalizeRiskPercent } from '../../../playbook/utils.js';
 
 const LEGACY_STEP_KEYS = [
   'smoothVWAPPullback',
@@ -26,13 +27,12 @@ const normalizeBoolean = (value) => {
 const normalizeStepGrade = (value) => {
   const normalized = String(value ?? '').trim().toUpperCase();
   if (!normalized) return '';
-  if (normalized === 'A++' || normalized === 'A+' || ['A', 'B', 'C', 'D', 'F'].includes(normalized)) return normalized;
+  if (normalized === 'A+' || ['A', 'B', 'C', 'D', 'F'].includes(normalized)) return normalized;
   return '';
 };
 
 const STEP_GRADE_POINTS_MAP = {
-  'A++': 10,
-  'A+': 9,
+  'A+': 10,
   'A': 8,
   'B': 6,
   'C': 4,
@@ -465,11 +465,10 @@ export function analyzeMistakePatterns(trades = [], limit = 5) {
   };
 }
 
-const RISK_LEVEL_MULTIPLIER = { half: 0.5, normal: 1.0, oneandahalf: 1.5, double: 2.0 };
 
 /**
  * For each losing trade, compares the actual loss against the max allowed loss
- * for that setup (base risk × setup risk_level multiplier). Accumulates how much
+ * for that setup (base risk × setup risk percent). Accumulates how much
  * would have been saved had the trader respected the setup's risk limit.
  *
  * @param {Array}  trades           - trades array (already filtered to period)
@@ -497,7 +496,7 @@ export function calcDisciplineSavings(trades = [], playbookEntries = [], baseRis
 
     const setupName = String(trade?.setup_type || '').trim();
     const entry = setupName ? setupMap.get(setupName.toLowerCase()) : null;
-    const multiplier = RISK_LEVEL_MULTIPLIER[entry?.risk_level] ?? 1.0;
+    const multiplier = getRiskMultiplier(entry);
     const allowedLoss = round(base * multiplier, 2);
     const actualLoss = Math.abs(pnl);
 
@@ -513,7 +512,7 @@ export function calcDisciplineSavings(trades = [], playbookEntries = [], baseRis
     if (!bySetup.has(key)) {
       bySetup.set(key, {
         setup: key,
-        riskLevel: entry?.risk_level ?? 'normal',
+        riskPercent: normalizeRiskPercent(entry?.risk_percent, entry?.risk_level),
         multiplier,
         allowedLoss,
         totalSaved: 0,

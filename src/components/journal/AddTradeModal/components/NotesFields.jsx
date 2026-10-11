@@ -13,6 +13,7 @@ import {
 import KeywordToggleGroup from './KeywordToggleGroup';
 import { DEFAULT_MISTAKES } from '@/lib/constants/mistakes';
 import { DEFAULT_LEARNINGS } from '@/lib/constants/learnings';
+import { DEFAULT_IMPROVEMENTS } from '@/lib/constants/improvements';
 import { DEFAULT_WHAT_WORKED } from '@/lib/constants/whatWorked';
 
 const STEP_1_ITEMS = [
@@ -36,7 +37,6 @@ const STEP_3_ITEMS = [
 ];
 
 const SETUP_GRADES = [
-  { value: 'A++', label: 'A++ (Exceptional execution)' },
   { value: 'A+', label: 'A+ (Perfect - all boxes checked)' },
   { value: 'A', label: 'A (Clean - minor deviation)' },
   { value: 'B', label: 'B (Decent - one step weak)' },
@@ -112,17 +112,6 @@ const ChecklistStep = ({
   );
 };
 
-const IMPROVEMENT_OPTIONS = [
-  { value: 'risk_management', label: 'Risk Management' },
-  { value: 'entry_timing', label: 'Entry Timing' },
-  { value: 'exit_timing', label: 'Exit Timing' },
-  { value: 'patience_discipline', label: 'Patience / Discipline' },
-  { value: 'position_sizing', label: 'Position Sizing' },
-  { value: 'plan_adherence', label: 'Plan Adherence' },
-  { value: 'emotional_control', label: 'Emotional Control' },
-  { value: 'other', label: 'Other' },
-];
-
 const OUTCOME_PROMPTS = {
   win: {
     border: 'border-emerald-400/25',
@@ -147,6 +136,7 @@ const NotesFields = ({
   reflectionAnswers,
   mistakeOptions = DEFAULT_MISTAKES,
   learningOptions = DEFAULT_LEARNINGS,
+  improvementOptions = DEFAULT_IMPROVEMENTS,
   whatWorkedOptions = DEFAULT_WHAT_WORKED,
   outcome = null,
   onReflectionChange,
@@ -213,9 +203,9 @@ const NotesFields = ({
               <SelectValue placeholder="Select an area to improve" />
             </SelectTrigger>
             <SelectContent className="bg-[#1a1a24] border-white/10">
-              {IMPROVEMENT_OPTIONS.map((option) => (
-                <SelectItem key={option.value} value={option.value}>
-                  {option.label}
+              {improvementOptions.map((option) => (
+                <SelectItem key={option} value={option}>
+                  {option}
                 </SelectItem>
               ))}
             </SelectContent>

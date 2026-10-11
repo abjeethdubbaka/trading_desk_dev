@@ -7,7 +7,7 @@
  * (like settings) would run out of room after only a few entries.
  */
 
-import { collection, doc, getDocs, addDoc, updateDoc, deleteDoc, query, orderBy } from 'firebase/firestore';
+import { collection, doc, getDocs, addDoc, updateDoc, deleteDoc, query, orderBy } from 'firebase/firestore/lite';
 import { broadcast, addCreateTimestamps, addUpdateTimestamp } from './utils.js';
 
 export function createInformativeImagesAdapter(db) {

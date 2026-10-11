@@ -8,7 +8,7 @@ import {
   collection, doc,
   getDoc, getDocs, addDoc, updateDoc, deleteDoc,
   query, where, orderBy, startAfter, limit as fsLimit,
-} from 'firebase/firestore';
+} from 'firebase/firestore/lite';
 import { broadcast, addCreateTimestamps, addUpdateTimestamp } from './utils.js';
 
 const DATE_ONLY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
@@ -155,6 +155,42 @@ export function applyTradeClientFilters(trades = [], options = {}) {
 
     return true;
   });
+}
+
+function compareTradeValues(a, b) {
+  if (a === b) return 0;
+  if (a === null || a === undefined || a === '') return 1;
+  if (b === null || b === undefined || b === '') return -1;
+  if (typeof a === 'number' && typeof b === 'number') return a - b;
+  return String(a).localeCompare(String(b));
+}
+
+/**
+ * One filtered, sorted view of an already-loaded trade list. The app reads
+ * the trades collection once and every screen takes its own slice of it
+ * here, rather than each filter combination costing its own Firestore read.
+ * Expects the list in the order the collection is read: newest entry first.
+ */
+export function selectTrades(trades = [], options = {}) {
+  const normalizedOptions = normalizeTradeListOptions(options);
+  let results = applyTradeClientFilters(trades, normalizedOptions);
+
+  const { sortBy, sortDir } = normalizedOptions;
+  if (sortBy !== 'entry_time' || sortDir !== 'desc') {
+    const direction = sortDir === 'asc' ? 1 : -1;
+    results = [...results].sort((a, b) => {
+      const av = a?.[sortBy];
+      const bv = b?.[sortBy];
+      // Blank values stay last whichever way the list is sorted.
+      const blankA = av === null || av === undefined || av === '';
+      const blankB = bv === null || bv === undefined || bv === '';
+      if (blankA || blankB) return compareTradeValues(av, bv);
+      return compareTradeValues(av, bv) * direction;
+    });
+  }
+
+  if (normalizedOptions.limit) results = results.slice(0, normalizedOptions.limit);
+  return results;
 }
 
 export function isLikelyFirestoreIndexError(error) {

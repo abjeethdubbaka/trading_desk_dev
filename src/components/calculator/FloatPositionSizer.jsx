@@ -7,11 +7,9 @@
 
 import React, { useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
-import { AlertTriangle, ShieldX, X } from 'lucide-react';
-import {
-  MemoizedFloatInputForm,
-  MemoizedResultsDisplay,
-} from './memoized';
+import { Sigma, ShieldX, X } from 'lucide-react';
+import FloatInputForm from './input/FloatInputForm';
+import ResultsDisplay from './position-sizing/ResultsDisplay';
 import { StopStructureAnalysis } from './position-sizing/StopStructureAnalysis';
 import { useFloatPositionSizerController } from './float-position-sizer/hooks/useFloatPositionSizerController';
 
@@ -23,7 +21,6 @@ export default function FloatPositionSizer({ historyData, onCalculationSaved = (
 
   const [limitDismissed, setLimitDismissed] = useState(false);
 
-  const isStale = Boolean(controller.calculation?._stale);
   const showResults = Boolean(controller.calculation?._viewSource);
 
   const hasLimit = controller.maxDailyTrades != null && Number(controller.maxDailyTrades) > 0;
@@ -114,84 +111,72 @@ export default function FloatPositionSizer({ historyData, onCalculationSaved = (
         </div>
       )}
 
-      {/* Daily loss limit indicator */}
-      {controller.maxDailyLoss > 0 && (
-        <div className={`flex items-center justify-between gap-3 rounded-xl border px-4 py-2.5 text-xs ${
-          controller.todayPnL <= -controller.maxDailyLoss
-            ? 'border-rose-500/35 bg-rose-500/10'
-            : controller.todayPnL < 0
-              ? 'border-amber-500/25 bg-amber-500/[0.06]'
-              : 'border-white/10 bg-white/[0.03]'
-        }`}>
-          <span className="text-white/40">Daily loss limit</span>
-          <div className="flex items-center gap-1.5">
-            <span className={`font-mono font-semibold ${controller.todayPnL < 0 ? 'text-rose-300' : 'text-white/60'}`}>
-              {controller.todayPnL >= 0 ? '+' : '-'}${Math.abs(controller.todayPnL).toFixed(0)}
-            </span>
-            <span className="text-white/25">/ ${controller.maxDailyLoss.toFixed(0)}</span>
-          </div>
-        </div>
-      )}
+      {/* Inputs on the left, the position they imply on the right — nothing
+          to scroll to, and the snapshot re-sizes as the numbers are typed. */}
+      <div className="grid gap-4 lg:grid-cols-[minmax(300px,380px)_minmax(0,1fr)] lg:items-start">
+        <Card className="border-white/10 bg-gradient-to-br from-[#1a1a24] to-[#131c2a] shadow-[0_10px_30px_-18px_rgba(59,130,246,0.5)] lg:sticky lg:top-4">
+          <CardContent className="p-5 space-y-5">
+            <FloatInputForm
+              symbol={controller.symbol}
+              setSymbol={controller.updateSymbol}
+              entryPrice={controller.entryPrice}
+              setEntryPrice={controller.updateEntryPrice}
+              customStopLossPrice={controller.customStop}
+              setCustomStopLossPrice={controller.updateCustomStop}
+              onReset={controller.handleReset}
+              playbookEntries={controller.playbookEntries}
+              selectedSetupId={controller.selectedSetupId}
+              onSetupChange={controller.setSelectedSetupId}
+              selectedSetup={controller.selectedSetup}
+              riskMultiplier={controller.riskMultiplier}
+              baseRiskAmount={controller.riskAmount}
+              disabled={false}
+              isFutures={controller.isFutures}
+              futuresPreset={controller.futuresPreset}
+              onFuturesPresetChange={controller.setFuturesPreset}
+              tickSize={controller.tickSize}
+              onTickSizeChange={controller.setTickSize}
+              tickValue={controller.tickValue}
+              onTickValueChange={controller.setTickValue}
+            />
+          </CardContent>
+        </Card>
 
-      <Card className="border-white/10 bg-gradient-to-br from-[#1a1a24] to-[#131c2a] shadow-[0_10px_30px_-18px_rgba(59,130,246,0.5)]">
-        <CardContent className="p-6 space-y-6">
-          <MemoizedFloatInputForm
-            symbol={controller.symbol}
-            setSymbol={controller.updateSymbol}
-            entryPrice={controller.entryPrice}
-            setEntryPrice={controller.updateEntryPrice}
-            customStopLossPrice={controller.customStop}
-            setCustomStopLossPrice={controller.updateCustomStop}
-            exitPrice={controller.exitPrice}
-            setExitPrice={controller.updateExitPrice}
-            onCalculate={controller.handleCalculate}
-            onAddToJournal={controller.handleAddToJournal}
-            canAddToJournal={controller.canAddToJournal}
-            isSavingTrade={controller.isSavingTrade}
-            onReset={controller.handleReset}
-            playbookEntries={controller.playbookEntries}
-            selectedSetupId={controller.selectedSetupId}
-            onSetupChange={controller.setSelectedSetupId}
-            selectedSetup={controller.selectedSetup}
-            riskMultiplier={controller.riskMultiplier}
-            baseRiskAmount={controller.riskAmount}
-            todayTradeCount={controller.todayTradeCount}
-            maxDailyTrades={controller.maxDailyTrades}
-            disabled={false}
-            isFutures={controller.isFutures}
-            futuresPreset={controller.futuresPreset}
-            onFuturesPresetChange={controller.setFuturesPreset}
-            tickSize={controller.tickSize}
-            onTickSizeChange={controller.setTickSize}
-            tickValue={controller.tickValue}
-            onTickValueChange={controller.setTickValue}
-          />
-        </CardContent>
-      </Card>
-
-      <StopStructureAnalysis
-        entryPrice={controller.entryPrice}
-        stopLoss={controller.customStop}
-      />
-
-      {showResults && (
-        <div className={isStale ? 'opacity-50 pointer-events-none select-none' : ''}>
-          {isStale && (
-            <div className="flex items-center gap-2 px-3 py-2 mb-2 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-400 text-xs">
-              <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0" />
-              Inputs changed — press Calculate to refresh
+        <div className="space-y-4">
+          {showResults ? (
+            <ResultsDisplay
+              {...controller.calculation}
+              exitStrategy={controller.playbookExitStrategy ?? controller.exitStrategy}
+              playbookSetupName={controller.playbookExitStrategy ? (controller.selectedSetup?.name ?? null) : null}
+              onApplyStop={controller.updateCustomStop}
+              onApplyEntry={controller.updateEntryPrice}
+              todayPnL={controller.todayPnL}
+              maxDailyLoss={controller.maxDailyLoss}
+              todayTradeCount={controller.todayTradeCount}
+              maxDailyTrades={controller.maxDailyTrades}
+              exitPrice={controller.exitPrice}
+              onExitPriceChange={controller.updateExitPrice}
+              onAddToJournal={controller.handleAddToJournal}
+              canAddToJournal={controller.canAddToJournal}
+              isSavingTrade={controller.isSavingTrade}
+              isFutures={controller.isFutures}
+              tickSize={controller.tickSize}
+              tickValue={controller.tickValue}
+            />
+          ) : (
+            <div className="flex min-h-[220px] flex-col items-center justify-center rounded-2xl border border-dashed border-white/12 bg-white/[0.02] p-8 text-center">
+              <Sigma className="h-6 w-6 text-white/20" />
+              <p className="mt-3 text-sm font-medium text-white/55">Enter a stop and an entry price</p>
+              <p className="mt-1 text-xs text-white/30">The position sizes itself as you type.</p>
             </div>
           )}
-          <MemoizedResultsDisplay
-            {...controller.calculation}
-            exitStrategy={controller.playbookExitStrategy ?? controller.exitStrategy}
-            playbookSetupName={controller.playbookExitStrategy ? (controller.selectedSetup?.name ?? null) : null}
-            onApplyStop={controller.updateCustomStop}
-            onApplyEntry={controller.updateEntryPrice}
+
+          <StopStructureAnalysis
+            entryPrice={controller.entryPrice}
+            stopLoss={controller.customStop}
           />
         </div>
-      )}
-
+      </div>
     </div>
   );
 }

@@ -12,7 +12,7 @@ import {
 const CACHE_KEY = 'tradeReviewCache';
 const TTL = 24 * 60 * 60 * 1000;
 const TRADE_REVIEW_MODEL =
-  import.meta.env.VITE_OLLAMA_TRADE_REVIEW_MODEL ||
+  import.meta.env?.VITE_OLLAMA_TRADE_REVIEW_MODEL ||
   getDefaultTradeReviewModel();
 
 function readCache(id) {

@@ -8,7 +8,7 @@ import {
   collection, doc,
   getDoc, getDocs, addDoc, updateDoc, deleteDoc,
   query, orderBy,
-} from 'firebase/firestore';
+} from 'firebase/firestore/lite';
 import { broadcast, addCreateTimestamps, addUpdateTimestamp, prepareWrite, withDefaults } from './utils.js';
 
 export function createCalcHistoryAdapter(db) {
@@ -122,10 +122,13 @@ export function createMediaAdapter(db) {
 export function createDailyReviewsAdapter(db) {
   return {
     async list() {
-      const snap = await getDocs(
-        query(collection(db, 'dailyReviews'), orderBy('date', 'desc'))
-      );
-      return snap.docs.map((d) => ({ ...d.data(), id: d.id }));
+      // Deliberately unordered: Firestore's orderBy silently drops documents
+      // that lack the field, which hid every report card saved before the
+      // day's date was stored on it. Sorting client-side returns all of them.
+      const snap = await getDocs(collection(db, 'dailyReviews'));
+      return snap.docs
+        .map((d) => ({ ...d.data(), id: d.id }))
+        .sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')));
     },
     async create(data) {
       const clean = addCreateTimestamps(data);

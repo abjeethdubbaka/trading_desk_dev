@@ -1,23 +1,23 @@
 import { requestSecureAI, SECURE_AI_KINDS } from './secureAIBridge';
 
-const OLLAMA_BASE_URL = import.meta.env.VITE_OLLAMA_BASE_URL || 'http://localhost:11434/api/chat';
+const OLLAMA_BASE_URL = import.meta.env?.VITE_OLLAMA_BASE_URL || 'http://localhost:11434/api/chat';
 const DEFAULT_CHAT_MODEL =
-  import.meta.env.VITE_OLLAMA_CHAT_MODEL ||
-  import.meta.env.VITE_OLLAMA_MODEL;
+  import.meta.env?.VITE_OLLAMA_CHAT_MODEL ||
+  import.meta.env?.VITE_OLLAMA_MODEL;
 const DEFAULT_TRADE_REVIEW_MODEL =
-  import.meta.env.VITE_OLLAMA_TRADE_REVIEW_MODEL ||
+  import.meta.env?.VITE_OLLAMA_TRADE_REVIEW_MODEL ||
   DEFAULT_CHAT_MODEL;
 const DEFAULT_MORNING_BRIEF_MODEL =
-  import.meta.env.VITE_OLLAMA_MORNING_BRIEF_MODEL ||
+  import.meta.env?.VITE_OLLAMA_MORNING_BRIEF_MODEL ||
   DEFAULT_CHAT_MODEL;
-const OLLAMA_API_KEY = import.meta.env.VITE_OLLAMA_API_KEY;
-const OLLAMA_TIMEOUT_MS = Number(import.meta.env.VITE_OLLAMA_TIMEOUT_MS || 90000);
-const TRADE_REVIEW_ENDPOINT = import.meta.env.VITE_TRADE_REVIEW_ENDPOINT;
-const TRADE_REVIEW_API_KEY = import.meta.env.VITE_TRADE_REVIEW_API_KEY;
-const TRADE_REVIEW_TIMEOUT_MS = Number(import.meta.env.VITE_TRADE_REVIEW_TIMEOUT_MS || 20000);
-const MORNING_BRIEF_ENDPOINT = import.meta.env.VITE_MORNING_BRIEF_ENDPOINT;
-const MORNING_BRIEF_API_KEY = import.meta.env.VITE_MORNING_BRIEF_API_KEY;
-const MORNING_BRIEF_TIMEOUT_MS = Number(import.meta.env.VITE_MORNING_BRIEF_TIMEOUT_MS || 20000);
+const OLLAMA_API_KEY = import.meta.env?.VITE_OLLAMA_API_KEY;
+const OLLAMA_TIMEOUT_MS = Number(import.meta.env?.VITE_OLLAMA_TIMEOUT_MS || 90000);
+const TRADE_REVIEW_ENDPOINT = import.meta.env?.VITE_TRADE_REVIEW_ENDPOINT;
+const TRADE_REVIEW_API_KEY = import.meta.env?.VITE_TRADE_REVIEW_API_KEY;
+const TRADE_REVIEW_TIMEOUT_MS = Number(import.meta.env?.VITE_TRADE_REVIEW_TIMEOUT_MS || 20000);
+const MORNING_BRIEF_ENDPOINT = import.meta.env?.VITE_MORNING_BRIEF_ENDPOINT;
+const MORNING_BRIEF_API_KEY = import.meta.env?.VITE_MORNING_BRIEF_API_KEY;
+const MORNING_BRIEF_TIMEOUT_MS = Number(import.meta.env?.VITE_MORNING_BRIEF_TIMEOUT_MS || 20000);
 
 const TRADE_DECISION_SCHEMA = {
   type: 'object',
@@ -243,7 +243,9 @@ function sanitizeTradeForReviewPrompt(trade = {}) {
     r_multiple: toTrimmedString(trade.r_multiple, 'n/a'),
     followed_plan: toTrimmedString(trade.followed_plan, 'n/a'),
     setup_quality_score: toTrimmedString(trade.setup_quality_score, 'n/a'),
-    setup_grade: toTrimmedString(trade.setup_grade, 'n/a'),
+    entry_grade: toTrimmedString(trade.entry_grade, 'n/a'),
+    sl_grade: toTrimmedString(trade.sl_grade, 'n/a'),
+    exit_grade: toTrimmedString(trade.exit_grade, 'n/a'),
     emotions: emotions.map((item) => toTrimmedString(item)).filter(Boolean).slice(0, 6),
     mistakes: mistakes.map((item) => toTrimmedString(item)).filter(Boolean).slice(0, 6),
     notes: truncateText(trade.notes ?? trade.trade_note ?? ''),
@@ -271,7 +273,9 @@ function buildTradeReviewPrompt(trade = {}) {
     `r_multiple: ${payload.r_multiple}`,
     `followed_plan: ${payload.followed_plan}`,
     `setup_quality_score: ${payload.setup_quality_score}`,
-    `setup_grade: ${payload.setup_grade}`,
+    `entry_grade: ${payload.entry_grade}`,
+    `sl_grade: ${payload.sl_grade}`,
+    `exit_grade: ${payload.exit_grade}`,
     `emotions: ${payload.emotions.length ? payload.emotions.join(', ') : 'n/a'}`,
     `mistakes: ${payload.mistakes.length ? payload.mistakes.join(', ') : 'n/a'}`,
     `notes: ${payload.notes || 'n/a'}`,

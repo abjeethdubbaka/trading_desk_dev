@@ -4,7 +4,7 @@
  * Settings collection operations for Firebase Simple adapter.
  */
 
-import { addDoc, collection, deleteDoc, doc, getDoc, getDocs, orderBy, query, setDoc } from 'firebase/firestore';
+import { addDoc, collection, deleteDoc, doc, getDoc, getDocs, orderBy, query, setDoc } from 'firebase/firestore/lite';
 import { broadcast, addCreateTimestamps, addUpdateTimestamp } from './utils.js';
 
 export function createSettingsAdapter(db) {

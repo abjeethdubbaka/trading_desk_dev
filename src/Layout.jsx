@@ -15,26 +15,59 @@ import {
   Power,
   History,
   // Book, // only used by the commented-out Knowledge Base nav item
-  CheckCircle,
+  // CheckCircle, // only used by the commented-out Do's & Don'ts nav item
   BarChart3,
   FileBarChart,
   // ScanSearch, // only used by the commented-out Screenshot Analysis nav item
   Images,
-  Wallet,
+  // Wallet, // only used by the commented-out Finance nav item
   ClipboardList,
+  ListChecks,
+  Crosshair,
+  NotebookPen,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import LiveClock from '@/components/ui/LiveClock';
+import AffirmationBanner from '@/components/ui/AffirmationBanner';
+import GuardianControl from '@/components/guardian/GuardianControl';
+import GuardianLaunchPrompt, { isGuardianPromptDue } from '@/components/guardian/GuardianLaunchPrompt';
+import { useGuardian } from '@/lib/hooks/useGuardian';
 import { cn } from '@/lib/utils';
 import { formatAnalysisTimer, useAnalysisTimer } from '@/lib/context/AnalysisTimerContext';
 import { useTrades } from '@/lib/hooks/useTrades';
-import { useExpenses } from '@/lib/hooks/useFinance';
-import { useAutoBackup } from '@/lib/hooks/useBackup';
+// Finance feature not in use — commented out, not deleted.
+// import { useExpenses } from '@/lib/hooks/useFinance';
+import { useWeeklyBackup } from '@/lib/hooks/useWeeklyBackup';
+import { useMorningBrief } from '@/lib/hooks/useMorningBrief';
+import MorningBriefModal from '@/components/morningBrief/MorningBriefModal';
+import { useCalcHistory } from '@/lib/hooks/useCalcHistory';
 import { getDailyTargetsWeek1, getDailyTargetPurposesWeek1 } from '@/lib/config/dailyTargets';
 import { getTodayMaxDailyLoss } from '@/lib/config/dailyLossLimits';
+import { useRules } from '@/lib/hooks/useRules';
+import { getDailyReadCategories } from '@/lib/rules/utils';
+import RulesReadThroughModal from '@/components/rules/RulesReadThroughModal';
 
 // AI assistant not in use — flow commented out, not deleted, in case it's revived later.
 // const ChatDock = lazy(() => import('@/components/chat/ChatDock'));
+
+// Launch modals are gated per app session, not per calendar day: sessionStorage
+// survives in-app navigation and page reloads in the same window, but is empty
+// on a fresh launch — so the briefing shows every time you actually open the
+// app, without popping up again as you move between pages. The stored date also
+// re-arms them if the app is left open past midnight.
+function wasShownThisSession(key) {
+  try {
+    return sessionStorage.getItem(key) === new Date().toISOString().slice(0, 10);
+  } catch {
+    // No sessionStorage (private mode, embedded webview) — treat as already
+    // shown so a broken storage API can't make a modal appear on every render.
+    return true;
+  }
+}
+
+function markShownThisSession(key) {
+  try { sessionStorage.setItem(key, new Date().toISOString().slice(0, 10)); } catch { /* noop */ }
+}
 
 // ── Daily target schedule (mirrors Dashboard.jsx defaults) ───────────────────
 const DOW_LABELS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
@@ -156,6 +189,24 @@ const navItems = [
     icon: BookOpen,
     page: 'Playbook',
   },
+  {
+    name: 'Rules',
+    description: 'Color-coded categories of trading rules and reminders.',
+    icon: ListChecks,
+    page: 'Rules',
+  },
+  {
+    name: 'Data Points',
+    description: 'Entry/exit/stop samples per strategy to calibrate its expected R.',
+    icon: Crosshair,
+    page: 'DataPoints',
+  },
+  {
+    name: 'Setup Journal',
+    description: 'Structured debrief per trade, showing which version of a setup pays.',
+    icon: NotebookPen,
+    page: 'SetupJournal',
+  },
   // Knowledge Base nav item — retired, replaced by Informative Images, commented out, not deleted.
   // {
   //   name: 'Knowledge Base',
@@ -169,15 +220,16 @@ const navItems = [
     icon: Images,
     page: 'InformativeImages',
   },
+  // Do's & Don'ts nav item — not in use, commented out, not deleted.
+  // {
+  //   name: "Do's & Don'ts",
+  //   description: 'Track your personal execution rules and accountability.',
+  //   icon: CheckCircle,
+  //   page: 'DosAndDonts',
+  // },
   {
-    name: "Do's & Don'ts",
-    description: 'Track your personal execution rules and accountability.',
-    icon: CheckCircle,
-    page: 'DosAndDonts',
-  },
-  {
-    name: 'Daily Review',
-    description: 'Review one trade per day — findings, lessons, and next-time commitments.',
+    name: 'Daily Report Card',
+    description: 'Grade one trading day at a time — findings, lessons, and next-time commitments.',
     icon: ClipboardList,
     page: 'DailyTradeReview',
   },
@@ -200,12 +252,13 @@ const navItems = [
   //   icon: ScanSearch,
   //   page: 'ScreenshotAnalysis',
   // },
-  {
-    name: 'Finance',
-    description: 'Daily spending, net worth, portfolio, and budget tracking.',
-    icon: Wallet,
-    page: 'Finance',
-  },
+  // Finance nav item — not in use, commented out, not deleted.
+  // {
+  //   name: 'Finance',
+  //   description: 'Daily spending, net worth, portfolio, and budget tracking.',
+  //   icon: Wallet,
+  //   page: 'Finance',
+  // },
   {
     name: 'Settings',
     description: 'Configure account, risk, and app preferences.',
@@ -223,7 +276,37 @@ export default function Layout({ children, currentPageName }) {
     const id = setTimeout(() => setAlertsReady(true), 150);
     return () => clearTimeout(id);
   }, []);
-  useAutoBackup();
+  // Writes this tier to its backup file on Friday, or the next launch after.
+  useWeeklyBackup({ auto: true });
+
+  // Once the first page is up and the app is idle, fetch the code for every
+  // other page in the nav, one at a time, so moving between pages never
+  // waits on a download.
+  useEffect(() => {
+    let cancelled = false;
+    const pages = navItems.map((item) => item.page).filter((page) => PAGE_PRELOADERS[page]);
+    const whenIdle = (callback) => (typeof window.requestIdleCallback === 'function'
+      ? window.requestIdleCallback(callback, { timeout: 4000 })
+      : window.setTimeout(callback, 1500));
+
+    const preloadNext = async () => {
+      for (const page of pages) {
+        if (cancelled) return;
+        try {
+          await PAGE_PRELOADERS[page]();
+        } catch {
+          // A page that fails to preload simply loads when opened.
+        }
+      }
+    };
+
+    const id = whenIdle(() => { preloadNext(); });
+    return () => {
+      cancelled = true;
+      if (typeof window.cancelIdleCallback === 'function') window.cancelIdleCallback(id);
+      else window.clearTimeout(id);
+    };
+  }, []);
 
   // ── Launch modal ────────────────────────────────────────────────────────────
   const { settings } = useSettings();
@@ -234,28 +317,62 @@ export default function Layout({ children, currentPageName }) {
   }, [todayTarget, settings]);
   const todayMaxDailyLoss = useMemo(() => getTodayMaxDailyLoss(settings), [settings]);
 
-  const [showLaunchModal, setShowLaunchModal] = useState(() => {
-    try {
-      return localStorage.getItem('dailyTargetShown') !== new Date().toISOString().slice(0, 10);
-    } catch {
-      return false;
-    }
-  });
+  const [showLaunchModal, setShowLaunchModal] = useState(() => wasShownThisSession('dailyTargetShown') === false);
 
   const dismissLaunchModal = useCallback(() => {
-    try { localStorage.setItem('dailyTargetShown', new Date().toISOString().slice(0, 10)); } catch { /* noop */ }
+    markShownThisSession('dailyTargetShown');
     setShowLaunchModal(false);
   }, []);
 
+  // Rules read-through — steps through the rules one category at a time on
+  // launch, right after the daily target modal (or immediately if there's no
+  // target to show).
+  const { ruleCategories } = useRules();
+  const dailyReadCategories = useMemo(() => getDailyReadCategories(ruleCategories), [ruleCategories]);
+
+  // The morning check-in comes first, once a day, before today's target.
+  const morningBrief = useMorningBrief();
+  const [briefClosed, setBriefClosed] = useState(false);
+  const showMorningBrief = morningBrief.isDue && !briefClosed;
+
+  // Then: is Trading Guardian watching Trade Terminal today?
+  const guardian = useGuardian();
+  const [guardianAsked, setGuardianAsked] = useState(false);
+  const guardianChecking = guardian.isAvailable && !guardian.status && !guardianAsked;
+  const showGuardianPrompt = !guardianAsked && isGuardianPromptDue(guardian);
+
+  const [showRulesModal, setShowRulesModal] = useState(() => wasShownThisSession('rulesShown') === false);
+
+  const dismissRulesModal = useCallback(() => {
+    markShownThisSession('rulesShown');
+    setShowRulesModal(false);
+  }, []);
+
   const { isElectron, closeApp } = useElectron();
+  const { clearHistory } = useCalcHistory();
+
+  /**
+   * Calculator history is a scratchpad for the session, not a record — it is
+   * cleared on shutdown so tomorrow starts empty. A failure to clear must not
+   * stop the app from closing.
+   */
+  const handleShutdown = useCallback(async () => {
+    try {
+      await clearHistory();
+    } catch {
+      // Nothing to tell the user: the app is closing either way.
+    }
+    closeApp();
+  }, [clearHistory, closeApp]);
 
   const todayISO = new Date().toISOString().slice(0, 10);
   const { data: allTrades = [] } = useTrades({ enabled: alertsReady });
-  const { data: allExpenses = [] } = useExpenses({ enabled: alertsReady });
+  // Finance nav badge — not in use since the Finance feature is commented out above.
+  // const { data: allExpenses = [] } = useExpenses({ enabled: alertsReady });
   const todayTrades = allTrades.filter(t => (t.entry_time || t.date || '').slice(0, 10) === todayISO);
   const alertPages = {
     Journal: todayTrades.length > 0 && todayTrades.some(t => !t.notes?.trim()),
-    Finance: !allExpenses.some(e => e.date === todayISO),
+    // Finance: !allExpenses.some(e => e.date === todayISO),
   };
   const {
     isVisible: isTimerVisible,
@@ -291,7 +408,14 @@ export default function Layout({ children, currentPageName }) {
         <div className="absolute bottom-[-60px] left-1/3 h-72 w-72 rounded-full bg-blue-500/10 blur-[120px]" />
       </div>
 
-      <LiveClock className="fixed top-3 right-4 z-[60] hidden lg:flex" />
+      {/* Affirmations roll beside the clock, in view on every page. */}
+      {/* Starts clear of the collapsed sidebar and runs to the clock. */}
+      <div className="fixed top-3 right-4 left-[88px] z-[60] hidden items-center gap-2 lg:flex">
+        <AffirmationBanner className="min-w-0 flex-1" />
+        {/* Trading Guardian's switch and state, in view on every page. */}
+        <GuardianControl className="flex-shrink-0" />
+        <LiveClock className="flex-shrink-0" />
+      </div>
 
       <div className="fixed left-0 right-0 top-0 z-50 flex h-16 items-center justify-between border-b border-white/10 bg-[#090d15]/85 px-4 backdrop-blur-xl lg:hidden">
         <div className="flex min-w-0 items-center gap-3">
@@ -449,8 +573,8 @@ export default function Layout({ children, currentPageName }) {
           <div className="shrink-0 border-t border-white/10 p-3">
             <button
               type="button"
-              onClick={closeApp}
-              title="Shutdown App"
+              onClick={handleShutdown}
+              title="Shutdown App — clears calculator history"
               className="flex w-full min-w-max items-center gap-3 rounded-lg px-[14px] group-hover/nav:px-3 py-2 text-red-300/80 hover:bg-red-500/10 hover:text-red-200 transition-colors"
             >
               <Power className="h-4 w-4 shrink-0" />
@@ -472,14 +596,27 @@ export default function Layout({ children, currentPageName }) {
       </Suspense>
       */}
 
-      {showLaunchModal && todayTarget && todayTarget.amount > 0 && (
+      {morningBrief.isChecking && !briefClosed ? null : showMorningBrief ? (
+        <MorningBriefModal
+          onSave={morningBrief.save}
+          onSkip={() => { morningBrief.skip(); setBriefClosed(true); }}
+          onDone={() => setBriefClosed(true)}
+        />
+      ) : guardianChecking ? null : showGuardianPrompt ? (
+        <GuardianLaunchPrompt guardian={guardian} onDone={() => setGuardianAsked(true)} />
+      ) : showLaunchModal && todayTarget && todayTarget.amount > 0 ? (
         <DailyTargetLaunchModal
           target={todayTarget}
           weekTotal={weekTotal}
           maxDailyLoss={todayMaxDailyLoss}
           onDismiss={dismissLaunchModal}
         />
-      )}
+      ) : showRulesModal && dailyReadCategories.length > 0 ? (
+        <RulesReadThroughModal
+          categories={dailyReadCategories}
+          onDismiss={dismissRulesModal}
+        />
+      ) : null}
     </div>
   );
 }

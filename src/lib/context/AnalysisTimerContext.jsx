@@ -244,24 +244,24 @@ export function AnalysisTimerProvider({ children }) {
   );
 }
 
+// One shared object, not a fresh one per call: `resetTimer` is an effect
+// dependency in the calculator, and a new function identity every render
+// would re-run that effect forever.
+const NO_PROVIDER_TIMER = Object.freeze({
+  timerDurationSeconds: DEFAULT_TIMER_SECONDS,
+  remainingSeconds: DEFAULT_TIMER_SECONDS,
+  isTimerRunning: false,
+  hasStarted: false,
+  isNearEnd: false,
+  isExpired: false,
+  isVisible: false,
+  status: 'idle',
+  toggleTimer: () => {},
+  resetTimer: () => {},
+  timerSoundEnabled: true,
+});
+
 export function useAnalysisTimer() {
   const context = useContext(AnalysisTimerContext);
-
-  if (!context) {
-    return {
-      timerDurationSeconds: DEFAULT_TIMER_SECONDS,
-      remainingSeconds: DEFAULT_TIMER_SECONDS,
-      isTimerRunning: false,
-      hasStarted: false,
-      isNearEnd: false,
-      isExpired: false,
-      isVisible: false,
-      status: 'idle',
-      toggleTimer: () => {},
-      resetTimer: () => {},
-      timerSoundEnabled: true,
-    };
-  }
-
-  return context;
+  return context || NO_PROVIDER_TIMER;
 }

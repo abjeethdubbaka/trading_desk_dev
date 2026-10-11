@@ -1,6 +1,7 @@
 import React from 'react';
 import { Images, Pencil, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useResolvedImages } from '@/lib/hooks/useLocalImages';
 
 const SETUP_TONE = 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300';
 const OTHER_TONE = 'border-cyan-500/30 bg-cyan-500/10 text-cyan-300';
@@ -13,7 +14,8 @@ function formatDate(value) {
 
 export default function ImageCard({ item, onView, onEdit, onDelete }) {
   const images = Array.isArray(item?.images) ? item.images : [];
-  const coverImage = images[0];
+  // Stored on disk: only the cover is read, not every image in the entry.
+  const [coverImage] = useResolvedImages(images.slice(0, 1));
   const tone = item?.category_type === 'setup' ? SETUP_TONE : OTHER_TONE;
   const dateLabel = formatDate(item?.created_date);
 

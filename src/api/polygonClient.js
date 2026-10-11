@@ -1,7 +1,11 @@
 class PolygonClient {
   constructor() {
-    this.apiKey = import.meta.env.VITE_POLYGON_API_KEY || '';
-    this.baseUrl = import.meta.env.VITE_POLYGON_BASE_URL || 'https://api.polygon.io/v3';
+    // Optional chaining on import.meta.env: Vite injects it in the app, but
+    // it's undefined under plain Node (e.g. the node:test suite), which
+    // otherwise throws at import time for anything transitively pulling in
+    // this client.
+    this.apiKey = import.meta.env?.VITE_POLYGON_API_KEY || '';
+    this.baseUrl = import.meta.env?.VITE_POLYGON_BASE_URL || 'https://api.polygon.io/v3';
   }
 
   hasApiKey() {

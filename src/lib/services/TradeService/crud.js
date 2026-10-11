@@ -4,7 +4,7 @@
  * Trade CRUD operations.
  */
 
-import { TradeSchema } from '../../schema/index.js';
+import { CURRENT_TRADE_SCHEMA_VERSION, TradeSchema } from '../../schema/index.js';
 import { ValidationError } from '../ValidationError.js';
 import { enrichTrade } from './enrichment.js';
 import {
@@ -21,10 +21,12 @@ export function createTradeCRUD(service) {
         throw new ValidationError(validation.errors, tradeData);
       }
 
-      // Apply defaults
+      // Apply defaults. schema_version always reflects what this build
+      // actually wrote — set last so it can't be overridden by client data.
       const tradeWithDefaults = {
         ...TradeSchema.defaults,
-        ...tradeData
+        ...tradeData,
+        schema_version: CURRENT_TRADE_SCHEMA_VERSION,
       };
 
       const tradeWithShareFloat = await hydrateTradeShareFloat(tradeWithDefaults);

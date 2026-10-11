@@ -1,16 +1,16 @@
 import React, { useCallback, useRef, useState } from 'react';
 import { cn } from '@/lib/utils/general';
-import { formatDate, formatTime, formatCurrency } from '../../utils/formatters';
-import { getTradeNotesText } from '../../utils/notes';
-import { Image, AlertCircle, ChevronDown, Edit2, Star, Trash2 } from 'lucide-react';
-import { PnlBadge, DirectionBadge, RMultipleBadge, EmotionBadge, SetupBadge } from '@/components/ui/TradeBadge';
-import TradeReviewPanel from '../../analysis/TradeReviewPanel';
+import { formatTime, formatCurrency } from '../../utils/formatters';
+import { Image, AlertCircle, ChevronDown, Edit2, Trash2, NotebookPen } from 'lucide-react';
+import { COLUMN_WIDTHS } from './CompactHeader';
+import { getGradeLetters } from '@/lib/journal/dayGroups';
+import { PnlBadge, DirectionBadge, RMultipleBadge, EmotionBadge, SetupBadge, GradeBadge } from '@/components/ui/TradeBadge';
 import { TradeThumbnail } from './TradeThumbnail';
 import { EditableCell } from '../cells/EditableCell';
 import { useInlineTradeEdit } from '../../hooks/useInlineTradeEdit';
 import { getTradePnL } from '@/lib/utils/tradeFields';
 import { getTradeHoldDurationMinutes, formatHoldDuration } from '@/lib/calculations/trades';
-import { TradeCompleteness } from '../../components/TradeCompleteness';
+import { TradeCompleteness } from '../../views/TradeCompleteness';
 import { useQueryClient } from '@tanstack/react-query';
 import { tradeKeys } from '@/lib/hooks/useTrades/queryKeys';
 
@@ -19,6 +19,8 @@ const DIRECTION_OPTIONS = [
   { value: 'short', label: 'Short' },
 ];
 
+const GRADE_OPTIONS = ['A+', 'A', 'B', 'C', 'D', 'E', 'F'].map((g) => ({ value: g, label: g }));
+
 export function CompactTradeRow({
   trade,
   onEdit,
@@ -26,23 +28,16 @@ export function CompactTradeRow({
   onInlineUpdateTrade,
   onViewDetails,
   columns,
-  review,
-  reviewLoading,
-  onReviewTrade,
-  onClearReview,
-  reviewUsefulness,
-  onRateReviewUsefulness,
   screenshotUrls,
   screenshotStatuses,
   onOpenImage,
-  index,
   isSelected,
   onToggleSelect,
   riskLimit = 0,
+  // true / false when the page knows; null when it has not been told
+  isDebriefed = null,
 }) {
   const [expanded, setExpanded] = useState(false);
-  const [reviewOpen, setReviewOpen] = useState(false);
-  const cleanedTradeNotes = getTradeNotesText(trade);
 
   const { savingField, editField } = useInlineTradeEdit({ trade, onInlineUpdateTrade });
 
@@ -84,7 +79,6 @@ export function CompactTradeRow({
           : isSelected ? 'bg-cyan-500/[0.06]' : 'hover:bg-white/[0.02]',
         'animate-fade-in',
       )}
-      style={{ animationDelay: `${Math.min(index * 20, 200)}ms` }}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
     >
@@ -113,23 +107,18 @@ export function CompactTradeRow({
           <ChevronDown className={cn('w-3 h-3 transition-transform duration-200', expanded && 'rotate-180')} />
         </button>
 
-        {/* Date / Time / Duration */}
-        <div className="w-[82px] flex-shrink-0">
+        {/* Time in, time out, and how long — the day itself is the heading above */}
+        <div className={cn(COLUMN_WIDTHS.time, 'flex-shrink-0')}>
           <div className="leading-tight">
-            <span className="block text-[11px] text-white/40 font-mono">
-              {formatDate(trade.entry_time || trade.created_date)}
-            </span>
-            <span className="block text-[9px] text-white/30 font-mono">
-              {entryTimeLabel} | {exitTimeLabel}
-            </span>
-            <span className="block text-[9px] text-white/25 font-mono">
-              {formatHoldDuration(getTradeHoldDurationMinutes(trade))}
+            <span className="block font-mono text-[11px] text-white/55">{entryTimeLabel}</span>
+            <span className="block font-mono text-[9px] text-white/30">
+              → {exitTimeLabel} · {formatHoldDuration(getTradeHoldDurationMinutes(trade))}
             </span>
           </div>
         </div>
 
         {/* Symbol + Direction (direction is editable) */}
-        <div className="w-[110px] flex-shrink-0 flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
+        <div className={cn(COLUMN_WIDTHS.symbol, 'flex flex-shrink-0 items-center gap-1.5')} onClick={(e) => e.stopPropagation()}>
           <span className="font-semibold text-[13px] text-white tracking-wide">
             {trade.symbol || '-'}
           </span>
@@ -144,7 +133,7 @@ export function CompactTradeRow({
         </div>
 
         {/* Entry → Exit (exit_price is editable) */}
-        <div className="w-[145px] flex-shrink-0 hidden sm:block" onClick={(e) => e.stopPropagation()}>
+        <div className={cn(COLUMN_WIDTHS.prices, 'hidden flex-shrink-0 sm:block')} onClick={(e) => e.stopPropagation()}>
           <span className="text-[11px] font-mono text-white/50">
             {formatCurrency(entryPrice)}
             {exitPrice ? (
@@ -163,12 +152,12 @@ export function CompactTradeRow({
         </div>
 
         {/* Size */}
-        <div className="w-[58px] flex-shrink-0 hidden md:block">
+        <div className={cn(COLUMN_WIDTHS.size, 'hidden flex-shrink-0 md:block')}>
           <span className="text-[11px] font-mono text-white/40">{positionSize || '-'}</span>
         </div>
 
         {/* P&L */}
-        <div className="w-[150px] flex-shrink-0">
+        <div className={cn(COLUMN_WIDTHS.pnl, 'flex-shrink-0', columns?.pnl === false && 'hidden')}>
           <div className="flex items-center gap-1.5 flex-wrap">
             <PnlBadge value={pnl} size="sm" />
             {pnlPct && (
@@ -180,12 +169,12 @@ export function CompactTradeRow({
         </div>
 
         {/* R */}
-        <div className="w-[52px] flex-shrink-0 hidden lg:block">
+        <div className={cn(COLUMN_WIDTHS.r, 'hidden flex-shrink-0 lg:block')}>
           <RMultipleBadge value={trade.r_multiple} />
         </div>
 
         {/* Setup (editable) */}
-        <div className={cn('w-[110px] flex-shrink-0', columns?.setup ? 'hidden xl:block' : 'hidden')} onClick={(e) => e.stopPropagation()}>
+        <div className={cn(COLUMN_WIDTHS.setup, 'flex-shrink-0', columns?.setup ? 'hidden xl:block' : 'hidden')} onClick={(e) => e.stopPropagation()}>
           <EditableCell
             value={trade.setup_type ?? ''}
             displayNode={<SetupBadge setup={trade.setup_type} />}
@@ -196,8 +185,31 @@ export function CompactTradeRow({
         </div>
 
 
+        {/* Grades — entry, stop, exit, size as one row of letters. Each letter
+            is still a picker; an empty slot shows the slot's initial. */}
+        <div className={cn(COLUMN_WIDTHS.grades, 'flex-shrink-0', columns?.grades ? 'hidden xl:block' : 'hidden')} onClick={(e) => e.stopPropagation()}>
+          <div className="flex items-center gap-1">
+            {getGradeLetters(trade).map((slot) => (
+              <EditableCell
+                key={slot.key}
+                value={slot.grade ?? ''}
+                displayNode={slot.grade
+                  ? <GradeBadge grade={slot.grade} className="px-1 text-[9px]" title={slot.label} />
+                  : <span className="inline-flex h-[18px] w-[18px] items-center justify-center rounded border border-dashed border-white/10 text-[8px] text-white/25" title={`${slot.label}: not graded`}>{slot.short}</span>}
+                type="select"
+                options={GRADE_OPTIONS}
+                onSave={(v) => editField(slot.key, v)}
+                loading={savingField === slot.key}
+              />
+            ))}
+            {trade.is_oversized && (
+              <AlertCircle className="h-3 w-3 flex-shrink-0 text-rose-400" title="Oversized position" />
+            )}
+          </div>
+        </div>
+
         {/* Emotions */}
-        <div className={cn('w-[120px] flex-shrink-0', columns?.emotions ? 'hidden xl:block' : 'hidden')}>
+        <div className={cn(COLUMN_WIDTHS.emotions, 'flex-shrink-0', columns?.emotions ? 'hidden xl:block' : 'hidden')}>
           <div className="flex items-center gap-1">
             {primaryEmotion ? (
               <EmotionBadge emotion={primaryEmotion} />
@@ -210,20 +222,19 @@ export function CompactTradeRow({
           </div>
         </div>
 
-        {/* Overall Rating */}
-        <div className={cn('w-[90px] flex-shrink-0', columns?.overallRating ? 'hidden xl:block' : 'hidden')}>
-          {trade.overall_rating ? (
-            <div className="flex items-center gap-0.5">
-              {[1, 2, 3, 4, 5].map((star) => (
-                <Star
-                  key={star}
-                  className={cn(
-                    'w-2.5 h-2.5',
-                    Number(trade.overall_rating) >= star ? 'fill-amber-400 text-amber-400' : 'text-white/15'
-                  )}
-                />
-              ))}
-            </div>
+        {/* Overall Rating (out of 10) */}
+        <div className={cn(COLUMN_WIDTHS.rating, 'flex-shrink-0', columns?.overallRating ? 'hidden xl:block' : 'hidden')}>
+          {trade.overall_rating != null ? (
+            <span className={cn(
+              'rounded border px-1.5 py-0.5 text-[10px] font-bold tabular-nums',
+              Number(trade.overall_rating) >= 7
+                ? 'border-emerald-500/25 bg-emerald-500/8 text-emerald-300'
+                : Number(trade.overall_rating) >= 4
+                  ? 'border-amber-500/25 bg-amber-500/8 text-amber-300'
+                  : 'border-rose-500/25 bg-rose-500/8 text-rose-300'
+            )}>
+              {trade.overall_rating}/10
+            </span>
           ) : (
             <span className="text-[10px] text-white/25">-</span>
           )}
@@ -249,7 +260,7 @@ export function CompactTradeRow({
         </div>
 
         {/* Completeness */}
-        <div className="hidden lg:flex items-center w-[60px] flex-shrink-0">
+        <div className={cn(COLUMN_WIDTHS.done, 'hidden flex-shrink-0 items-center gap-1 lg:flex')}>
           <TradeCompleteness trade={trade} />
         </div>
 
@@ -272,9 +283,18 @@ export function CompactTradeRow({
           className="px-8 pb-3 space-y-2 animate-fade-in border-t border-white/[0.03]"
           onClick={(event) => event.stopPropagation()}
         >
-          <p className="text-[11px] text-white/40 leading-relaxed max-w-xl whitespace-pre-wrap break-words">
-            {cleanedTradeNotes || 'No notes added.'}
-          </p>
+          {isDebriefed != null && (
+            <span className={cn(
+              'inline-flex items-center gap-1 rounded border px-1.5 py-0.5 text-[10px]',
+              isDebriefed
+                ? 'border-emerald-400/25 bg-emerald-500/10 text-emerald-200/80'
+                : 'border-amber-400/25 bg-amber-500/10 text-amber-200/80',
+            )}>
+              <NotebookPen className="h-3 w-3" />
+              {isDebriefed ? 'Debriefed in Setup Journal' : 'Not debriefed yet'}
+            </span>
+          )}
+
 
           {trade.mistakes?.length > 0 && (
             <div className="flex items-center gap-1.5 flex-wrap">
@@ -287,17 +307,6 @@ export function CompactTradeRow({
             </div>
           )}
 
-          <TradeReviewPanel
-            trade={trade}
-            review={review}
-            isLoading={Boolean(reviewLoading)}
-            onRequest={onReviewTrade}
-            isOpen={reviewOpen}
-            onToggle={() => setReviewOpen((open) => !open)}
-            onClear={onClearReview}
-            usefulness={reviewUsefulness}
-            onSetUsefulness={onRateReviewUsefulness}
-          />
         </div>
       )}
     </div>

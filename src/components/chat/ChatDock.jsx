@@ -18,7 +18,7 @@ const DECISION_STORAGE_KEY = 'aiChat.decision.v1';
 const MODE_STORAGE_KEY = 'aiChat.mode.v1';
 const CALCULATOR_DECISION_EVENT = 'calculator-decision-context';
 const MAX_CONTEXT_MESSAGES = 18;
-const MODEL_PRESETS = String(import.meta.env.VITE_OLLAMA_MODEL_PRESETS || '')
+const MODEL_PRESETS = String(import.meta.env?.VITE_OLLAMA_MODEL_PRESETS || '')
   .split(',')
   .map((item) => item.trim())
   .filter(Boolean);
@@ -545,7 +545,7 @@ export default function ChatDock({ isOpen = true, onToggle }) {
   const savedDecisionForm = useMemo(() => parseSavedDecisionForm(), []);
 
   const defaultModel = getDefaultChatModel();
-  const configuredChatModel = import.meta.env.VITE_OLLAMA_CHAT_MODEL || '';
+  const configuredChatModel = import.meta.env?.VITE_OLLAMA_CHAT_MODEL || '';
   const startingModel = configuredChatModel || savedChat?.model || defaultModel;
 
   const [mode, setMode] = useState(() => {

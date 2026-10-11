@@ -8,7 +8,7 @@
  * and write through the same updateFields API — no callers need to change.
  */
 
-import React, { createContext, useCallback, useContext, useMemo } from 'react';
+import React, { createContext, useContext, useMemo } from 'react';
 import { useSettings as useSettingsHook } from '../hooks/useSettings';
 
 // These fields are stored per-account-type (demo / funded).

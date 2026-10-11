@@ -1,11 +1,15 @@
+import { getRiskMultiplier } from '@/lib/playbook/utils';
+import { usePlaybook } from '@/lib/hooks/usePlaybook';
+import { getTradeVersionStamp } from '@/lib/playbook/versions';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { db } from '@/lib/db';
 import { useTrades } from '@/lib/hooks/useTrades';
 import { useSettings } from '@/lib/context/SettingsContext';
+import { getTodayRiskAmount } from '@/lib/config/dailyLossLimits';
 import { buildDisciplineSnapshot } from '@/lib/calculations/discipline';
-import { imageFileToDataUrl } from '@/components/journal/shared/media/imageUtils';
+import { imageFileToDataUrl } from '@/components/journal/media/imageUtils';
 import { computeTradeSetupQuality } from '@/lib/calculations/trades';
 import {
   getPlaybookEntryBySetupName,
@@ -18,15 +22,37 @@ import { calculatePnL } from '../utils/calculationUtils';
 import { PLACEHOLDER_USER_ID as USER_ID } from '@/lib/constants';
 import { DEFAULT_MISTAKES } from '@/lib/constants/mistakes';
 import { DEFAULT_LEARNINGS } from '@/lib/constants/learnings';
+import { DEFAULT_IMPROVEMENTS } from '@/lib/constants/improvements';
+import { getEmotionOptions, getEmotionPoints } from '@/lib/constants/emotions';
 import { DEFAULT_WHAT_WORKED } from '@/lib/constants/whatWorked';
 import { getPrediction } from '@/lib/ml/winPredictor';
 import { getTradePnL } from '@/lib/utils/tradeFields';
 const SYMBOL_PATTERN = /^[A-Z]{1,5}$/;
+// Actual $ risk beyond this much of the setup's intended risk counts as oversized.
+const OVERSIZED_TOLERANCE = 1.05;
+// Grade letter -> points on a 0-3 scale, used by the auto-rating below.
+const GRADE_POINTS = { 'A+': 3, A: 2.5, B: 2, C: 1, D: 0.5, E: 0.25, F: 0 };
+const MAX_GRADE_POINTS = 3;
+// Size-Grade scales with how far actual $ risk sits past the setup's
+// intended risk — right at/under the limit earns A+, and the grade degrades
+// the further over it runs, rather than a flat F for any overage.
+const sizeGradeFromRiskRatio = (ratio) => {
+  if (ratio <= OVERSIZED_TOLERANCE) return 'A+';
+  if (ratio <= 1.15) return 'A';
+  if (ratio <= 1.3) return 'B';
+  if (ratio <= 1.5) return 'C';
+  if (ratio <= 2) return 'D';
+  if (ratio <= 3) return 'E';
+  return 'F';
+};
+// Emotional state -> points on a 0-1 scale, used by the auto-rating below.
+// Disciplined/confident are the states you want to be trading from; fomo and
+// revenge are impulse-driven red flags regardless of how the trade turned out.
 const normalizeStrategyStepGrade = (value) => String(value ?? '').trim().toUpperCase();
 const deriveFollowedFromGrade = (grade) => {
   const normalized = normalizeStrategyStepGrade(grade);
   if (!normalized) return null;
-  if (['A++', 'A+', 'A', 'B'].includes(normalized)) return true;
+  if (['A+', 'A', 'B'].includes(normalized)) return true;
   if (['C', 'D', 'F'].includes(normalized)) return false;
   return null;
 };
@@ -131,6 +157,12 @@ export function useAddTradeModalController({ open, onSave, initialData }) {
   const learningOptions = Array.isArray(settings?.learnings) && settings.learnings.length > 0
     ? settings.learnings
     : DEFAULT_LEARNINGS;
+
+  const emotionOptions = useMemo(() => getEmotionOptions(settings), [settings]);
+
+  const improvementOptions = Array.isArray(settings?.improvements) && settings.improvements.length > 0
+    ? settings.improvements
+    : DEFAULT_IMPROVEMENTS;
   const whatWorkedOptions = Array.isArray(settings?.what_worked_keywords) && settings.what_worked_keywords.length > 0
     ? settings.what_worked_keywords
     : DEFAULT_WHAT_WORKED;
@@ -152,6 +184,82 @@ export function useAddTradeModalController({ open, onSave, initialData }) {
   });
 
   const { formData, updateField, prepareForSubmission } = useTradeForm(initialData, USER_ID, open);
+
+  const playbookEntries = useMemo(
+    () => normalizePlaybookEntries(settings?.strategy_playbook),
+    [settings?.strategy_playbook]
+  );
+
+  // Strategy version control: a trade is credited to the rules that were live
+  // when it was taken, so later edits to the setup cannot rewrite its history.
+  const { ensureCurrentVersion } = usePlaybook();
+
+  const setupTypeOptions = useMemo(() => {
+    const seen = new Set();
+    // A setup tagged Long/Short only makes sense for a trade on that side —
+    // 'both' (and legacy entries with no direction set) always shows.
+    const tradeDirection = formData.direction === 'short' ? 'short' : 'long';
+    const options = playbookEntries
+      .filter((entry) => entry.is_active && String(entry.name || '').trim())
+      .filter((entry) => !entry.direction || entry.direction === 'both' || entry.direction === tradeDirection)
+      .map((entry) => entry.name)
+      .filter((name) => {
+        const key = name.toLowerCase();
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+
+    const selectedSetup = String(formData.setup_type || '').trim();
+    if (!selectedSetup || selectedSetup.toLowerCase() === 'manual') return options;
+    if (options.some((o) => o.toLowerCase() === selectedSetup.toLowerCase())) return options;
+    return [...options, selectedSetup];
+  }, [formData.setup_type, formData.direction, playbookEntries]);
+
+  const selectedPlaybookEntry = useMemo(
+    () => getPlaybookEntryBySetupName(playbookEntries, formData.setup_type),
+    [formData.setup_type, playbookEntries]
+  );
+
+  // Half of today's max daily loss: the Risk amount Settings shows, and the
+  // one the calculator sizes with.
+  const baseRiskAmount = useMemo(() => getTodayRiskAmount(settings), [settings]);
+
+  // Actual $ risk (entry/stop/size) vs. the setup's intended risk (the base
+  // risk scaled by its risk percent). Flags a position sized beyond that as oversized.
+  const sizeRiskInfo = useMemo(() => {
+    const entryPrice = Number(formData.entry_price);
+    const stopLoss = Number(formData.stop_loss);
+    const positionSize = Number(formData.position_size);
+    const riskAmount = Number(baseRiskAmount);
+
+    const hasInputs = Number.isFinite(entryPrice) && Number.isFinite(stopLoss)
+      && Number.isFinite(positionSize) && positionSize > 0 && entryPrice !== stopLoss;
+    if (!hasInputs || !Number.isFinite(riskAmount) || riskAmount <= 0) {
+      return { actualRisk: null, expectedRisk: null, riskRatio: null, isOversized: false, suggestedSizeGrade: null };
+    }
+
+    const riskMultiplier = getRiskMultiplier(selectedPlaybookEntry);
+    const actualRisk = Math.abs(entryPrice - stopLoss) * positionSize;
+    const expectedRisk = riskAmount * riskMultiplier;
+    const riskRatio = actualRisk / expectedRisk;
+
+    return {
+      actualRisk,
+      expectedRisk,
+      riskRatio,
+      isOversized: actualRisk > expectedRisk * OVERSIZED_TOLERANCE,
+      suggestedSizeGrade: sizeGradeFromRiskRatio(riskRatio),
+    };
+  }, [formData.entry_price, formData.stop_loss, formData.position_size, baseRiskAmount, selectedPlaybookEntry]);
+
+  // Recomputes Size-Grade whenever the risk inputs change — a trader can
+  // still overwrite it manually afterward; it's only reasserted the next
+  // time entry/stop/size/settings actually change.
+  useEffect(() => {
+    if (!open || sizeRiskInfo.suggestedSizeGrade == null) return;
+    updateField('size_grade', sizeRiskInfo.suggestedSizeGrade);
+  }, [open, sizeRiskInfo.suggestedSizeGrade, updateField]);
 
   // Pattern nudges — must come after useTradeForm so formData is in scope.
   const tradeNudges = useMemo(() => {
@@ -243,42 +351,65 @@ export function useAddTradeModalController({ open, onSave, initialData }) {
     return nudges;
   }, [open, tierTrades, formData.setup_type]);
 
-  // Auto-rating — recomputes whenever the key criteria fields change.
-  // Fires as a side-effect so it doesn't block render.
+  // Auto-rating (0-10) breakdown — recomputes whenever execution grades or
+  // emotions change. Every signal below carries its own fixed weight and is
+  // scored independently — nothing is averaged together, so a missing/
+  // ungraded field costs exactly its own weight instead of being smoothed
+  // out by whichever signals are present. Process discipline (did you use
+  // entry/SL/exit criteria) and risk discipline (stop defined, not
+  // oversized) aren't scored separately — they're already reflected in the
+  // Entry/Exit/SL/Size grades themselves. Exposed as a memo (rather than
+  // computed only inside the sync effect below) so the UI can show a trader
+  // exactly how each factor contributed instead of just the final number:
+  //   Entry Grade            4.0  (highest weight — the entry is what you control most)
+  //   Exit Grade             2.0
+  //   Stop-Loss Grade        1.5
+  //   Emotions               1.5  (disciplined/confident vs fomo/revenge at time of trade)
+  //   Size Grade             1.0
+  const ratingBreakdown = useMemo(() => {
+    const gradeContribution = (grade, weight) => {
+      const points = GRADE_POINTS[grade];
+      return points != null ? (points / MAX_GRADE_POINTS) * weight : 0;
+    };
+
+    const entryGradeScore = gradeContribution(formData.entry_grade, 4);
+    const exitGradeScore = gradeContribution(formData.exit_grade, 2);
+    const slGradeScore = gradeContribution(formData.sl_grade, 1.5);
+    const sizeGradeScore = gradeContribution(formData.size_grade, 1);
+
+    // Scored through the shared table, so an emotion added in Settings counts
+    // as neutral rather than dropping out of the rating.
+    const emotionPoints = getEmotionPoints(formData.emotions);
+    const emotionScore = emotionPoints != null ? emotionPoints * 1.5 : 0;
+
+    const total = Math.min(10, Math.max(0, Math.round(
+      (entryGradeScore + exitGradeScore + slGradeScore + sizeGradeScore + emotionScore) * 2
+    ) / 2));
+
+    return {
+      total,
+      factors: [
+        { label: 'Entry Grade', weight: 4, score: entryGradeScore, detail: formData.entry_grade || 'ungraded' },
+        { label: 'Exit Grade', weight: 2, score: exitGradeScore, detail: formData.exit_grade || 'ungraded' },
+        { label: 'Stop-Loss Grade', weight: 1.5, score: slGradeScore, detail: formData.sl_grade || 'ungraded' },
+        { label: 'Emotions', weight: 1.5, score: emotionScore, detail: formData.emotions || 'not set' },
+        { label: 'Size Grade', weight: 1, score: sizeGradeScore, detail: formData.size_grade || 'ungraded' },
+      ],
+    };
+  }, [
+    formData.entry_grade,
+    formData.sl_grade,
+    formData.exit_grade,
+    formData.size_grade,
+    formData.emotions,
+  ]);
+
+  // Syncs the computed total onto the trade record. Fires as a side-effect
+  // so it doesn't block render.
   useEffect(() => {
     if (!open) return;
-    const hasSetup  = Boolean(formData.setup_type?.trim());
-    const hasEntry  = Boolean(formData.entry_criteria_used?.trim());
-    const hasSL     = Boolean(formData.stop_loss_used?.trim());
-    const hasExit   = Boolean(formData.exit_used?.trim());
-    const hasSLPrice = formData.stop_loss != null && String(formData.stop_loss).trim() !== '';
-    const hasImprovements = Boolean(formData.reflection_answers?.improvements);
-
-    let rating;
-    if (hasEntry || hasSL || hasExit) {
-      // Playbook path — all three playbook criteria available
-      const allMet = hasEntry && hasSL && hasExit;
-      if (allMet)                      rating = hasImprovements ? 4 : 5;
-      else if ([hasEntry, hasSL, hasExit].filter(Boolean).length >= 2) rating = 3;
-      else                             rating = 2;
-    } else {
-      // Non-playbook path — use setup + stop loss price
-      if (!hasSetup)                   rating = 1;
-      else if (!hasSLPrice)            rating = 2;
-      else                             rating = hasImprovements ? 4 : 5;
-    }
-
-    updateField('overall_rating', rating);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [
-    open,
-    formData.setup_type,
-    formData.entry_criteria_used,
-    formData.stop_loss_used,
-    formData.exit_used,
-    formData.stop_loss,
-    formData.reflection_answers?.improvements,
-  ]);
+    updateField('overall_rating', ratingBreakdown.total);
+  }, [open, ratingBreakdown.total, updateField]);
 
   // ML win prediction — uses the same tierTrades, runs after tradeNudges so
   // the session-position context (todayLogged length) can be shared.
@@ -367,7 +498,6 @@ export function useAddTradeModalController({ open, onSave, initialData }) {
     }
     setAutoScreenshotSymbol(null);
   // formData.screenshots and tierTrades intentionally omitted — read as snapshot to prevent loops
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, formData.symbol, formData.entry_time, autoScreenshotSymbol]);
 
   const handleUploadFiles = useCallback(async (files) => {
@@ -418,34 +548,6 @@ export function useAddTradeModalController({ open, onSave, initialData }) {
 
   const pnlValue = Number(calculatedPnl) || 0;
 
-  const playbookEntries = useMemo(
-    () => normalizePlaybookEntries(settings?.strategy_playbook),
-    [settings?.strategy_playbook]
-  );
-
-  const setupTypeOptions = useMemo(() => {
-    const seen = new Set();
-    const options = playbookEntries
-      .filter((entry) => entry.is_active && String(entry.name || '').trim())
-      .map((entry) => entry.name)
-      .filter((name) => {
-        const key = name.toLowerCase();
-        if (seen.has(key)) return false;
-        seen.add(key);
-        return true;
-      });
-
-    const selectedSetup = String(formData.setup_type || '').trim();
-    if (!selectedSetup || selectedSetup.toLowerCase() === 'manual') return options;
-    if (options.some((o) => o.toLowerCase() === selectedSetup.toLowerCase())) return options;
-    return [...options, selectedSetup];
-  }, [formData.setup_type, playbookEntries]);
-
-  const selectedPlaybookEntry = useMemo(
-    () => getPlaybookEntryBySetupName(playbookEntries, formData.setup_type),
-    [formData.setup_type, playbookEntries]
-  );
-
   const strategyStepsForSetup = useMemo(
     () => normalizeStrategySteps(selectedPlaybookEntry?.steps ?? []),
     [selectedPlaybookEntry]
@@ -487,6 +589,8 @@ export function useAddTradeModalController({ open, onSave, initialData }) {
     updateField('strategy_step_results', strategyStepResults);
   }, [formData.strategy_step_results, strategyStepResults, updateField]);
 
+  // entry_grade / sl_grade / exit_grade are always trader-selected — this only
+  // auto-computes the numeric quality score (no manual input for that field).
   useEffect(() => {
     const entryPrice = Number(formData.entry_price);
     const stopLoss = Number(formData.stop_loss);
@@ -510,18 +614,13 @@ export function useAddTradeModalController({ open, onSave, initialData }) {
         risk_amount: Number.isFinite(estimatedRisk) ? estimatedRisk : formData.risk_amount,
         strategy_step_results: strategyStepResults,
       },
-      { riskLimit: settings?.risk_amount }
+      { riskLimit: baseRiskAmount }
     );
 
-    const nextGrade = quality?.grade || '';
     const nextScore = Number.isFinite(quality?.score) ? Math.round(quality.score) : null;
     const currentScore = Number.isFinite(Number(formData.setup_quality_score))
       ? Math.round(Number(formData.setup_quality_score))
       : null;
-
-    if (formData.setup_grade !== nextGrade) {
-      updateField('setup_grade', nextGrade);
-    }
 
     if (currentScore !== nextScore) {
       updateField('setup_quality_score', nextScore);
@@ -533,10 +632,9 @@ export function useAddTradeModalController({ open, onSave, initialData }) {
     formData.position_size,
     formData.quantity,
     formData.risk_amount,
-    formData.setup_grade,
     formData.setup_quality_score,
     formData.stop_loss,
-    settings?.risk_amount,
+    baseRiskAmount,
     strategyStepResults,
     updateField,
   ]);
@@ -596,9 +694,18 @@ export function useAddTradeModalController({ open, onSave, initialData }) {
     setLoading(true);
 
     try {
+      const liveVersion = selectedPlaybookEntry
+        ? await ensureCurrentVersion(selectedPlaybookEntry)
+        : null;
+
       const submissionData = {
         ...prepareForSubmission(),
         screenshots: screenshotIds,
+        // Stamp the linked Playbook setup so realized trades can be checked
+        // against that setup's R-profile in Performance.
+        trade_plan_id: selectedPlaybookEntry?.id || null,
+        ...getTradeVersionStamp(selectedPlaybookEntry, liveVersion),
+        is_oversized: sizeRiskInfo.isOversized,
       };
 
       submissionData.entry_time = localToUTCISO(formData.entry_time);
@@ -626,7 +733,7 @@ export function useAddTradeModalController({ open, onSave, initialData }) {
     } finally {
       setLoading(false);
     }
-  }, [formData, onSave, prepareForSubmission, screenshotIds, disciplineSnapshot]);
+  }, [formData, onSave, prepareForSubmission, screenshotIds, disciplineSnapshot, selectedPlaybookEntry, sizeRiskInfo, ensureCurrentVersion]);
 
   const symbolError = useMemo(() => {
     const symbol = String(formData.symbol || '').trim();
@@ -647,9 +754,14 @@ export function useAddTradeModalController({ open, onSave, initialData }) {
     setupTypeOptions,
     mistakeOptions,
     learningOptions,
+    improvementOptions,
+    emotionOptions,
     whatWorkedOptions,
     winPrediction,
     selectedPlaybookEntry,
+    riskAmount: baseRiskAmount,
+    sizeRiskInfo,
+    ratingBreakdown,
     strategyStepsForSetup,
     strategyStepResults,
     tradeNudges,

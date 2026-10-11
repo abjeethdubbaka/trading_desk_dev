@@ -1,3 +1,5 @@
+import { normalizeIndicators } from './indicators.js';
+import { normalizeTemplate, ratingToGrade } from '../setupJournal/utils.js';
 import { sanitizeSetupTypes } from '../../components/journal/AddTradeModal/constants/tradeConstants.js';
 
 export const PLAYBOOK_FIELD = 'strategy_playbook';
@@ -40,6 +42,43 @@ function normalizeLineItems(input) {
   }
 
   return [];
+}
+
+export const CRITERIA_GRADE_OPTIONS = ['A+', 'A', 'B', 'C', 'D', 'E', 'F'];
+
+// Entry/Exit/Stop Loss criteria items, each optionally tagged with the grade
+// it corresponds to (e.g. "Price breaks and holds above key level" -> A+).
+// When a trader picks a tagged item in Add Trade, its grade is auto-filled
+// instead of left for manual selection. Accepts plain strings (untagged,
+// grade: '') for backward compatibility with previously-saved data.
+function normalizeGradedItems(input) {
+  const toItem = (raw) => {
+    if (raw && typeof raw === 'object' && !Array.isArray(raw)) {
+      const text = toTrimmedString(raw.text ?? raw.label ?? raw.value);
+      const grade = CRITERIA_GRADE_OPTIONS.includes(raw.grade) ? raw.grade : '';
+      return text ? { text, grade } : null;
+    }
+    const text = toTrimmedString(raw);
+    return text ? { text, grade: '' } : null;
+  };
+
+  let rawItems = [];
+  if (Array.isArray(input)) {
+    rawItems = input;
+  } else if (typeof input === 'string') {
+    rawItems = input.split('\n');
+  }
+
+  const seen = new Set();
+  const items = [];
+  for (const raw of rawItems) {
+    const item = toItem(raw);
+    if (!item || seen.has(item.text)) continue;
+    seen.add(item.text);
+    items.push(item);
+  }
+
+  return items;
 }
 
 function normalizeTags(input) {
@@ -156,6 +195,9 @@ export function createBlankPlaybookEntry() {
     name: '',
     description: '',
     timeframe: [],
+    // Which trade direction this setup applies to. 'both' (the default)
+    // means it shows up in Add Trade regardless of the trade's direction.
+    direction: 'both',
     has_sl_exit_plan: true,
     entry_criteria: [],
     exit_criteria: [],
@@ -165,17 +207,43 @@ export function createBlankPlaybookEntry() {
     steps: [],
     examples: [],
     images: [],
+    indicators: [],
+    alert_keywords: [],
     setup_conditions: { structure: '', ema_context: '', volume: '', market_context: '', time: '', entry_type: '' },
     grade_criteria: { a_plus: '', a: '', b: '', c: '' },
     trigger_spec: { entry_trigger: '', trigger_level: '', trigger_event: '', order: '', expiry_bars: null, abort_if: '', loss_r: null, win_rate: null },
     expected_r_profile: { min: null, min_percent: null, target: null, target_percent: null, stretch: null, stretch_percent: null },
-    risk_level: 'normal',
-    priority: 2,
+    risk_percent: DEFAULT_RISK_PERCENT,
     is_active: true,
     created_at: now,
     updated_at: now,
     last_reviewed_at: '',
   };
+}
+
+/**
+ * How much of the account's base risk a setup is worth, as a percentage.
+ * 100 is full risk; a setup you trust more can be 150, one you are still
+ * proving can be 50. Any number is allowed — it is a dial, not four presets.
+ */
+export const DEFAULT_RISK_PERCENT = 100;
+
+/** The four presets this replaced, so old setups keep the size they had. */
+const LEGACY_RISK_LEVEL_PERCENT = { half: 50, normal: 100, oneandahalf: 150, double: 200 };
+
+export function normalizeRiskPercent(rawPercent, legacyRiskLevel) {
+  const percent = Number(rawPercent);
+  // Zero risk would mean a setup that can never be sized, so it is not a
+  // meaningful setting; anything above it is.
+  if (Number.isFinite(percent) && percent > 0) return Math.round(percent * 100) / 100;
+
+  const legacy = LEGACY_RISK_LEVEL_PERCENT[legacyRiskLevel];
+  return legacy != null ? legacy : DEFAULT_RISK_PERCENT;
+}
+
+/** The multiplier to apply to base risk for this setup. */
+export function getRiskMultiplier(playbookEntry) {
+  return normalizeRiskPercent(playbookEntry?.risk_percent, playbookEntry?.risk_level) / 100;
 }
 
 export function normalizePlaybookEntry(entry) {
@@ -191,10 +259,11 @@ export function normalizePlaybookEntry(entry) {
     name: normalizedName,
     description: toTrimmedString(source.description),
     timeframe: normalizeTimeframes(source.timeframe),
+    direction: ['long', 'short', 'both'].includes(source.direction) ? source.direction : 'both',
     has_sl_exit_plan: source.has_sl_exit_plan !== false,
-    entry_criteria: normalizeLineItems(source.entry_criteria || source.entryCriteria),
-    exit_criteria: normalizeLineItems(source.exit_criteria || source.exitCriteria),
-    stop_loss_management: normalizeLineItems(source.stop_loss_management || source.stopLossManagement),
+    entry_criteria: normalizeGradedItems(source.entry_criteria || source.entryCriteria),
+    exit_criteria: normalizeGradedItems(source.exit_criteria || source.exitCriteria),
+    stop_loss_management: normalizeGradedItems(source.stop_loss_management || source.stopLossManagement),
     stop_loss_move: normalizeLineItems(source.stop_loss_move),
     invalidations: normalizeLineItems(source.invalidations),
     steps: Array.isArray(source.steps)
@@ -207,12 +276,28 @@ export function normalizePlaybookEntry(entry) {
       : [],
     examples: normalizeExamples(source.examples),
     images: Array.isArray(source.images) ? source.images.filter((s) => typeof s === 'string' && s.length > 0) : [],
+    // Charts are kept in Informative Images rather than inside Settings, where
+    // every setup shares one 1 MiB document. Each chart has its own gallery
+    // entry, so each gets a whole document's worth of quality.
+    images_gallery_ids: normalizeGalleryIds(source.images_gallery_ids),
+    // The earlier layout: every chart of a setup in one shared gallery entry.
+    images_gallery_id: toTrimmedString(source.images_gallery_id),
+    // Indicator source files (.cs) the setup is traded with. The files are on
+    // disk; the setup keeps a small record of each.
+    indicators: normalizeIndicators(source.indicators),
+    // How Trade Terminal's alerts name this setup ("VWAP REJ"), so Guardian
+    // can file its triggers here.
+    alert_keywords: Array.isArray(source.alert_keywords)
+      ? [...new Set(source.alert_keywords.map((k) => String(k || '').trim().toUpperCase().replace(/\s+/g, ' ')).filter(Boolean))]
+      : [],
     setup_conditions: normalizeSetupConditions(source.setup_conditions),
     grade_criteria: normalizeGradeCriteria(source.grade_criteria),
     trigger_spec: normalizeTriggerSpec(source.trigger_spec),
+    // Setup Journal template. Empty means the setup has not customised it and
+    // falls back to the starter prompts.
+    journal_template: normalizeTemplate(source.journal_template),
     expected_r_profile: normalizeExpectedRProfile(source.expected_r_profile || source.expectedRProfile),
-    risk_level: ['half', 'normal', 'oneandahalf', 'double'].includes(source.risk_level) ? source.risk_level : 'normal',
-    priority: [1, 2, 3].includes(Number(source.priority)) ? Number(source.priority) : 2,
+    risk_percent: normalizeRiskPercent(source.risk_percent, source.risk_level),
     is_active: source.is_active !== false,
     created_at: toTrimmedString(source.created_at) || base.created_at,
     updated_at: toTrimmedString(source.updated_at) || base.updated_at,
@@ -253,9 +338,6 @@ export function normalizePlaybookEntries(entries) {
       return left.is_active ? -1 : 1;
     }
 
-    const priorityDiff = (left.priority ?? 2) - (right.priority ?? 2);
-    if (priorityDiff !== 0) return priorityDiff;
-
     return Date.parse(right.updated_at || 0) - Date.parse(left.updated_at || 0);
   });
 }
@@ -294,4 +376,111 @@ export function toCriteriaTextareaValue(items) {
 
 export function toTagsInputValue(tags) {
   return normalizeTags(tags).join(', ');
+}
+
+/**
+ * Journal templates were added after the first strategy backups were written,
+ * so a file exported before then carries none. Importing it must not wipe the
+ * prompts a setup already has — an absent template means "unchanged", not
+ * "cleared". A template that is present in the file wins outright.
+ */
+export function withPreservedJournalTemplate(rawEntry, existingEntry) {
+  const incoming = normalizeTemplate(rawEntry?.journal_template);
+  if (incoming.fields.length > 0 || incoming.questions.length > 0) return rawEntry;
+
+  const existing = normalizeTemplate(existingEntry?.journal_template);
+  if (existing.fields.length === 0 && existing.questions.length === 0) return rawEntry;
+
+  return { ...rawEntry, journal_template: existing };
+}
+
+/**
+ * How well a setup is being executed, as opposed to how well it pays. Add
+ * Trade already scores every trade out of 10 from its entry, exit, stop-loss,
+ * size and emotion grades — averaging that per setup answers a different
+ * question from expectancy: whether a disappointing setup is actually a
+ * badly-traded one.
+ */
+export function calcExecutionScoreBySetup(trades = []) {
+  const groups = new Map();
+
+  for (const trade of Array.isArray(trades) ? trades : []) {
+    const setup = toTrimmedString(trade?.setup_type);
+    const rating = Number(trade?.overall_rating);
+    if (!setup || !Number.isFinite(rating)) continue;
+
+    const key = setup.toLowerCase();
+    const group = groups.get(key) || { total: 0, count: 0, ungraded: 0 };
+    group.total += rating;
+    group.count += 1;
+    groups.set(key, group);
+  }
+
+  return new Map([...groups.entries()].map(([key, group]) => {
+    const score = Math.round((group.total / group.count) * 10) / 10;
+    return [key, { score, grade: ratingToGrade(score), count: group.count }];
+  }));
+}
+
+function normalizeGalleryIds(ids) {
+  if (!Array.isArray(ids)) return [];
+  const seen = new Set();
+  return ids
+    .map((id) => toTrimmedString(id))
+    .filter((id) => id && !seen.has(id) && seen.add(id));
+}
+
+/**
+ * A setup's chart images, wherever they are kept: one gallery entry per
+ * chart, the single shared entry setups used before that, or — for setups
+ * saved before charts left Settings — the images still held inline.
+ */
+export function resolvePlaybookImages(entry, imagesByGalleryId = new Map()) {
+  const ids = normalizeGalleryIds(entry?.images_gallery_ids);
+  if (ids.length > 0) {
+    const images = ids.flatMap((id) => {
+      const stored = imagesByGalleryId.get(id);
+      return Array.isArray(stored) ? stored : [];
+    });
+    if (images.length > 0) return images;
+  }
+
+  const legacyId = toTrimmedString(entry?.images_gallery_id);
+  if (legacyId && imagesByGalleryId.has(legacyId)) {
+    const images = imagesByGalleryId.get(legacyId);
+    if (Array.isArray(images) && images.length > 0) return images;
+  }
+
+  return Array.isArray(entry?.images) ? entry.images.filter((i) => typeof i === 'string' && i) : [];
+}
+
+/**
+ * How to bring a setup's gallery entries in line with the charts it should
+ * now show. A chart already stored is matched by content and kept, so an
+ * unchanged chart is never rewritten; new charts are created; entries whose
+ * chart was removed are deleted. `order` gives the final ids in chart order,
+ * with `null` for each chart still to be created.
+ */
+export function planGalleryImageSync(images = [], storedCharts = []) {
+  const wanted = (Array.isArray(images) ? images : []).filter((i) => typeof i === 'string' && i);
+  const available = (Array.isArray(storedCharts) ? storedCharts : [])
+    .filter((chart) => chart?.id && typeof chart.image === 'string');
+
+  const used = new Set();
+  const order = [];
+  const create = [];
+
+  for (const image of wanted) {
+    const match = available.find((chart) => chart.image === image && !used.has(chart.id));
+    if (match) {
+      used.add(match.id);
+      order.push(match.id);
+    } else {
+      order.push(null);
+      create.push(image);
+    }
+  }
+
+  const remove = available.filter((chart) => !used.has(chart.id)).map((chart) => chart.id);
+  return { order, create, remove };
 }

@@ -1,7 +1,7 @@
 import {
   collection, doc, getDoc, getDocs, addDoc, updateDoc, deleteDoc,
   query, orderBy, where,
-} from 'firebase/firestore';
+} from 'firebase/firestore/lite';
 import { addCreateTimestamps, addUpdateTimestamp } from './utils.js';
 
 export function createFinanceAdapter(db) {

@@ -1,39 +1,8 @@
-export const FILTER_OPTIONS = [
-  { value: 'all', label: 'All' },
-  { value: 'winners', label: 'Winners' },
-  { value: 'losers', label: 'Losers' },
-  { value: 'long', label: 'Long' },
-  { value: 'short', label: 'Short' }
-];
+/**
+ * The journal's filter chips and periods. Defined once in the day-group
+ * module, so the toolbar, the filter hook and the tests read the same list.
+ */
+import { PERIODS, TRADE_FILTERS } from '@/lib/journal/dayGroups';
 
-export const DATE_RANGE_OPTIONS = [
-  { value: 'all', label: 'All Time' },
-  { value: 'today', label: 'Today' },
-  { value: 'week', label: 'This Week' },
-  { value: 'month', label: 'This Month' },
-  { value: 'lastMonth', label: 'Last Month' }
-];
-
-export const TRADE_DIRECTIONS = {
-  LONG: 'long',
-  SHORT: 'short'
-};
-
-export const STORAGE_KEYS = {
-  TRADES: 'trades',
-  SETTINGS: 'journal-settings',
-  TEMPLATES: 'trade-templates'
-};
-
-export const DEFAULT_SETUP_TYPES = [
-  'Breakout',
-  'Reversal',
-  'Earnings',
-  'Gap',
-  'Pullback',
-  'Scalp',
-  'Swing',
-  'Other'
-];
-
-
+export const FILTER_OPTIONS = TRADE_FILTERS.map(({ key, label }) => ({ value: key, label }));
+export const DATE_RANGE_OPTIONS = PERIODS.map(({ key, label }) => ({ value: key, label }));

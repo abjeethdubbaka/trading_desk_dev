@@ -13,46 +13,22 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils/general';
-import { useSettings } from '@/lib/hooks/useSettings';
-import { imageFileToDataUrl } from '@/components/journal/shared/media/imageUtils';
+import { CRITERIA_GRADE_OPTIONS } from '@/lib/playbook/utils';
+import {
+  HIGH_QUALITY_LADDER,
+  HIGH_QUALITY_MAX_IMAGE_BYTES,
+  imageFileToDataUrl,
+} from '@/components/journal/media/imageUtils';
+import { useLocalImages } from '@/lib/hooks/useLocalImages';
+import { IMAGE_BUCKETS } from '@/lib/images/localStore';
 import EntryImagesField, { MAX_ENTRY_IMAGES } from './EntryImagesField';
 import EntryExamplesField from './EntryExamplesField';
+import JournalTemplateField from './JournalTemplateField';
+import EntryIndicatorsField from './EntryIndicatorsField';
 
 const TIMEFRAMES = ['2min', '5min', '15min', '30min'];
 
-const DEFAULT_ENTRY_PRESETS = [
-  'Price breaks and holds above key level',
-  'VWAP reclaim confirmed on candle close',
-  'First pullback to key level after momentum',
-  'Setup candle formed on target timeframe',
-  'Volume confirmation above average',
-];
-
-const DEFAULT_STOP_LOSS_PRESETS = [
-  'Initial stop: below entry candle low',
-  'Move to breakeven after +1R',
-  'Trail stop with prior candle highs after +2R',
-  'Time stop: exit if no momentum in 15 min',
-  'Max daily loss reached: full exit',
-];
-
-const DEFAULT_EXIT_PRESETS = [
-  'Scale 50% at +1R, trail rest',
-  'Full exit at target R',
-  'Scale: 33% at +1R, 33% at +2R, trail rest',
-  'Exit at VWAP / key level',
-  'Exit on close below key level',
-];
-
-const DEFAULT_STOP_LOSS_MOVE_PRESETS = [
-  'Move to breakeven at +1R',
-  'Move stop to +0.5R after first scale',
-  'Trail with 5-min candle highs after +2R',
-  'Trail with VWAP after full position profitable',
-  'Lock in +1R when trade reaches +2R',
-];
-
-function PresetPicker({ label, required, presets, value, onChange, focusBorderClass, customPlaceholder }) {
+function PresetPicker({ label, required, value, onChange, focusBorderClass, customPlaceholder }) {
   const [customInput, setCustomInput] = useState('');
 
   const addItem = (item) => {
@@ -62,30 +38,96 @@ function PresetPicker({ label, required, presets, value, onChange, focusBorderCl
   };
 
   const removeItem = (index) => onChange(value.filter((_, i) => i !== index));
-  const availablePresets = presets.filter((p) => !value.includes(p));
 
   return (
     <div className="space-y-2">
       <Label>{label}{required ? ' *' : ''}</Label>
-
-      {availablePresets.length > 0 && (
-        <select
-          className="w-full rounded-xl border border-white/12 bg-[#0e0e18] px-3 py-2 text-sm text-white/55 outline-none focus:border-white/25 cursor-pointer"
-          onChange={(e) => { if (e.target.value) { addItem(e.target.value); e.target.value = ''; } }}
-          defaultValue=""
-        >
-          <option value="" disabled>Pick a preset to add…</option>
-          {availablePresets.map((p) => (
-            <option key={p} value={p}>{p}</option>
-          ))}
-        </select>
-      )}
 
       {value.length > 0 && (
         <div className="rounded-xl border border-white/10 bg-white/[0.02] p-2 space-y-1">
           {value.map((item, i) => (
             <div key={i} className="flex items-start justify-between gap-2">
               <span className="flex-1 text-xs text-white/80 pt-0.5">- {item}</span>
+              <button
+                type="button"
+                onClick={() => removeItem(i)}
+                className="flex-shrink-0 p-0.5 rounded text-white/25 hover:text-rose-400 hover:bg-rose-500/10 transition-colors"
+              >
+                <X className="w-3 h-3" />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div className="flex gap-2">
+        <input
+          value={customInput}
+          onChange={(e) => setCustomInput(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault();
+              addItem(customInput);
+              setCustomInput('');
+            }
+          }}
+          placeholder={customPlaceholder}
+          className={cn(
+            'flex-1 rounded-xl border border-white/12 bg-white/[0.03] px-3 py-1.5 text-sm text-white outline-none placeholder:text-white/35',
+            focusBorderClass,
+          )}
+        />
+        <button
+          type="button"
+          onClick={() => { addItem(customInput); setCustomInput(''); }}
+          className="px-3 rounded-xl border border-white/12 bg-white/5 text-white/50 hover:text-white hover:bg-white/8 transition-colors flex items-center gap-1 text-sm"
+        >
+          <Plus className="w-3.5 h-3.5" />
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// Like PresetPicker, but each item can be tagged with the grade it maps to
+// (A+/A/B/C/D/E/F). When a trader selects a tagged item in Add Trade, that
+// grade is auto-filled instead of left for manual selection.
+function GradedPresetPicker({ label, required, value, onChange, focusBorderClass, customPlaceholder }) {
+  const [customInput, setCustomInput] = useState('');
+
+  const addItem = (text) => {
+    const trimmed = text.trim();
+    if (!trimmed || value.some((item) => item.text === trimmed)) return;
+    onChange([...value, { text: trimmed, grade: '' }]);
+  };
+
+  const removeItem = (index) => onChange(value.filter((_, i) => i !== index));
+  const setGrade = (index, grade) => onChange(value.map((item, i) => (i === index ? { ...item, grade } : item)));
+
+  return (
+    <div className="space-y-2">
+      <Label>{label}{required ? ' *' : ''}</Label>
+
+      {value.length > 0 && (
+        <div className="rounded-xl border border-white/10 bg-white/[0.02] p-2 space-y-1.5">
+          {value.map((item, i) => (
+            <div key={i} className="flex items-start justify-between gap-2">
+              <span className="flex-1 text-xs text-white/80 pt-0.5">- {item.text}</span>
+              <select
+                value={item.grade || ''}
+                onChange={(e) => setGrade(i, e.target.value)}
+                className={cn(
+                  'flex-shrink-0 rounded-md border bg-[#0e0e18] px-1.5 py-1 text-[10px] font-semibold outline-none cursor-pointer',
+                  item.grade === 'A+'
+                    ? 'border-yellow-300/50 text-yellow-200 shadow-[0_0_6px_rgba(250,204,21,0.25)]'
+                    : 'border-white/12 text-white/70',
+                )}
+              >
+                <option value="">No grade</option>
+                {CRITERIA_GRADE_OPTIONS.map((g) => (
+                  <option key={g} value={g}>{g}</option>
+                ))}
+              </select>
               <button
                 type="button"
                 onClick={() => removeItem(i)}
@@ -136,11 +178,7 @@ export default function EntryEditorDialog({
   isSubmitting,
   dialogMode,
 }) {
-  const { settings } = useSettings();
-  const entryPresets = Array.isArray(settings?.entry_presets) ? settings.entry_presets : DEFAULT_ENTRY_PRESETS;
-  const stopLossPresets = Array.isArray(settings?.stop_loss_presets) ? settings.stop_loss_presets : DEFAULT_STOP_LOSS_PRESETS;
-  const stopLossMovePresets = Array.isArray(settings?.stop_loss_move_presets) ? settings.stop_loss_move_presets : DEFAULT_STOP_LOSS_MOVE_PRESETS;
-  const exitPresets = Array.isArray(settings?.exit_presets) ? settings.exit_presets : DEFAULT_EXIT_PRESETS;
+  const { store: storeLocalImage, isSupported: isLocalSupported } = useLocalImages();
 
   if (!formState) return null;
 
@@ -184,7 +222,16 @@ export default function EntryEditorDialog({
     if (slots <= 0) { toast.error(`Max ${MAX_ENTRY_IMAGES} images per setup`); return; }
     try {
       const urls = await Promise.all(
-        files.slice(0, slots).map((f) => imageFileToDataUrl(f, { maxWidth: 900, quality: 0.80 }))
+        // Written to disk untouched on the desktop build; compressed only in a
+        // browser, where there is nowhere to write it.
+        files.slice(0, slots).map((f) => (
+          isLocalSupported
+            ? storeLocalImage(f, IMAGE_BUCKETS.playbook)
+            : imageFileToDataUrl(f, {
+                ladder: HIGH_QUALITY_LADDER,
+                maxBytes: HIGH_QUALITY_MAX_IMAGE_BYTES,
+              })
+        ))
       );
       setFormState((prev) => ({ ...prev, images: [...(prev.images || []), ...urls] }));
     } catch {
@@ -250,58 +297,54 @@ export default function EntryEditorDialog({
                   </div>
                 </div>
                 <div className="space-y-1.5">
-                  <Label>Risk Level</Label>
-                  <div className="grid grid-cols-4 gap-1 rounded-lg border border-white/12 bg-white/[0.03] p-1">
-                    {[
-                      { value: 'half',         label: '½×',   color: 'border-amber-400/40 bg-amber-500/15 text-amber-200' },
-                      { value: 'normal',       label: '1×',   color: 'border-emerald-400/40 bg-emerald-500/15 text-emerald-200' },
-                      { value: 'oneandahalf', label: '1.5×', color: 'border-cyan-400/40 bg-cyan-500/15 text-cyan-200' },
-                      { value: 'double',       label: '2×',   color: 'border-rose-400/40 bg-rose-500/15 text-rose-200' },
-                    ].map(({ value, label, color }) => {
-                      const isActive = (formState.risk_level || 'normal') === value;
-                      return (
-                        <button
-                          key={value}
-                          type="button"
-                          onClick={() => setFormState((prev) => ({ ...prev, risk_level: value }))}
-                          className={cn(
-                            'rounded px-2 py-1.5 text-[11px] font-semibold transition-colors',
-                            isActive ? `border ${color}` : 'text-white/40 hover:text-white/70',
-                          )}
-                        >
-                          {label}
-                        </button>
-                      );
-                    })}
+                  <Label>Risk %</Label>
+                  <div className="relative">
+                    <Input
+                      type="number"
+                      min="1"
+                      step="5"
+                      value={formState.risk_percent ?? ''}
+                      onChange={(event) => setFormState((prev) => ({ ...prev, risk_percent: event.target.value }))}
+                      placeholder="100"
+                      className="h-[38px] bg-white/[0.03] border-white/12 pr-7 text-sm"
+                    />
+                    <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs text-white/35">%</span>
                   </div>
-                </div>
-                <div className="space-y-1.5">
-                  <Label>Priority</Label>
-                  <div className="grid grid-cols-3 gap-1 rounded-lg border border-white/12 bg-white/[0.03] p-1">
-                    {[
-                      { value: 1, label: '1', color: 'border-rose-400/40 bg-rose-500/15 text-rose-200' },
-                      { value: 2, label: '2', color: 'border-amber-400/40 bg-amber-500/15 text-amber-200' },
-                      { value: 3, label: '3', color: 'border-white/25 bg-white/10 text-white/60' },
-                    ].map(({ value, label, color }) => {
-                      const isActive = (formState.priority || 2) === value;
-                      return (
-                        <button
-                          key={value}
-                          type="button"
-                          onClick={() => setFormState((prev) => ({ ...prev, priority: value }))}
-                          className={cn(
-                            'rounded px-2 py-1.5 text-[11px] font-semibold transition-colors',
-                            isActive ? `border ${color}` : 'text-white/40 hover:text-white/70',
-                          )}
-                        >
-                          {label}
-                        </button>
-                      );
-                    })}
-                  </div>
+                  <p className="text-[10px] text-white/35">
+                    Share of base risk. 100 is full size.
+                  </p>
                 </div>
               </>
             )}
+          </div>
+
+          {/* Direction — which side this setup applies to. Gates which
+              setups show up in Add Trade once a trade direction is picked
+              there; "Both" (the default) always shows regardless of side. */}
+          <div className="space-y-1.5">
+            <Label>Direction</Label>
+            <div className="grid grid-cols-3 gap-1 rounded-lg border border-white/12 bg-white/[0.03] p-1 max-w-xs">
+              {[
+                { value: 'long', label: 'Long', color: 'border-emerald-400/40 bg-emerald-500/15 text-emerald-200' },
+                { value: 'short', label: 'Short', color: 'border-rose-400/40 bg-rose-500/15 text-rose-200' },
+                { value: 'both', label: 'Both', color: 'border-cyan-400/40 bg-cyan-500/15 text-cyan-200' },
+              ].map(({ value, label, color }) => {
+                const isActive = (formState.direction || 'both') === value;
+                return (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => setFormState((prev) => ({ ...prev, direction: value }))}
+                    className={cn(
+                      'rounded px-2 py-1.5 text-[11px] font-semibold transition-colors',
+                      isActive ? `border ${color}` : 'text-white/40 hover:text-white/70',
+                    )}
+                  >
+                    {label}
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
           {/* SL/Exit Plan toggle */}
@@ -487,39 +530,35 @@ export default function EntryEditorDialog({
                 ))}
               </div>
 
-              {/* Entry / Exit / Stop Loss / Stop Loss Move — preset pickers */}
+              {/* Entry / Exit / Stop Loss / Stop Loss Move — custom rule lists */}
               <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                <PresetPicker
+                <GradedPresetPicker
                   label="Entry Criteria"
                   required
-                  presets={entryPresets}
                   value={formState.entry_criteria_items}
                   onChange={(items) => setFormState((prev) => ({ ...prev, entry_criteria_items: items }))}
                   focusBorderClass="focus:border-emerald-300/40"
                   customPlaceholder="Add custom entry rule…"
                 />
-                <PresetPicker
+                <GradedPresetPicker
                   label="Exit Criteria"
                   required
-                  presets={exitPresets}
                   value={formState.exit_criteria_items}
                   onChange={(items) => setFormState((prev) => ({ ...prev, exit_criteria_items: items }))}
-                  focusBorderClass="focus:border-cyan-300/40"
+                  focusBorderClass="focus:border-teal-300/40"
                   customPlaceholder="Add custom exit rule…"
                 />
               </div>
               <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                <PresetPicker
+                <GradedPresetPicker
                   label="Stop Loss"
-                  presets={stopLossPresets}
                   value={formState.stop_loss_management_items}
                   onChange={(items) => setFormState((prev) => ({ ...prev, stop_loss_management_items: items }))}
-                  focusBorderClass="focus:border-violet-300/40"
+                  focusBorderClass="focus:border-indigo-300/40"
                   customPlaceholder="Add custom stop loss rule…"
                 />
                 <PresetPicker
                   label="Stop Loss Move"
-                  presets={stopLossMovePresets}
                   value={formState.stop_loss_move_items}
                   onChange={(items) => setFormState((prev) => ({ ...prev, stop_loss_move_items: items }))}
                   focusBorderClass="focus:border-amber-300/40"
@@ -551,6 +590,31 @@ export default function EntryEditorDialog({
               />
             </>
           )}
+
+          <div className="space-y-1.5 rounded-xl border border-white/10 bg-black/20 p-3">
+            <Label>Alert keywords</Label>
+            <Input
+              value={formState.alert_keywords_text || ''}
+              onChange={(event) => setFormState((prev) => ({ ...prev, alert_keywords_text: event.target.value }))}
+              placeholder="e.g. VWAP REJ, VWAP REJECT"
+              className="border-white/12 bg-white/[0.03] font-mono uppercase"
+            />
+            <p className="text-[11px] text-white/40">
+              How Trade Terminal’s alerts name this setup, comma separated. Trading Guardian files those triggers here. Left empty, the setup’s name is used.
+            </p>
+          </div>
+
+          <EntryIndicatorsField
+            indicators={Array.isArray(formState.indicators) ? formState.indicators : []}
+            onChange={(next) => setFormState((prev) => ({ ...prev, indicators: next }))}
+          />
+
+          {/* Every setup is debriefed in the Setup Journal, including ones
+              with no stop-loss/exit plan — so this sits outside that block. */}
+          <JournalTemplateField
+            value={formState.journal_template}
+            onChange={(next) => setFormState((prev) => ({ ...prev, journal_template: next }))}
+          />
 
           <label className="flex items-center gap-2 rounded-lg border border-white/12 bg-white/[0.03] px-3 py-2 text-sm">
             <input

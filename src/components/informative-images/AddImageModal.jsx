@@ -18,7 +18,9 @@ import {
 } from '@/components/ui/select';
 import { Loader2, Upload, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { imageFileToDataUrl } from '@/components/journal/shared/media/imageUtils';
+import { imageFileToDataUrl } from '@/components/journal/media/imageUtils';
+import { useLocalImages } from '@/lib/hooks/useLocalImages';
+import { IMAGE_BUCKETS } from '@/lib/images/localStore';
 import { DEFAULT_INFORMATIVE_IMAGE_CATEGORIES } from '@/lib/constants/informativeImageCategories';
 import { usePlaybook } from '@/lib/hooks/usePlaybook';
 import { useSettings } from '@/lib/context/SettingsContext';
@@ -37,6 +39,7 @@ export default function AddImageModal({ open, onClose, onSave, isSaving, editing
   const setupOptions = playbookEntries.filter((entry) => entry.is_active !== false).map((entry) => entry.name);
   const isEditing = Boolean(editingItem);
 
+  const { store, isSupported } = useLocalImages();
   const [images, setImages] = useState([]);
   const [categoryType, setCategoryType] = useState('setup');
   const [category, setCategory] = useState('');
@@ -77,8 +80,15 @@ export default function AddImageModal({ open, onClose, onSave, isSaving, editing
 
     setConverting(true);
     try {
-      const dataUrls = await Promise.all(files.map((file) => imageFileToDataUrl(file)));
-      setImages((prev) => [...prev, ...dataUrls]);
+      // On the desktop build a chart is written to disk untouched, so its
+      // full resolution survives. In a browser there is nowhere to write it,
+      // and it is compressed to fit the document as before.
+      const stored = await Promise.all(files.map((file) => (
+        isSupported
+          ? store(file, IMAGE_BUCKETS.informative)
+          : imageFileToDataUrl(file)
+      )));
+      setImages((prev) => [...prev, ...stored]);
     } finally {
       setConverting(false);
       event.target.value = '';

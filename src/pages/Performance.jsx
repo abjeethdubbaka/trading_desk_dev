@@ -15,7 +15,8 @@ import PerformanceByDayOfWeek from '@/components/performance/PerformanceByDayOfW
 import PerformanceByHoldDurationBuckets from '@/components/performance/PerformanceByHoldDurationBuckets';
 import PerformanceByHourOfDay from '@/components/performance/PerformanceByHourOfDay';
 import PerformanceByMonthOfYear from '@/components/performance/PerformanceByMonthOfYear';
-import { calculatePerformanceByMonthOfYear } from '@/components/performance/utils';
+import PerformanceByTradingWindow from '@/components/performance/PerformanceByTradingWindow';
+import { calculatePerformanceByMonthOfYear, calculatePerformanceByTradingWindow } from '@/components/performance/utils';
 import PerformanceByPrice from '@/components/performance/PerformanceByPrice';
 import PerformanceBySetupType from '@/components/performance/PerformanceBySetupType';
 import PerformanceByShareFloatRange from '@/components/performance/PerformanceByShareFloatRange';
@@ -61,9 +62,9 @@ import { ACCOUNT_TIERS, ACCOUNT_TIER_IDS } from '@/lib/config/accountTypes';
 
 function StatPill({ label, value, color }) {
   return (
-    <div className="rounded-xl border border-white/8 bg-[#13131e] px-4 py-3">
-      <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-white/40">{label}</p>
-      <p className={cn('font-mono text-xl font-bold', color)}>{value}</p>
+    <div className="rounded-lg border border-white/8 bg-[#13131e] px-2.5 py-1.5">
+      <p className="text-[9px] font-semibold uppercase tracking-wider text-white/40">{label}</p>
+      <p className={cn('mt-0.5 font-mono text-sm font-bold', color)}>{value}</p>
     </div>
   );
 }
@@ -278,6 +279,7 @@ export default function PerformancePage() {
   const byHour = useMemo(() => perfByHourOfDay(deferredTrades), [deferredTrades]);
   const byDay = useMemo(() => perfByDayOfWeek(deferredTrades), [deferredTrades]);
   const byMonth = useMemo(() => calculatePerformanceByMonthOfYear(deferredTrades), [deferredTrades]);
+  const byTradingWindow = useMemo(() => calculatePerformanceByTradingWindow(deferredTrades), [deferredTrades]);
   const bySetup = useMemo(() => perfBySetupType(deferredTrades), [deferredTrades]);
   const byPrice = useMemo(() => perfByPriceRange(deferredTrades), [deferredTrades]);
   const byFloat = useMemo(
@@ -291,11 +293,27 @@ export default function PerformancePage() {
   const byHoldBucket = useMemo(() => perfByHoldDurationBuckets(deferredTrades, 5), [deferredTrades]);
 
   const byOverallRating = useMemo(
-    () => perfByCategory(deferredTrades, (trade) => (trade?.overall_rating ? `${trade.overall_rating}★` : null)),
+    () => perfByCategory(deferredTrades, (trade) => (trade?.overall_rating != null ? `${trade.overall_rating}/10` : null)),
     [deferredTrades]
   );
   const byImprovementArea = useMemo(
     () => perfByCategory(deferredTrades, (trade) => trade?.reflection_answers?.improvements),
+    [deferredTrades]
+  );
+  const byEntryGrade = useMemo(
+    () => perfByCategory(deferredTrades, (trade) => trade?.entry_grade),
+    [deferredTrades]
+  );
+  const bySlGrade = useMemo(
+    () => perfByCategory(deferredTrades, (trade) => trade?.sl_grade),
+    [deferredTrades]
+  );
+  const byExitGrade = useMemo(
+    () => perfByCategory(deferredTrades, (trade) => trade?.exit_grade),
+    [deferredTrades]
+  );
+  const bySizing = useMemo(
+    () => perfByCategory(deferredTrades, (trade) => (trade?.is_oversized ? 'Oversized' : 'Properly sized')),
     [deferredTrades]
   );
   const weeklyReview = useMemo(() => buildWeeklyReview(deferredTrades, [7, 14]), [deferredTrades]);
@@ -398,6 +416,8 @@ export default function PerformancePage() {
     () => [...byImprovementArea].sort((a, b) => b.trades - a.trades)[0] ?? null,
     [byImprovementArea]
   );
+  const oversizedRow = useMemo(() => bySizing.find((row) => row.category === 'Oversized') ?? null, [bySizing]);
+  const properSizedRow = useMemo(() => bySizing.find((row) => row.category === 'Properly sized') ?? null, [bySizing]);
   const behaviorBestEmotion = useMemo(
     () => (emotionStats.length ? [...emotionStats].sort((a, b) => b.avgPnL - a.avgPnL)[0] : null),
     [emotionStats]
@@ -412,11 +432,11 @@ export default function PerformancePage() {
     return (
       <div className="space-y-5">
         {/* StatPill row: 11 pills, grid-cols-2 → 3 → 11 */}
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-11">
+        <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 xl:grid-cols-11">
           {Array.from({ length: 11 }).map((_, i) => (
-            <div key={i} className="rounded-xl border border-white/10 bg-white/[0.03] p-3 space-y-2">
-              <Skeleton className="h-2 w-14 rounded-full" />
-              <Skeleton className="h-5 w-18 rounded" />
+            <div key={i} className="rounded-lg border border-white/10 bg-white/[0.03] px-2.5 py-1.5 space-y-1.5">
+              <Skeleton className="h-2 w-12 rounded-full" />
+              <Skeleton className="h-3.5 w-14 rounded" />
             </div>
           ))}
         </div>
@@ -462,7 +482,7 @@ export default function PerformancePage() {
 
   return (
     <div className="space-y-5">
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-11">
+      <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 xl:grid-cols-11">
         <StatPill
           label="Total P&L"
           value={`${stats.totalPnL >= 0 ? '+' : ''}$${Math.abs(stats.totalPnL).toFixed(0)}`}
@@ -512,10 +532,10 @@ export default function PerformancePage() {
         />
       </div>
 
-      <WeeklyReviewCard reviews={weeklyReview} trades={periodTrades} initialBalance={accountSize} />
+      <WeeklyReviewCard reviews={weeklyReview} />
 
-      {/* Account type toggle (Demo / Funded) */}
-      <div className="flex items-center gap-3">
+      {/* Which account is in view: demo or funded, and which tier. */}
+      <div className="flex flex-wrap items-center gap-3">
         <span className="text-xs text-white/40 font-medium uppercase tracking-wider">Account</span>
         <div className="flex items-center gap-1 rounded-lg border border-white/10 bg-white/[0.03] p-1">
           {[
@@ -537,10 +557,7 @@ export default function PerformancePage() {
             </button>
           ))}
         </div>
-      </div>
 
-      {/* Tier + Period filters */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-1.5">
           {TIER_VIEW_OPTIONS.map((opt) => {
             const isActive = viewTier === opt.value;
@@ -570,7 +587,8 @@ export default function PerformancePage() {
           )}
         </div>
 
-        <div className="flex flex-wrap gap-1.5">
+        {/* Period — how far back the numbers above reach. */}
+        <div className="flex flex-wrap gap-1.5 lg:ml-auto">
           {PERIOD_OPTIONS.map((opt) => (
             <button
               key={opt.value}
@@ -801,6 +819,7 @@ export default function PerformancePage() {
             <PerformanceByHoldDurationBuckets data={byHoldBucket} />
             <div className="space-y-3">
               <TradeSequenceCard data={byTradeInSession} />
+              <PerformanceByTradingWindow data={byTradingWindow} />
               <PerformanceByHourOfDay data={byHour} />
               <PerformanceByDayOfWeek data={byDay} />
               <PerformanceByMonthOfYear data={byMonth} />
@@ -857,6 +876,15 @@ export default function PerformancePage() {
               }
               tone="text-pink-200"
             />
+            <InsightChip
+              label="Oversized Trades"
+              value={oversizedRow ? `${oversizedRow.trades} (${oversizedRow.winRate.toFixed(0)}% win)` : 'none'}
+              tone={
+                oversizedRow && properSizedRow && oversizedRow.avgPnL < properSizedRow.avgPnL
+                  ? 'text-rose-300'
+                  : 'text-white/70'
+              }
+            />
           </TabHero>
 
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
@@ -872,6 +900,30 @@ export default function PerformancePage() {
               hint="The weaknesses you flag most often, and what they cost you."
               data={byImprovementArea}
               emptyMessage="Log an improvement area on your trades to see this breakdown."
+            />
+            <CategoricalBreakdownCard
+              title="By Entry-Grade"
+              hint="Does a cleaner entry (A+/A) actually outperform a sloppy one (C/D/F)?"
+              data={byEntryGrade}
+              emptyMessage="Grade your entries in Add Trade to see this breakdown."
+            />
+            <CategoricalBreakdownCard
+              title="By SL-Grade"
+              hint="Does how well you managed your stop correlate with the outcome?"
+              data={bySlGrade}
+              emptyMessage="Grade your stop management in Add Trade to see this breakdown."
+            />
+            <CategoricalBreakdownCard
+              title="By Exit-Grade"
+              hint="Does exit execution quality actually show up in the result?"
+              data={byExitGrade}
+              emptyMessage="Grade your exits in Add Trade to see this breakdown."
+            />
+            <CategoricalBreakdownCard
+              title="By Position Sizing"
+              hint="Do oversized trades (beyond the setup's intended risk) actually cost you more?"
+              data={bySizing}
+              emptyMessage="No sizing data yet — set a risk amount and stop loss when logging trades."
             />
           </div>
         </TabsContent>

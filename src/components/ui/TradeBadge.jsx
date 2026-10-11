@@ -124,6 +124,37 @@ export function EmotionBadge({ emotion, className }) {
 }
 
 /**
+ * GradeBadge — trade execution grade (A+/A/B/C/D/E/F).
+ */
+// A+ is gold so it reads as distinct at a glance instead of blending into
+// the same cyan family as A.
+const GRADE_CFG = {
+  'A+':  'text-yellow-200 bg-gradient-to-r from-yellow-400/25 to-amber-400/15 border-yellow-300/50 shadow-[0_0_6px_rgba(250,204,21,0.25)]',
+  A:     'text-cyan-400    bg-cyan-500/10    border-cyan-500/20',
+  B:     'text-amber-400   bg-amber-500/10   border-amber-500/20',
+  C:     'text-orange-400  bg-orange-500/10  border-orange-500/20',
+  D:     'text-rose-400    bg-rose-500/10    border-rose-500/20',
+  E:     'text-rose-400    bg-rose-500/12    border-rose-500/25',
+  F:     'text-rose-400    bg-rose-500/15    border-rose-500/30',
+};
+
+export function GradeBadge({ grade, className, title }) {
+  if (!grade) return null;
+  const cls = GRADE_CFG[grade] ?? 'text-white/55 bg-white/4 border-white/8';
+  return (
+    <span
+      title={title}
+      className={cn(
+        'inline-flex items-center rounded-md border px-1.5 py-0.5 text-[10px] font-bold',
+        cls, className,
+      )}
+    >
+      {grade}
+    </span>
+  );
+}
+
+/**
  * SetupBadge
  */
 export function SetupBadge({ setup, className }) {

@@ -1,6 +1,7 @@
 import React from 'react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import InfoHint from '@/components/ui/InfoHint';
 import { cn } from '@/lib/utils/general';
 
 export default function ExitStrategySettings({
@@ -16,11 +17,9 @@ export default function ExitStrategySettings({
   return (
     <div className="bg-[#13131e] border border-white/8 rounded-xl p-4 space-y-3">
       <div className="flex items-center justify-between gap-2">
-        <div>
+        <div className="flex items-center gap-1.5">
           <h3 className="text-sm font-semibold text-white/80">Exit strategy</h3>
-          <p className="text-[11px] text-white/45 mt-0.5">
-            Configure R-multiple targets and share allocation for calculator exits (global across all account tiers).
-          </p>
+          <InfoHint text="Configure R-multiple targets and share allocation for calculator exits (global across all account tiers)." />
         </div>
         <button
           type="button"

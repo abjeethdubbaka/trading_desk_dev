@@ -77,7 +77,9 @@ export default function BackupRestoreCard() {
       setImportResult(result);
       setParsedBackup(null);
       const parts = [];
-      if (result.trades > 0) parts.push(`${result.trades} trades`);
+      if (result.trades > 0 || result.removed > 0) {
+        parts.push(`${result.trades} trades (replacing ${result.removed})`);
+      }
       if (result.settings) parts.push('settings');
       if (result.dosAndDonts) parts.push('rules');
       toast.success(`Restored: ${parts.join(', ')}`);
@@ -147,7 +149,9 @@ export default function BackupRestoreCard() {
 
             <div className="flex items-center gap-2 rounded-lg border border-amber-500/20 bg-amber-500/8 px-2.5 py-1.5">
               <AlertTriangle className="h-3.5 w-3.5 flex-shrink-0 text-amber-400" />
-              <p className="text-[11px] text-amber-200/80">Trades are added alongside existing data.</p>
+              <p className="text-[11px] text-amber-200/80">
+                Restoring trades replaces this account tier&apos;s trades with the ones in the file. The current ones are deleted first.
+              </p>
             </div>
 
             <div className="space-y-1.5">

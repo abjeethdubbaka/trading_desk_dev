@@ -1,9 +1,16 @@
+import { calcRiskPerShare, calcTradeRisk } from '@/lib/calculations/tradeRisk';
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { PLACEHOLDER_USER_ID } from '@/lib/constants';
 import { calculatePnL } from '../utils/calculationUtils';
 import { getCurrentLocalDateTime, utcToLocalDateTime } from '../utils/dateUtils';
 import { buildTradeNotes, stripCalculatorAutoNote } from '../../utils/notes';
 import { useSettings } from '@/lib/context/SettingsContext';
+import { FUTURES_CONTRACTS } from '@/lib/calculations/trades';
+
+// A new trade starts on ES with its tick size and value filled in, so the
+// contract shown and the numbers used to work out P&L always agree.
+const DEFAULT_TICK_SIZE = String(FUTURES_CONTRACTS.ES.tickSize);
+const DEFAULT_TICK_VALUE = String(FUTURES_CONTRACTS.ES.tickValue);
 
 const DEFAULT_EMOTION = 'neutral';
 const parseOptionalPositiveNumber = (value) => {
@@ -114,7 +121,14 @@ export const useTradeForm = (initialData, userId = PLACEHOLDER_USER_ID, open = t
     mistakes: [],
     lessons: '',
     reflection_answers: getDefaultReflectionAnswers(),
-    setup_grade: '',
+    entry_grade: '',
+    sl_grade: '',
+    exit_grade: '',
+    size_grade: '',
+    exit_min_r_taken: null,
+    exit_target_r_taken: null,
+    exit_stretch_r_taken: null,
+    is_oversized: false,
     setup_quality_score: null,
     breakout_checklist: defaultBreakoutChecklist,
     strategy_step_results: [],
@@ -124,13 +138,14 @@ export const useTradeForm = (initialData, userId = PLACEHOLDER_USER_ID, open = t
     dos_donts_rule_ids: [],
     risk_amount: null,
     target_price: null,
+    mfe_price: null,
     risk_reward_ratio: null,
     share_float: null,
     float_category: null,
     share_float_range: null,
     instrument_type: isFutures ? 'futures' : 'stocks',
-    tick_size: '',
-    tick_value: '',
+    tick_size: DEFAULT_TICK_SIZE,
+    tick_value: DEFAULT_TICK_VALUE,
     futures_preset: 'ES',
   });
 
@@ -182,7 +197,14 @@ export const useTradeForm = (initialData, userId = PLACEHOLDER_USER_ID, open = t
         what_went_wrong: normalizeKeywordList(initialData.reflection_answers?.what_went_wrong),
         what_learned: normalizeKeywordList(initialData.reflection_answers?.what_learned),
       },
-      setup_grade: initialData.setup_grade || '',
+      entry_grade: initialData.entry_grade || '',
+      sl_grade: initialData.sl_grade || '',
+      exit_grade: initialData.exit_grade || '',
+      size_grade: initialData.size_grade || '',
+      exit_min_r_taken: initialData.exit_min_r_taken ?? null,
+      exit_target_r_taken: initialData.exit_target_r_taken ?? null,
+      exit_stretch_r_taken: initialData.exit_stretch_r_taken ?? null,
+      is_oversized: initialData.is_oversized === true,
       setup_quality_score: Number.isFinite(Number(initialData.setup_quality_score))
         ? Number(initialData.setup_quality_score)
         : null,
@@ -215,6 +237,7 @@ export const useTradeForm = (initialData, userId = PLACEHOLDER_USER_ID, open = t
         ? Number(initialData.risk_amount)
         : null,
       target_price: parseOptionalPositiveNumber(initialData.target_price),
+      mfe_price: parseOptionalPositiveNumber(initialData.mfe_price),
       risk_reward_ratio: Number.isFinite(Number(initialData.risk_reward_ratio))
         ? Number(initialData.risk_reward_ratio)
         : null,
@@ -265,7 +288,12 @@ export const useTradeForm = (initialData, userId = PLACEHOLDER_USER_ID, open = t
       mistakes: [],
       lessons: '',
       reflection_answers: getDefaultReflectionAnswers(),
-      setup_grade: '',
+      entry_grade: '',
+      sl_grade: '',
+      exit_grade: '',
+      exit_min_r_taken: null,
+      exit_target_r_taken: null,
+      exit_stretch_r_taken: null,
       setup_quality_score: null,
       breakout_checklist: defaultBreakoutChecklist,
       strategy_step_results: [],
@@ -275,13 +303,14 @@ export const useTradeForm = (initialData, userId = PLACEHOLDER_USER_ID, open = t
       dos_donts_rule_ids: [],
       risk_amount: null,
       target_price: null,
+    mfe_price: null,
       risk_reward_ratio: null,
       share_float: null,
       float_category: null,
       share_float_range: null,
       instrument_type: isFutures ? 'futures' : 'stocks',
-      tick_size: '',
-      tick_value: '',
+      tick_size: DEFAULT_TICK_SIZE,
+      tick_value: DEFAULT_TICK_VALUE,
       futures_preset: 'ES',
     });
   }, [open, initialFormData, isFutures]);
@@ -315,7 +344,12 @@ export const useTradeForm = (initialData, userId = PLACEHOLDER_USER_ID, open = t
       mistakes: [],
       lessons: '',
       reflection_answers: getDefaultReflectionAnswers(),
-      setup_grade: '',
+      entry_grade: '',
+      sl_grade: '',
+      exit_grade: '',
+      exit_min_r_taken: null,
+      exit_target_r_taken: null,
+      exit_stretch_r_taken: null,
       setup_quality_score: null,
       breakout_checklist: defaultBreakoutChecklist,
       strategy_step_results: [],
@@ -325,13 +359,14 @@ export const useTradeForm = (initialData, userId = PLACEHOLDER_USER_ID, open = t
       dos_donts_rule_ids: [],
       risk_amount: null,
       target_price: null,
+    mfe_price: null,
       risk_reward_ratio: null,
       share_float: null,
       float_category: null,
       share_float_range: null,
       instrument_type: isFutures ? 'futures' : 'stocks',
-      tick_size: '',
-      tick_value: '',
+      tick_size: DEFAULT_TICK_SIZE,
+      tick_value: DEFAULT_TICK_VALUE,
       futures_preset: 'ES',
     });
   }, [isFutures]);
@@ -353,7 +388,47 @@ export const useTradeForm = (initialData, userId = PLACEHOLDER_USER_ID, open = t
 
     const normalizedEmotion = normalizeEmotionValue(formData.emotions);
     const normalizedExitPrice = parseOptionalPositiveNumber(formData.exit_price);
+    // What each share had at risk — entered at 11 with a stop at 10 is $1 a
+    // share, whatever the size. Stored per trade so a symbol's usual stop can
+    // be read back later.
+    const computedRiskPerShare = calcRiskPerShare({
+      entry_price: formData.entry_price,
+      stop_loss: formData.stop_loss,
+    });
+
+    const computedRisk = calcTradeRisk({
+      entry_price: formData.entry_price,
+      stop_loss: formData.stop_loss,
+      position_size: formData.position_size,
+      instrument_type: formData.instrument_type,
+      tick_size: formData.tick_size,
+      tick_value: formData.tick_value,
+    });
+
     const normalizedTargetPrice = parseOptionalPositiveNumber(formData.target_price);
+
+    // Planned R:R = distance to target / distance to stop, from entry. Derived
+    // automatically once Target + Stop Loss are captured, rather than relying
+    // on a separate manual field nothing ever fills in.
+    const normalizedEntryPrice = parseFloat(formData.entry_price) || 0;
+    const normalizedStopLoss = formData.stop_loss ? parseFloat(formData.stop_loss) : null;
+    const riskDistance = normalizedStopLoss != null ? Math.abs(normalizedEntryPrice - normalizedStopLoss) : null;
+    const computedRiskReward = (
+      normalizedEntryPrice > 0 && riskDistance > 0 && normalizedTargetPrice != null
+    ) ? Math.abs(normalizedTargetPrice - normalizedEntryPrice) / riskDistance : null;
+
+    // MFE R — the R-multiple at the best price the trade reached (Price
+    // Reached), independent of where it was actually exited. Comparing this
+    // to the realized r_multiple across many trades of a setup shows whether
+    // targets are typically unreachable or exits are happening early.
+    const normalizedMfePrice = parseOptionalPositiveNumber(formData.mfe_price);
+    const computedMfeR = (
+      normalizedEntryPrice > 0 && riskDistance > 0 && normalizedMfePrice != null
+    ) ? (
+      formData.direction === 'short'
+        ? (normalizedEntryPrice - normalizedMfePrice) / riskDistance
+        : (normalizedMfePrice - normalizedEntryPrice) / riskDistance
+    ) : null;
 
     const reflectionAnswers = formData.reflection_answers || {};
     const normalizedReflectionAnswers = {
@@ -412,13 +487,19 @@ export const useTradeForm = (initialData, userId = PLACEHOLDER_USER_ID, open = t
       dos_donts_rule_ids: Array.isArray(formData.dos_donts_rule_ids)
         ? [...new Set(formData.dos_donts_rule_ids.map((id) => String(id || '').trim()).filter(Boolean))]
         : [],
-      risk_amount: Number.isFinite(Number(formData.risk_amount))
-        ? Number(formData.risk_amount)
-        : null,
+      // Risk is what the trade actually put on the line: the distance from
+      // entry to stop, times size. Typed values are only a fallback for a
+      // trade logged without a stop.
+      risk_per_share: computedRiskPerShare,
+      risk_amount: computedRisk != null
+        ? computedRisk
+        : (Number.isFinite(Number(formData.risk_amount)) ? Number(formData.risk_amount) : null),
       target_price: normalizedTargetPrice,
-      risk_reward_ratio: Number.isFinite(Number(formData.risk_reward_ratio))
-        ? Number(formData.risk_reward_ratio)
-        : null,
+      mfe_price: normalizedMfePrice,
+      mfe_r_multiple: computedMfeR != null ? Math.round(computedMfeR * 100) / 100 : null,
+      risk_reward_ratio: computedRiskReward != null
+        ? Math.round(computedRiskReward * 100) / 100
+        : (Number.isFinite(Number(formData.risk_reward_ratio)) ? Number(formData.risk_reward_ratio) : null),
       share_float: Number.isFinite(Number(formData.share_float))
         ? Math.round(Number(formData.share_float))
         : null,

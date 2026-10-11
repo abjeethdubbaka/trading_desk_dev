@@ -7,7 +7,8 @@ Set fso = CreateObject("Scripting.FileSystemObject")
 
 appDir = fso.GetParentFolderName(WScript.ScriptFullName)
 npmCmd = "npm.cmd"
-command = "cmd /c cd /d """ & appDir & """ && " & npmCmd & " run electron-dev"
+' Starts Trade Desk, or brings forward the copy already running (see scripts\launch.cjs).
+command = "cmd /c cd /d """ & appDir & """ && node scripts\launch.cjs"
 
 ' Window style 0 hides the command prompt window.
 shell.Run command, 0, False

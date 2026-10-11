@@ -3,168 +3,204 @@ import {
   format,
   startOfMonth,
   endOfMonth,
-  eachDayOfInterval,
-  isToday,
+  startOfWeek,
+  addDays,
   addMonths,
   subMonths,
-  getDay,
+  isSameMonth,
+  isSameDay,
+  isToday,
 } from 'date-fns';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { CheckCircle2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { cn } from '@/lib/utils/general';
 import { getTradePnL, getTradeDate } from '@/lib/utils/tradeFields';
 
-const WEEKDAY_LABELS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
-// getDay() returns 0=Sun … 6=Sat; index 0 and 6 are weekends
-const WEEKEND = new Set([0, 6]);
+const WEEKDAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
 
-export default function TradingCalendar({ trades, onDaySelect }) {
+const money = (n) => `${n >= 0 ? '+' : '-'}$${Math.abs(Math.round(n)).toLocaleString()}`;
+
+/** Cell shading scales with the day's result relative to the month's biggest day. */
+function dayTone(pnl, scale) {
+  if (!pnl) return 'bg-white/[0.04] hover:bg-white/[0.08]';
+  const strength = scale > 0 ? Math.abs(pnl) / scale : 0;
+  if (pnl > 0) {
+    if (strength > 0.66) return 'bg-emerald-500/30 hover:bg-emerald-500/40';
+    if (strength > 0.33) return 'bg-emerald-500/20 hover:bg-emerald-500/30';
+    return 'bg-emerald-500/10 hover:bg-emerald-500/20';
+  }
+  if (strength > 0.66) return 'bg-rose-500/30 hover:bg-rose-500/40';
+  if (strength > 0.33) return 'bg-rose-500/20 hover:bg-rose-500/30';
+  return 'bg-rose-500/10 hover:bg-rose-500/20';
+}
+
+/**
+ * The month as trading weeks: Monday to Friday, with the week's total at the
+ * end of each row. A tick marks a day whose Daily Report Card is written.
+ */
+export default function TradingCalendar({ trades, onDaySelect, selectedDay = null, reviewedDates = new Set() }) {
   const [currentMonth, setCurrentMonth] = useState(new Date());
 
   const tradesByDay = useMemo(() => {
     const map = new Map();
     for (const trade of trades ?? []) {
       const d = getTradeDate(trade);
-      if (!d) continue;
+      if (!d || Number.isNaN(d.getTime())) continue;
       const key = format(d, 'yyyy-MM-dd');
-      if (!map.has(key)) map.set(key, []);
-      map.get(key).push(trade);
+      const day = map.get(key) || { pnl: 0, count: 0, wins: 0, losses: 0 };
+      const pnl = getTradePnL(trade);
+      day.pnl += pnl;
+      day.count += 1;
+      if (pnl > 0) day.wins += 1;
+      else if (pnl < 0) day.losses += 1;
+      map.set(key, day);
     }
     return map;
   }, [trades]);
 
-  const monthDays = useMemo(() => {
-    const start = startOfMonth(currentMonth);
-    const end = endOfMonth(currentMonth);
-    return eachDayOfInterval({ start, end });
-  }, [currentMonth]);
+  const { weeks, monthPnL, monthDays, greenDays, scale } = useMemo(() => {
+    const monthStart = startOfMonth(currentMonth);
+    const monthEnd = endOfMonth(currentMonth);
+    const rows = [];
+    let total = 0;
+    let traded = 0;
+    let green = 0;
+    let biggest = 0;
 
-  // Number of blank cells before day 1 so it lands in the right column
-  const startOffset = getDay(startOfMonth(currentMonth)); // 0=Sun … 6=Sat
+    for (let weekStart = startOfWeek(monthStart, { weekStartsOn: 1 }); weekStart <= monthEnd; weekStart = addDays(weekStart, 7)) {
+      let weekPnL = 0;
+      let weekTrades = 0;
+      // All seven days count toward the week, so a weekend trade is not lost.
+      for (let i = 0; i < 7; i += 1) {
+        const day = addDays(weekStart, i);
+        if (!isSameMonth(day, currentMonth)) continue;
+        const metrics = tradesByDay.get(format(day, 'yyyy-MM-dd'));
+        if (!metrics) continue;
+        weekPnL += metrics.pnl;
+        weekTrades += metrics.count;
+        total += metrics.pnl;
+        traded += 1;
+        if (metrics.pnl > 0) green += 1;
+        biggest = Math.max(biggest, Math.abs(metrics.pnl));
+      }
 
-  const getDayMetrics = (day) => {
-    const dayTrades = tradesByDay.get(format(day, 'yyyy-MM-dd'));
-    if (!dayTrades?.length) return null;
-    let totalPnL = 0, wins = 0, losses = 0;
-    for (const t of dayTrades) {
-      const p = getTradePnL(t);
-      totalPnL += p;
-      if (p > 0) wins++;
-      else if (p < 0) losses++;
-    }
-    return { totalPnL, wins, losses, trades: dayTrades.length };
-  };
+      const days = WEEKDAY_LABELS.map((_, i) => {
+        const day = addDays(weekStart, i);
+        const key = format(day, 'yyyy-MM-dd');
+        return { day, key, inMonth: isSameMonth(day, currentMonth), metrics: tradesByDay.get(key) || null };
+      });
 
-  const getDayColor = (metrics, isWeekend) => {
-    if (isWeekend) return 'bg-white/[0.02] cursor-default';
-    if (!metrics) return 'bg-white/5 hover:bg-white/10';
-    if (metrics.totalPnL > 0) {
-      if (metrics.totalPnL > 1000) return 'bg-emerald-500/30 hover:bg-emerald-500/40';
-      if (metrics.totalPnL > 500)  return 'bg-emerald-500/20 hover:bg-emerald-500/30';
-      return 'bg-emerald-500/10 hover:bg-emerald-500/20';
+      // Skip a leading or trailing row whose weekdays all fall in another month.
+      if (days.some((d) => d.inMonth)) rows.push({ key: format(weekStart, 'yyyy-MM-dd'), days, weekPnL, weekTrades });
     }
-    if (metrics.totalPnL < 0) {
-      if (metrics.totalPnL < -1000) return 'bg-red-500/30 hover:bg-red-500/40';
-      if (metrics.totalPnL < -500)  return 'bg-red-500/20 hover:bg-red-500/30';
-      return 'bg-red-500/10 hover:bg-red-500/20';
-    }
-    return 'bg-white/5 hover:bg-white/10';
-  };
+
+    return { weeks: rows, monthPnL: total, monthDays: traded, greenDays: green, scale: biggest };
+  }, [currentMonth, tradesByDay]);
+
+  const isCurrentMonth = isSameMonth(currentMonth, new Date());
 
   return (
-    <div className="glass-card rounded-2xl p-2 gradient-border">
-      <div className="flex items-center justify-between mb-2">
-        <h3 className="text-xs font-semibold">Trading Calendar</h3>
+    <div className="rounded-2xl border border-white/10 bg-[#13131e] p-4">
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+        <div className="flex items-baseline gap-3">
+          <h3 className="text-sm font-semibold text-white/90">{format(currentMonth, 'MMMM yyyy')}</h3>
+          {monthDays > 0 && (
+            <>
+              <span className={cn('font-mono text-sm font-semibold', monthPnL >= 0 ? 'text-emerald-300' : 'text-rose-300')}>
+                {money(monthPnL)}
+              </span>
+              <span className="text-[11px] text-white/35">{greenDays}/{monthDays} green days</span>
+            </>
+          )}
+        </div>
         <div className="flex items-center gap-1">
+          {!isCurrentMonth && (
+            <button
+              type="button"
+              onClick={() => setCurrentMonth(new Date())}
+              className="mr-1 rounded-md px-2 py-1 text-[11px] text-white/50 transition-colors hover:bg-white/10 hover:text-white/80"
+            >
+              Today
+            </button>
+          )}
           <button
+            type="button"
             onClick={() => setCurrentMonth(subMonths(currentMonth, 1))}
-            className="p-0.5 rounded hover:bg-white/10 transition-colors"
+            className="rounded-md p-1.5 transition-colors hover:bg-white/10"
+            aria-label="Previous month"
           >
-            <ChevronLeft className="w-3 h-3" />
+            <ChevronLeft className="h-4 w-4 text-white/60" />
           </button>
-          <span className="text-[10px] font-medium min-w-[54px] text-center">
-            {format(currentMonth, 'MMM yy')}
-          </span>
           <button
+            type="button"
             onClick={() => setCurrentMonth(addMonths(currentMonth, 1))}
-            className="p-0.5 rounded hover:bg-white/10 transition-colors"
+            className="rounded-md p-1.5 transition-colors hover:bg-white/10"
+            aria-label="Next month"
           >
-            <ChevronRight className="w-3 h-3" />
+            <ChevronRight className="h-4 w-4 text-white/60" />
           </button>
         </div>
       </div>
 
-      {/* Calendar Grid */}
-      <div className="grid grid-cols-7 gap-0.5">
-        {/* Day-of-week headers */}
-        {WEEKDAY_LABELS.map((label, i) => (
-          <div
-            key={i}
-            className={`text-center text-[9px] font-medium py-0.5 ${
-              WEEKEND.has(i) ? 'text-white/25' : 'text-white/50'
-            }`}
-          >
-            {label}
-          </div>
+      <div className="grid grid-cols-[repeat(5,minmax(0,1fr))_minmax(0,0.9fr)] gap-1.5">
+        {WEEKDAY_LABELS.map((label) => (
+          <div key={label} className="pb-1 text-center text-[10px] font-semibold uppercase tracking-wider text-white/35">{label}</div>
         ))}
+        <div className="pb-1 text-center text-[10px] font-semibold uppercase tracking-wider text-white/35">Week</div>
 
-        {/* Leading blank cells so day 1 lands on the correct weekday column */}
-        {Array.from({ length: startOffset }).map((_, i) => (
-          <div key={`pad-${i}`} />
-        ))}
-
-        {/* Month days */}
-        {monthDays.map((day, index) => {
-          const isWeekend = WEEKEND.has(getDay(day));
-          const metrics = isWeekend ? null : getDayMetrics(day);
-          const todayRing = isToday(day);
-          const pnlPositive = metrics && metrics.totalPnL >= 0;
-          const label = metrics
-            ? `${format(day, 'MMM d')} · ${metrics.trades} trade${metrics.trades !== 1 ? 's' : ''} · ${metrics.totalPnL >= 0 ? '+' : ''}$${metrics.totalPnL.toFixed(0)}`
-            : format(day, 'MMM d, yyyy');
-
-          return (
-            <button
-              key={index}
-              type="button"
-              title={label}
-              disabled={isWeekend}
-              onClick={() => !isWeekend && onDaySelect?.(day, metrics)}
-              className={[
-                'rounded py-px px-0 transition-all flex flex-col items-center justify-start gap-px',
-                'aspect-[2/1]',
-                getDayColor(metrics, isWeekend),
-                isWeekend ? 'opacity-30' : '',
-                todayRing ? 'ring-1 ring-cyan-400' : '',
-              ].filter(Boolean).join(' ')}
-            >
-              <span className={`text-[7px] leading-none font-medium ${isWeekend ? 'text-white/30' : 'text-white/60'}`}>
-                {format(day, 'd')}
-              </span>
-
-              {metrics && (
-                <>
-                  <span className={`text-[7px] font-bold leading-none ${pnlPositive ? 'text-emerald-300' : 'text-red-300'}`}>
-                    {metrics.totalPnL >= 0 ? '+' : ''}${metrics.totalPnL.toFixed(0)}
-                  </span>
-                  <div className="flex items-center gap-px leading-none">
-                    {metrics.wins > 0 && (
-                      <span className="text-[6px] text-emerald-400 font-medium">{metrics.wins}W</span>
-                    )}
-                    {metrics.losses > 0 && (
-                      <span className="text-[6px] text-red-400 font-medium">{metrics.losses}L</span>
-                    )}
+        {weeks.map((week) => (
+          <React.Fragment key={week.key}>
+            {week.days.map(({ day, key, inMonth, metrics }) => {
+              if (!inMonth) return <div key={key} className="min-h-[64px] rounded-lg bg-white/[0.01]" />;
+              const selected = selectedDay && isSameDay(day, selectedDay);
+              const reviewed = reviewedDates.has(key);
+              return (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => onDaySelect?.(day, metrics)}
+                  title={metrics
+                    ? `${format(day, 'EEE, MMM d')} · ${metrics.count} trade${metrics.count === 1 ? '' : 's'} · ${money(metrics.pnl)}${reviewed ? ' · report card written' : ''}`
+                    : format(day, 'EEE, MMM d')}
+                  className={cn(
+                    'relative flex min-h-[64px] flex-col items-start justify-between rounded-lg p-2 text-left transition-colors',
+                    dayTone(metrics?.pnl, scale),
+                    isToday(day) && 'ring-1 ring-cyan-400/70',
+                    selected && 'ring-2 ring-white/60',
+                  )}
+                >
+                  <div className="flex w-full items-center justify-between">
+                    <span className={cn('text-[11px] font-medium', metrics ? 'text-white/75' : 'text-white/35')}>{format(day, 'd')}</span>
+                    {metrics && reviewed && <CheckCircle2 className="h-3 w-3 text-emerald-300/70" aria-label="Report card written" />}
                   </div>
-                </>
-              )}
-            </button>
-          );
-        })}
-      </div>
+                  {metrics && (
+                    <div className="w-full min-w-0">
+                      <p className={cn('truncate font-mono text-xs font-bold', metrics.pnl >= 0 ? 'text-emerald-200' : 'text-rose-200')}>
+                        {money(metrics.pnl)}
+                      </p>
+                      <p className="truncate text-[10px] text-white/45">
+                        {metrics.count} trade{metrics.count === 1 ? '' : 's'}
+                        {metrics.count > 0 && <span className="text-white/30"> · {metrics.wins}W {metrics.losses}L</span>}
+                      </p>
+                    </div>
+                  )}
+                </button>
+              );
+            })}
 
-      {/* Legend */}
-      <div className="mt-2 flex items-center gap-3 text-[10px] text-white/50">
-        <span className="flex items-center gap-1"><span className="inline-block w-2 h-2 rounded bg-emerald-500/30" />Profit</span>
-        <span className="flex items-center gap-1"><span className="inline-block w-2 h-2 rounded bg-red-500/30" />Loss</span>
-        <span className="flex items-center gap-1"><span className="inline-block w-2 h-2 rounded bg-white/5" />No trades</span>
+            <div className="flex min-h-[64px] flex-col justify-end rounded-lg border border-white/[0.06] bg-white/[0.02] p-2">
+              {week.weekTrades > 0 ? (
+                <>
+                  <p className={cn('truncate font-mono text-xs font-bold', week.weekPnL >= 0 ? 'text-emerald-300' : 'text-rose-300')}>
+                    {money(week.weekPnL)}
+                  </p>
+                  <p className="truncate text-[10px] text-white/35">{week.weekTrades} trade{week.weekTrades === 1 ? '' : 's'}</p>
+                </>
+              ) : (
+                <p className="text-[10px] text-white/20">—</p>
+              )}
+            </div>
+          </React.Fragment>
+        ))}
       </div>
     </div>
   );

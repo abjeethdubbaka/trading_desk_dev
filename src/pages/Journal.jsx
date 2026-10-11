@@ -6,8 +6,9 @@
 
 import React, { useCallback, useEffect, useMemo } from 'react';
 import { useJournal, useTradesMutation } from '@/lib/hooks/useTrades';
-import { useTradeReview } from '@/lib/hooks/useTradeReview';
 import { useSettings } from '@/lib/context/SettingsContext';
+import { getDailyLossLimitsWeek1 } from '@/lib/config/dailyLossLimits';
+import { useGuardianDays } from '@/lib/hooks/useGuardianDays';
 import { useTradesWithQuality } from '@/lib/hooks/useTradesWithQuality';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
@@ -20,15 +21,18 @@ import {
   useJournalPagination,
   useJournalTradeManagement,
 } from '@/components/journal';
-import { useJournalSort }      from '@/components/journal/shared/hooks/useJournalSort';
-import { useJournalPresets }   from '@/components/journal/shared/hooks/useJournalPresets';
-import { useJournalSelection } from '@/components/journal/shared/hooks/useJournalSelection';
+import { useJournalSort }      from '@/components/journal/hooks/useJournalSort';
+import { useJournalPresets }   from '@/components/journal/hooks/useJournalPresets';
+import { useJournalSelection } from '@/components/journal/hooks/useJournalSelection';
 import { BulkActionBar }       from '@/components/journal/toolbar/BulkActionBar';
 import { TradeDetailDrawer }   from '@/components/journal/TradeDetailDrawer';
 import { KeyboardShortcutsOverlay } from '@/components/journal/KeyboardShortcutsOverlay';
-import { useJournalKeyboardShortcuts } from '@/components/journal/shared/hooks/useJournalKeyboardShortcuts';
-import { useColumnVisibility } from '@/components/journal/shared/hooks/useColumnVisibility';
-import { useJournalUi }        from '@/components/journal/shared/hooks/useJournalUi';
+import { useJournalKeyboardShortcuts } from '@/components/journal/hooks/useJournalKeyboardShortcuts';
+import { useColumnVisibility } from '@/components/journal/hooks/useColumnVisibility';
+import { useJournalUi }        from '@/components/journal/hooks/useJournalUi';
+import { useSetupJournal }     from '@/lib/hooks/useSetupJournal';
+import { getJournaledTradeIds } from '@/lib/setupJournal/utils';
+import { COLUMN_WIDTHS }       from '@/components/journal/views/compact/CompactHeader';
 
 const PAGE_SIZE = 20;
 
@@ -42,6 +46,7 @@ export default function Journal() {
 
   const { trades, isLoading, refetch } = useJournal();
   const { settings } = useSettings();
+  const { guardianDaysByDate } = useGuardianDays();
   const {
     createTrade,
     updateTrade,
@@ -55,6 +60,9 @@ export default function Journal() {
   const riskLimit = Number(settings?.risk_amount);
 
   const tradesWithQuality = useTradesWithQuality(trades, riskLimit);
+
+  const { journalEntries } = useSetupJournal();
+  const journaledTradeIds = useMemo(() => getJournaledTradeIds(journalEntries), [journalEntries]);
   const drawerTrade = useMemo(
     () => (drawerTradeId ? tradesWithQuality.find((t) => t.id === drawerTradeId) ?? null : null),
     [drawerTradeId, tradesWithQuality],
@@ -63,11 +71,14 @@ export default function Journal() {
   // ── Filters ─────────────────────────────────────────────────────────────
   const {
     searchTerm, setSearchTerm,
-    filter,     setFilter,
+    filterKeys, toggleFilterKey,
+    filter,
     dateRange,  setDateRange,
+    clearFilters,
+    hasActiveFilters,
     filteredTrades,
     applyFilterState,
-  } = useJournalFilters(tradesWithQuality);
+  } = useJournalFilters(tradesWithQuality, { journaledTradeIds });
 
   // ── Sort (after filter, before pagination) ───────────────────────────────
   const { sortKey, sortDir, sortedTrades, onSortChange, setSort } = useJournalSort(filteredTrades);
@@ -136,10 +147,6 @@ export default function Journal() {
     handleBulkMarkPlan,
   } = useJournalTradeManagement({ createTrade, updateTrade, deleteTrade, bulkCreateTrades });
 
-  const {
-    reviews, loading: reviewLoading, reviewTrade, clearReview, usefulnessById, rateReviewUsefulness,
-  } = useTradeReview();
-
   useEffect(() => {
     window.addEventListener('trades-updated', refetch);
     return () => window.removeEventListener('trades-updated', refetch);
@@ -161,10 +168,12 @@ export default function Journal() {
       <JournalToolbar
         searchTerm={searchTerm}
         onSearchChange={setSearchTerm}
-        filter={filter}
-        onFilterChange={setFilter}
+        filterKeys={filterKeys}
+        onToggleFilter={toggleFilterKey}
         dateRange={dateRange}
         onDateRangeChange={setDateRange}
+        onClearFilters={clearFilters}
+        hasActiveFilters={hasActiveFilters}
         onAddTrade={openCreateModal}
         trades={filteredTrades}
         presets={presets}
@@ -193,11 +202,11 @@ export default function Journal() {
             >
               <Skeleton className="mr-1 h-3 w-3 flex-shrink-0 rounded-sm" />
               <Skeleton className="mr-2 h-3 w-3 flex-shrink-0 rounded" />
-              <div className="w-[82px] flex-shrink-0 space-y-1.5">
-                <Skeleton className="h-2.5 w-14 rounded-full" />
-                <Skeleton className="h-2 w-10 rounded-full" />
+              <div className={`${COLUMN_WIDTHS.time} flex-shrink-0 space-y-1.5`}>
+                <Skeleton className="h-2.5 w-10 rounded-full" />
+                <Skeleton className="h-2 w-14 rounded-full" />
               </div>
-              <div className="flex w-[110px] flex-shrink-0 items-center gap-1.5">
+              <div className={`flex ${COLUMN_WIDTHS.symbol} flex-shrink-0 items-center gap-1.5`}>
                 <Skeleton className="h-4 w-12 rounded" />
                 <Skeleton className="h-4 w-10 rounded-full" />
               </div>
@@ -219,8 +228,9 @@ export default function Journal() {
         </div>
       ) : filteredTrades.length === 0 ? (
         <EmptyState
-          hasFilters={!!(searchTerm || filter !== 'all' || dateRange !== 'all')}
+          hasFilters={hasActiveFilters}
           onAddTrade={openCreateModal}
+          onClearFilters={clearFilters}
         />
       ) : (
         <div className="bg-[#1a1a24] border border-white/10 rounded overflow-hidden">
@@ -233,12 +243,9 @@ export default function Journal() {
             columns={columns}
             onToggleColumn={toggleColumn}
             riskLimit={riskLimit}
-            reviews={reviews}
-            reviewLoading={reviewLoading}
-            onReviewTrade={reviewTrade}
-            onClearReview={clearReview}
-            reviewUsefulness={usefulnessById}
-            onRateReviewUsefulness={rateReviewUsefulness}
+            maxDailyTrades={Number(settings?.max_daily_trades) || 0}
+            dailyLossLimits={getDailyLossLimitsWeek1(settings)}
+            guardianDaysByDate={guardianDaysByDate}
             sortKey={sortKey}
             sortDir={sortDir}
             onSortChange={onSortChange}
@@ -247,6 +254,7 @@ export default function Journal() {
             onToggleAll={toggleAllOnPage}
             isAllSelected={isAllSelected}
             isIndeterminate={isIndeterminate}
+            journaledTradeIds={journaledTradeIds}
           />
         </div>
       )}
@@ -270,6 +278,7 @@ export default function Journal() {
 
       {drawerTrade && (
         <TradeDetailDrawer
+          isDebriefed={drawerTrade ? journaledTradeIds.has(String(drawerTrade.id)) : null}
           trade={drawerTrade}
           onClose={closeDrawer}
           onEdit={() => { handleEdit(drawerTrade); closeDrawer(); }}

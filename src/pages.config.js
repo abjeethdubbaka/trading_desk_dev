@@ -62,6 +62,9 @@ const Reports = lazy(() => import('./pages/Reports'));
 // const ScreenshotAnalysis = lazy(() => import('./pages/ScreenshotAnalysis')); // not in use — commented out, not deleted
 const InformativeImages = lazy(() => import('./pages/InformativeImages'));
 const Playbook = lazy(() => import('./pages/Playbook'));
+const Rules = lazy(() => import('./pages/Rules'));
+const DataPoints = lazy(() => import('./pages/DataPoints'));
+const SetupJournal = lazy(() => import('./pages/SetupJournal'));
 const Finance = lazy(() => import('./pages/Finance'));
 const DailyTradeReview = lazy(() => import('./pages/DailyTradeReview'));
 import __Layout from './Layout.jsx';
@@ -80,6 +83,9 @@ export const PAGE_PRELOADERS = {
   // ScreenshotAnalysis: () => import('./pages/ScreenshotAnalysis'), // not in use — commented out, not deleted
   InformativeImages:  () => import('./pages/InformativeImages'),
   Playbook:           () => import('./pages/Playbook'),
+  Rules:              () => import('./pages/Rules'),
+  DataPoints:         () => import('./pages/DataPoints'),
+  SetupJournal:       () => import('./pages/SetupJournal'),
   Finance:            () => import('./pages/Finance'),
   DailyTradeReview:   () => import('./pages/DailyTradeReview'),
 };
@@ -97,6 +103,9 @@ export const PAGES = {
     // "ScreenshotAnalysis": ScreenshotAnalysis, // not in use — commented out, not deleted
     "InformativeImages": InformativeImages,
     "Playbook": Playbook,
+    "Rules": Rules,
+    "DataPoints": DataPoints,
+    "SetupJournal": SetupJournal,
     "Finance": Finance,
     "DailyTradeReview": DailyTradeReview,
 }

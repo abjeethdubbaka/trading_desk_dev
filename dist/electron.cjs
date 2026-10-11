@@ -1,6 +1,19 @@
-const { app, BrowserWindow, Menu, ipcMain, shell, Notification } = require('electron');
+const { app, BrowserWindow, Menu, ipcMain, shell, Notification, dialog, screen } = require('electron');
 const path = require('path');
+const fs = require('fs');
 const isDev = !app.isPackaged; // Better way to detect development mode
+
+// One Trade Desk at a time. A second launch brings the running window
+// forward instead of starting a second app and a second Guardian, which
+// would also fight the first over the same data folder.
+const hasSingleInstanceLock = app.requestSingleInstanceLock();
+if (!hasSingleInstanceLock) {
+  app.exit(0);
+}
+app.on('second-instance', () => {
+  // Defined further down; runs only once the app is up.
+  showMainWindow();
+});
 
 function readEnv(...keys) {
   for (const key of keys) {
@@ -399,10 +412,33 @@ function scheduleDailyReminder() {
 }
 
 // App event handlers
+let guardian = null;
+// Shown again when a second launch hands over to this one.
+function showMainWindow() {
+  if (!mainWindow || mainWindow.isDestroyed()) {
+    createWindow();
+    return;
+  }
+  if (mainWindow.isMinimized()) mainWindow.restore();
+  mainWindow.show();
+  mainWindow.focus();
+}
+
 app.whenReady().then(() => {
+  if (!hasSingleInstanceLock) return;
   createWindow();
   createMenu();
   scheduleDailyReminder();
+
+  // Trading Guardian: watches Trade Terminal's screen against the loss rules.
+  if (process.platform === 'win32') {
+    try {
+      const { registerGuardian } = require('./guardian/service.cjs');
+      guardian = registerGuardian({ app, ipcMain, BrowserWindow, shell, screen, getMainWindow: () => mainWindow });
+    } catch (error) {
+      console.error('Trading Guardian failed to start:', error);
+    }
+  }
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
@@ -419,6 +455,7 @@ app.on('window-all-closed', () => {
 
 app.on('before-quit', () => {
   if (reminderTimer) clearTimeout(reminderTimer);
+  if (guardian) guardian.dispose();
   if (mainWindow) mainWindow.removeAllListeners();
 });
 
@@ -444,8 +481,200 @@ ipcMain.handle('show-message-box', async (event, options) => {
 });
 
 ipcMain.handle('close-app', async () => {
+  // Shutting Trade Desk down stops Trading Guardian too: it runs inside it.
   shutdownApp();
   return true;
+});
+
+
+// ── Data backups ────────────────────────────────────────────────────────────
+// One JSON file per account tier, rewritten weekly, in a folder the trader
+// can point anywhere (a synced drive, say). The chosen folder is remembered
+// in userData so it survives updates.
+
+function getBackupConfigPath() {
+  return path.join(app.getPath('userData'), 'backup-config.json');
+}
+
+function readBackupConfig() {
+  try {
+    return JSON.parse(fs.readFileSync(getBackupConfigPath(), 'utf8')) || {};
+  } catch {
+    return {};
+  }
+}
+
+function writeBackupConfig(config) {
+  fs.writeFileSync(getBackupConfigPath(), JSON.stringify(config, null, 2), 'utf8');
+}
+
+function getBackupFolder() {
+  const configured = readBackupConfig().folder;
+  if (configured && typeof configured === 'string') return configured;
+  // Documents, not userData — a backup nobody can find is not a backup.
+  return path.join(app.getPath('documents'), 'TradeDesk Backups');
+}
+
+function ensureBackupFolder() {
+  const folder = getBackupFolder();
+  fs.mkdirSync(folder, { recursive: true });
+  return folder;
+}
+
+ipcMain.handle('backup:get-folder', () => {
+  const folder = getBackupFolder();
+  return { folder, exists: fs.existsSync(folder) };
+});
+
+ipcMain.handle('backup:choose-folder', async () => {
+  const result = await dialog.showOpenDialog(mainWindow, {
+    title: 'Choose a folder for TradeDesk backups',
+    defaultPath: getBackupFolder(),
+    properties: ['openDirectory', 'createDirectory'],
+  });
+
+  if (result.canceled || !result.filePaths?.[0]) return { canceled: true, folder: getBackupFolder() };
+
+  const folder = result.filePaths[0];
+  writeBackupConfig({ ...readBackupConfig(), folder });
+  fs.mkdirSync(folder, { recursive: true });
+  return { canceled: false, folder };
+});
+
+ipcMain.handle('backup:write', async (_event, payload = {}) => {
+  const fileName = String(payload?.fileName || '').trim();
+  const contents = typeof payload?.contents === 'string' ? payload.contents : '';
+
+  // The renderer names the file, so refuse anything that could escape the
+  // backup folder.
+  if (!fileName || fileName !== path.basename(fileName)) {
+    throw new Error('Invalid backup file name');
+  }
+  if (!contents) throw new Error('Refusing to write an empty backup');
+
+  const folder = ensureBackupFolder();
+  const filePath = path.join(folder, fileName);
+  // Write beside the target first so a crash mid-write cannot destroy the
+  // previous week's backup.
+  const tempPath = `${filePath}.tmp`;
+  fs.writeFileSync(tempPath, contents, 'utf8');
+  fs.renameSync(tempPath, filePath);
+
+  return { filePath, bytes: Buffer.byteLength(contents, 'utf8'), written_at: new Date().toISOString() };
+});
+
+ipcMain.handle('backup:read', async (_event, payload = {}) => {
+  const fileName = String(payload?.fileName || '').trim();
+  if (!fileName || fileName !== path.basename(fileName)) {
+    throw new Error('Invalid backup file name');
+  }
+
+  const filePath = path.join(getBackupFolder(), fileName);
+  if (!fs.existsSync(filePath)) return { exists: false, filePath };
+
+  const stat = fs.statSync(filePath);
+  return {
+    exists: true,
+    filePath,
+    contents: fs.readFileSync(filePath, 'utf8'),
+    modified_at: stat.mtime.toISOString(),
+  };
+});
+
+
+// ── Local image store ───────────────────────────────────────────────────────
+// Images live as files beside the backups rather than as base64 inside
+// Firestore documents: a document then carries a reference, and a gallery no
+// longer downloads every chart ever saved just to list itself. Keeping them
+// under the backup folder means a synced drive backs up images and JSON
+// together.
+
+const IMAGE_BUCKET_PATTERN = /^[a-z0-9-]+$/;
+const IMAGE_FILE_PATTERN = /^[A-Za-z0-9._-]+$/;
+
+function getImagesFolder() {
+  return path.join(getBackupFolder(), 'images');
+}
+
+function resolveImagePath(bucket, fileName) {
+  const safeBucket = String(bucket || '').trim();
+  const safeFile = String(fileName || '').trim();
+
+  if (!IMAGE_BUCKET_PATTERN.test(safeBucket)) throw new Error('Invalid image bucket');
+  if (!IMAGE_FILE_PATTERN.test(safeFile) || safeFile.includes('..')) throw new Error('Invalid image file name');
+
+  const folder = path.join(getImagesFolder(), safeBucket);
+  const filePath = path.join(folder, safeFile);
+
+  // Belt and braces: the resolved path must still sit inside the images folder.
+  if (!filePath.startsWith(getImagesFolder() + path.sep)) throw new Error('Image path escapes the images folder');
+
+  return { folder, filePath };
+}
+
+ipcMain.handle('images:write', async (_event, payload = {}) => {
+  const { bucket, fileName, base64 } = payload;
+  if (typeof base64 !== 'string' || !base64) throw new Error('Refusing to write an empty image');
+
+  const { folder, filePath } = resolveImagePath(bucket, fileName);
+  fs.mkdirSync(folder, { recursive: true });
+
+  // Written beside the target and renamed, so a crash cannot leave a half file.
+  const tempPath = `${filePath}.tmp`;
+  fs.writeFileSync(tempPath, Buffer.from(base64, 'base64'));
+  fs.renameSync(tempPath, filePath);
+
+  return { filePath, bytes: fs.statSync(filePath).size };
+});
+
+ipcMain.handle('images:read', async (_event, payload = {}) => {
+  const { bucket, fileName } = payload;
+  const { filePath } = resolveImagePath(bucket, fileName);
+  if (!fs.existsSync(filePath)) return { exists: false, filePath };
+
+  return {
+    exists: true,
+    filePath,
+    base64: fs.readFileSync(filePath).toString('base64'),
+  };
+});
+
+ipcMain.handle('images:delete', async (_event, payload = {}) => {
+  const { bucket, fileName } = payload;
+  const { filePath } = resolveImagePath(bucket, fileName);
+  if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+  return { deleted: true, filePath };
+});
+
+ipcMain.handle('images:list', async (_event, payload = {}) => {
+  const bucket = String(payload?.bucket || '').trim();
+  const folder = bucket
+    ? resolveImagePath(bucket, 'x.tmp').folder
+    : getImagesFolder();
+
+  if (!fs.existsSync(folder)) return { paths: [] };
+
+  // One level of buckets, so a full listing is bucket/file.
+  const paths = [];
+  const buckets = bucket ? [bucket] : fs.readdirSync(folder, { withFileTypes: true })
+    .filter((entry) => entry.isDirectory())
+    .map((entry) => entry.name);
+
+  for (const name of buckets) {
+    const bucketFolder = path.join(getImagesFolder(), name);
+    if (!fs.existsSync(bucketFolder)) continue;
+    for (const file of fs.readdirSync(bucketFolder)) {
+      if (!file.endsWith('.tmp')) paths.push(`${name}/${file}`);
+    }
+  }
+
+  return { paths, folder: getImagesFolder() };
+});
+
+ipcMain.handle('backup:reveal-folder', async () => {
+  const folder = ensureBackupFolder();
+  shell.openPath(folder);
+  return { folder };
 });
 
 ipcMain.handle('secure-ai-request', async (_event, payload = {}) => {

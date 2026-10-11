@@ -1,7 +1,8 @@
 import React from 'react';
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { FUTURES_CONTRACTS } from '@/lib/calculations/trades';
+import { FUTURES_CONTRACTS, toPointValue, toTickValue } from '@/lib/calculations/trades';
+import PointValueInput from '@/components/calculator/input/PointValueInput';
 
 const PriceFields = ({ values, onChange, instrumentType = 'stocks' }) => {
   const isFutures = instrumentType === 'futures';
@@ -29,10 +30,20 @@ const PriceFields = ({ values, onChange, instrumentType = 'stocks' }) => {
             >
               {Object.entries(FUTURES_CONTRACTS).map(([key, spec]) => (
                 <option key={key} value={key} style={{ backgroundColor: '#0d1520' }}>
-                  {key} — {spec.name}
+                  {key} — {spec.name} · ${toPointValue(spec.tickSize, spec.tickValue)}/pt
                 </option>
               ))}
             </select>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="point-value">Point Value ($)</Label>
+            <PointValueInput
+              id="point-value"
+              tickSize={values.tick_size}
+              tickValue={values.tick_value}
+              onTickValueChange={(next) => onChange('tick_value', next)}
+              className="bg-white/5 border-white/10"
+            />
           </div>
           <div className="space-y-2">
             <Label htmlFor="tick-size">Tick Size</Label>
@@ -41,21 +52,15 @@ const PriceFields = ({ values, onChange, instrumentType = 'stocks' }) => {
               type="number"
               step="any"
               value={values.tick_size || ''}
-              onChange={(e) => onChange('tick_size', e.target.value)}
+              onChange={(e) => {
+                // A new tick size keeps the point value: what a point is worth does not change.
+                const pointValue = toPointValue(values.tick_size, values.tick_value);
+                onChange('tick_size', e.target.value);
+                const rescaled = pointValue != null ? toTickValue(e.target.value, pointValue) : null;
+                if (rescaled != null) onChange('tick_value', String(rescaled));
+              }}
               className="bg-white/5 border-white/10"
               placeholder="0.25"
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="tick-value">Tick Value ($)</Label>
-            <Input
-              id="tick-value"
-              type="number"
-              step="any"
-              value={values.tick_value || ''}
-              onChange={(e) => onChange('tick_value', e.target.value)}
-              className="bg-white/5 border-white/10"
-              placeholder="12.50"
             />
           </div>
         </div>
@@ -68,7 +73,7 @@ const PriceFields = ({ values, onChange, instrumentType = 'stocks' }) => {
             id="entry-price"
             type="number"
             step="0.01"
-            value={values.entry_price}
+            value={values.entry_price ?? ''}
             onChange={(e) => onChange('entry_price', e.target.value)}
             className="bg-white/5 border-white/10"
             required
@@ -81,7 +86,7 @@ const PriceFields = ({ values, onChange, instrumentType = 'stocks' }) => {
             id="exit-price"
             type="number"
             step="0.01"
-            value={values.exit_price}
+            value={values.exit_price ?? ''}
             onChange={(e) => onChange('exit_price', e.target.value)}
             className="bg-white/5 border-white/10"
             placeholder="0.00"
@@ -92,7 +97,7 @@ const PriceFields = ({ values, onChange, instrumentType = 'stocks' }) => {
           <Input
             id="position-size"
             type="number"
-            value={values.position_size}
+            value={values.position_size ?? ''}
             onChange={(e) => onChange('position_size', e.target.value)}
             className="bg-white/5 border-white/10"
             required
@@ -105,12 +110,25 @@ const PriceFields = ({ values, onChange, instrumentType = 'stocks' }) => {
             id="fee"
             type="number"
             step="0.01"
-            value={values.fee}
+            value={values.fee ?? ''}
             onChange={(e) => onChange('fee', e.target.value)}
             className="bg-white/5 border-white/10"
             placeholder="0.00"
           />
         </div>
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="mfe-price">Price Reached (MFE)</Label>
+        <Input
+          id="mfe-price"
+          type="number"
+          step="0.01"
+          value={values.mfe_price ?? ''}
+          onChange={(e) => onChange('mfe_price', e.target.value)}
+          className="bg-white/5 border-white/10 max-w-[200px]"
+          placeholder="Best price the trade reached, if it went further than your exit"
+        />
       </div>
     </div>
   );

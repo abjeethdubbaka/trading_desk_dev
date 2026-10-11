@@ -1,75 +1,100 @@
-import React from 'react';
+import React, { useState } from 'react';
+import { ChevronDown, ChevronRight, BookOpenCheck, ListChecks, NotebookPen, ClipboardPaste, CalendarClock } from 'lucide-react';
+import { cn } from '@/lib/utils/general';
 import PasteTradesCard from '@/components/settings/PasteTradesCard';
-import BackupRestoreCard from '@/components/settings/BackupRestoreCard';
+// Full backup & restore — retired in favour of the weekly auto-backup above,
+// which writes per account tier and restores the same way.
+// import BackupRestoreCard from '@/components/settings/BackupRestoreCard';
+import AutoBackupCard from '@/components/settings/AutoBackupCard';
 import StrategiesBackupCard from '@/components/settings/StrategiesBackupCard';
+import JournalBackupCard from '@/components/settings/JournalBackupCard';
+import RulesBackupCard from '@/components/settings/RulesBackupCard';
+
+// Each data tool collapses to a single row by default — the full export/
+// import UI is tall, and stacking five of them made this tab a long scroll.
+function DataSection({ icon: Icon, title, subtitle, children }) {
+  const [isOpen, setIsOpen] = useState(false);
+
+  return (
+    <div className={cn(
+      'rounded-xl border transition-colors',
+      isOpen ? 'border-white/12 bg-white/[0.02]' : 'border-white/8 hover:border-white/15'
+    )}>
+      <button
+        type="button"
+        onClick={() => setIsOpen((prev) => !prev)}
+        className="flex w-full items-center gap-3 px-4 py-3 text-left"
+      >
+        <Icon className="h-4 w-4 flex-shrink-0 text-white/45" />
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-semibold text-white/80">{title}</p>
+          <p className="truncate text-xs text-white/35">{subtitle}</p>
+        </div>
+        {isOpen ? (
+          <ChevronDown className="h-4 w-4 flex-shrink-0 text-white/35" />
+        ) : (
+          <ChevronRight className="h-4 w-4 flex-shrink-0 text-white/35" />
+        )}
+      </button>
+
+      {isOpen && <div className="border-t border-white/8 p-4">{children}</div>}
+    </div>
+  );
+}
 
 export default function DataManagementTab({
-  handleReEnrichTrades,
-  handleClearAndReinit,
-  handleClearLocalCache,
-  isReEnriching = false,
   accountTier = 'custom',
   onImportPastedTrades,
   isImportingPastedTrades = false,
-  handleFixImportDates,
-  isFixingDates = false,
 }) {
   return (
     <div className="space-y-4">
       <h2 className="text-sm font-semibold text-white/70">Data management</h2>
 
-      <BackupRestoreCard />
-
-      <StrategiesBackupCard />
-
-      <PasteTradesCard
-        accountTier={accountTier}
-        onImportTrades={onImportPastedTrades}
-        isImporting={isImportingPastedTrades}
-      />
-
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <button
-          onClick={handleReEnrichTrades}
-          disabled={isReEnriching}
-          className="flex flex-col items-start gap-1 bg-cyan-500/8 hover:bg-cyan-500/12 disabled:opacity-60 disabled:cursor-not-allowed border border-cyan-500/20 rounded-xl p-4 transition-colors text-left"
+      <div className="space-y-2">
+        <DataSection
+          icon={CalendarClock}
+          title="Weekly auto-backup"
+          subtitle="Writes this account tier to a folder every Friday, or the next time you open the app"
         >
-          <span className="text-sm font-semibold text-cyan-300">
-            {isReEnriching ? 'Re-enriching trades...' : 'Re-enrich Trades'}
-          </span>
-          <span className="text-xs text-white/40">
-            Backfill share-float + float range on existing journal trades
-          </span>
-        </button>
+          <AutoBackupCard />
+        </DataSection>
 
-        <button
-          onClick={handleClearAndReinit}
-          className="flex flex-col items-start gap-1 bg-orange-500/8 hover:bg-orange-500/12 border border-orange-500/20 rounded-xl p-4 transition-colors text-left"
+        <DataSection
+          icon={BookOpenCheck}
+          title="Strategies"
+          subtitle="Export or import Playbook setups"
         >
-          <span className="text-sm font-semibold text-orange-300">Reset Settings</span>
-          <span className="text-xs text-white/40">Clear all settings and reinitialize with defaults</span>
-        </button>
+          <StrategiesBackupCard />
+        </DataSection>
 
-        <button
-          onClick={handleClearLocalCache}
-          className="flex flex-col items-start gap-1 bg-red-500/8 hover:bg-red-500/12 border border-red-500/20 rounded-xl p-4 transition-colors text-left"
+        <DataSection
+          icon={ListChecks}
+          title="Rules"
+          subtitle="Export or import rule categories and their rules"
         >
-          <span className="text-sm font-semibold text-red-300">Clear local cache</span>
-          <span className="text-xs text-white/40">Removes localStorage - Firebase data stays safe</span>
-        </button>
+          <RulesBackupCard />
+        </DataSection>
 
-        <button
-          onClick={handleFixImportDates}
-          disabled={isFixingDates}
-          className="flex flex-col items-start gap-1 bg-amber-500/8 hover:bg-amber-500/12 disabled:opacity-60 disabled:cursor-not-allowed border border-amber-500/20 rounded-xl p-4 transition-colors text-left"
+        <DataSection
+          icon={NotebookPen}
+          title="Journal"
+          subtitle="Export trades as JSON or CSV, or import a journal file"
         >
-          <span className="text-sm font-semibold text-amber-300">
-            {isFixingDates ? 'Fixing dates...' : 'Fix Import Dates'}
-          </span>
-          <span className="text-xs text-white/40">
-            Updates trades with a pre-2010 year (e.g. 2001 from bad import) to the current year
-          </span>
-        </button>
+          <JournalBackupCard />
+        </DataSection>
+
+        <DataSection
+          icon={ClipboardPaste}
+          title="Paste trades"
+          subtitle="Bulk-add trades by pasting a table straight from your broker"
+        >
+          <PasteTradesCard
+            accountTier={accountTier}
+            onImportTrades={onImportPastedTrades}
+            isImporting={isImportingPastedTrades}
+          />
+        </DataSection>
       </div>
     </div>
   );

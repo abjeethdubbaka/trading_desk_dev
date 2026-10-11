@@ -4,7 +4,7 @@ import { DEFAULT_SETUP_TYPES, sanitizeSetupTypes } from '@/components/journal/Ad
 const normalizeStrategyStepGrade = (value) => {
   const normalized = String(value ?? '').trim().toUpperCase();
   if (!normalized) return '';
-  if (normalized === 'A++' || normalized === 'A+' || ['A', 'B', 'C', 'D', 'F'].includes(normalized)) return normalized;
+  if (normalized === 'A+' || ['A', 'B', 'C', 'D', 'F'].includes(normalized)) return normalized;
   return normalized;
 };
 

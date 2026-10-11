@@ -36,3 +36,18 @@ export function getTodayMaxDailyLoss(settings, tierId = resolveTierKey(settings)
 
   return Number(limits[0]) || 0;
 }
+
+/**
+ * The base risk per trade: half of today's max daily loss — two full losses
+ * end the day. This is the "Risk amount" Settings shows, so sizing reads it
+ * here rather than from the stored `risk_amount`, which is only rewritten
+ * when a loss limit is edited and so can belong to another day or tier.
+ * Falls back to the stored value only when no loss limit is set at all.
+ */
+export function getTodayRiskAmount(settings, tierId = resolveTierKey(settings)) {
+  const todayLimit = getTodayMaxDailyLoss(settings, tierId);
+  if (Number.isFinite(todayLimit) && todayLimit > 0) return todayLimit / 2;
+
+  const stored = Number(settings?.risk_amount);
+  return Number.isFinite(stored) && stored > 0 ? stored : null;
+}

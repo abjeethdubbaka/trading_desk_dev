@@ -3,7 +3,7 @@ import { Label } from "@/components/ui/label";
 import { Upload, X, Loader2, Maximize2, AlertCircle } from 'lucide-react';
 import { cn } from "@/lib/utils";
 import ImageLightbox from '@/components/ui/ImageLightbox';
-import { useScreenshotIdsUrls } from '@/components/journal/shared/media/useScreenshotUrls';
+import { useScreenshotIdsUrls } from '@/components/journal/media/useScreenshotUrls';
 
 const ScreenshotPreview = ({ id, index, onRemove, onView, url, status }) => {
   if (status === 'error') {
